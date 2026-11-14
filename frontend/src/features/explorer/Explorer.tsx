@@ -5,6 +5,7 @@ import DecisionLog from '../mission-control/DecisionLog';
 import ProgressCard from './ProgressCard';
 import PhotoViewer from './PhotoViewer';
 import ObservationForm from './ObservationForm';
+import ContingencyPanel from './ContingencyPanel';
 
 interface Props {
   mission: Mission;
@@ -39,6 +40,16 @@ export default function Explorer({ mission, onMission }: Props) {
   return (
     <div className="grid h-full gap-4 overflow-y-auto p-4 md:grid-cols-2">
       <div className="space-y-4">
+        {mission.alerts.length > 0 && (
+          <div className="space-y-1 rounded border border-red-600 bg-red-950 p-3 text-red-200">
+            <p className="font-bold">⚠ {mission.status === 'contingency' ? 'CONTINGENCIA ACTIVA' : 'ALERTAS'}</p>
+            {mission.alerts.map((a) => (
+              <p key={a} className="text-sm">
+                {a}
+              </p>
+            ))}
+          </div>
+        )}
         <ProgressCard mission={mission} current={current} />
         {change && (
           <p className="rounded border border-sky-700 bg-sky-950 p-3 text-sm">
@@ -46,6 +57,7 @@ export default function Explorer({ mission, onMission }: Props) {
           </p>
         )}
         <ObservationForm mission={mission} objectives={objectives} onUpdated={handleUpdated} />
+        <ContingencyPanel mission={mission} onMission={onMission} />
       </div>
       <div className="space-y-4">
         <PhotoViewer photos={photos.filter((p) => p.objective_id === current?.objective_id)} />

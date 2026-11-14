@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { marsApi } from '../../shared/api/client';
 import type { Mission, Objective } from '../../shared/types/contracts';
+import { mutateMission } from '../../shared/api/mutateMission';
 
 interface Props {
   mission: Mission;
@@ -23,26 +24,27 @@ export default function ObservationForm({ mission, objectives, onUpdated }: Prop
   const objective = pending.find((o) => o.objective_id === selectedId) ?? null;
   const validFinding = !!objective?.possible_findings.includes(finding);
 
-  async function submit() {
+    async function submit() {
     if (!objective || !validFinding) return;
     setLoading(true);
-    setError(null);
-    try {
-      const next = await marsApi.submitObservation(mission.mission_id, {
-        mission_version: mission.version,
-        objective_id: objective.objective_id,
-        finding_code: finding,
-        notes: notes.trim() || undefined,
-      });
+    const err = await mutateMission(
+      mission.mission_id,
+      () =>
+        marsApi.submitObservation(mission.mission_id, {
+          mission_version: mission.version,
+          objective_id: objective.objective_id,
+          finding_code: finding,
+          notes: notes.trim() || undefined,
+        }),
+      onUpdated,
+    );
+    setError(err);
+    if (!err) {
       setObjectiveId('');
       setFinding('');
       setNotes('');
-      onUpdated(next);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }
 
   if (pending.length === 0) {

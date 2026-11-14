@@ -42,6 +42,11 @@ export default function ProgressCard({ mission, current }: { mission: Mission; c
         Ruta: {mission.route.status} · {fmt(mission.route.distance_m, 'm')} · pendiente máx.{' '}
         {fmt(mission.route.max_slope_deg, '°')}
       </p>
+      {mission.route.warnings.map((w) => (
+        <p key={w} className="text-xs text-amber-300">
+          ⚠ {w}
+        </p>
+      ))}
     </section>
   );
 }

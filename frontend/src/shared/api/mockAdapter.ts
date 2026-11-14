@@ -18,7 +18,17 @@ const as = <T>(json: unknown) => structuredClone(json) as T;
 
 let mission = as<Mission>(planResponse);
 
+let pendingFail = import.meta.env.VITE_MOCK_FAIL as string | undefined;
+
 function advance(next: unknown, clientVersion: number): Mission {
+  if (pendingFail === '503') {
+    pendingFail = undefined;
+    throw new MarsApiError(503, 'SERVICE_UNAVAILABLE', 'Servicio no disponible (simulado).');
+  }
+  if (pendingFail === '409') {
+    pendingFail = undefined;
+    mission = { ...mission, version: mission.version + 1 }; 
+  }
   if (clientVersion !== mission.version) {
     throw new MarsApiError(409, 'VERSION_CONFLICT', 'La misión cambió en el servidor; recarga el estado.');
   }
