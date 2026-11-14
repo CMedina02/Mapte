@@ -3,6 +3,7 @@ import OlMap from 'ol/Map';
 import View from 'ol/View';
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
+import LineString from 'ol/geom/LineString';
 import { fromExtent } from 'ol/geom/Polygon';
 import ImageLayer from 'ol/layer/Image';
 import VectorLayer from 'ol/layer/Vector';
@@ -11,21 +12,41 @@ import VectorSource from 'ol/source/Vector';
 import MousePosition from 'ol/control/MousePosition';
 import { defaults as defaultControls } from 'ol/control/defaults';
 import { createStringXY } from 'ol/coordinate';
+import { containsCoordinate } from 'ol/extent';
 import { Circle, Fill, Stroke, Style, Text } from 'ol/style';
 import 'ol/ol.css';
-import type { Objective, Position, RegionManifest } from '../../shared/types/contracts';
+import type { Objective, Position, RegionManifest, RouteResult, RouteStatus } from '../../shared/types/contracts';
 import { isImageLayer, manifestExtent, marsProjection, type LayerState } from './mapUtils';
 
 interface Props {
   manifest: RegionManifest;
   objectives: Objective[];
+  selectedObjectiveIds: string[];
   basePosition: Position | null;
   layerState: Record<string, LayerState>;
+  onMapClick?: (p: Position) => void;
+  route: RouteResult | null;
 }
 
 const boundsStyle = new Style({
   stroke: new Stroke({ color: '#f97316', width: 1, lineDash: [6, 6] }),
 });
+
+
+const ROUTE_COLOR: Record<RouteStatus, string> = {
+  viable: '#22c55e',
+  not_viable: '#ef4444',
+  unknown: '#f59e0b',
+};
+
+const routeStyle = (status: RouteStatus) =>
+  new Style({
+    stroke: new Stroke({
+      color: ROUTE_COLOR[status] ?? ROUTE_COLOR.unknown,
+      width: 3,
+      lineDash: status === 'viable' ? undefined : [8, 6],
+    }),
+  });
 
 const pointStyle = (label: string, color: string) =>
   new Style({
@@ -43,12 +64,25 @@ const pointStyle = (label: string, color: string) =>
     }),
   });
 
-export default function MarsMap({ manifest, objectives, basePosition, layerState }: Props) {
+export default function MarsMap({
+  manifest,
+  objectives,
+  selectedObjectiveIds,
+  basePosition,
+  layerState,
+  route,
+  onMapClick,
+}: Props) {
   const targetRef = useRef<HTMLDivElement>(null);
   const imageLayers = useRef<Record<string, ImageLayer<ImageStatic>>>({});
   const markers = useRef<VectorSource | null>(null);
+  const routeSource = useRef<VectorSource | null>(null);
+  const clickRef = useRef(onMapClick);
 
-  // 1. Mapa + proyección local. Se recrea solo si cambia la región.
+  useEffect(() => {
+    clickRef.current = onMapClick;
+  });
+
   useEffect(() => {
     const projection = marsProjection(manifest);
     const extent = manifestExtent(manifest);
@@ -56,7 +90,6 @@ export default function MarsMap({ manifest, objectives, basePosition, layerState
     imageLayers.current = {};
     const rasters = manifest.layers.filter(isImageLayer).map((l) => {
       const layer = new ImageLayer({
-        // ponytail: asume que cada imagen cubre exactamente bounds_local_m
         source: new ImageStatic({ url: l.asset_url, imageExtent: extent, projection }),
       });
       imageLayers.current[l.layer_id] = layer;
@@ -64,6 +97,7 @@ export default function MarsMap({ manifest, objectives, basePosition, layerState
     });
 
     markers.current = new VectorSource();
+    routeSource.current = new VectorSource();
     const bounds = new VectorLayer({
       source: new VectorSource({ features: [new Feature(fromExtent(extent))] }),
       style: boundsStyle,
@@ -71,18 +105,30 @@ export default function MarsMap({ manifest, objectives, basePosition, layerState
 
     const map = new OlMap({
       target: targetRef.current!,
-      layers: [...rasters, bounds, new VectorLayer({ source: markers.current })],
-      view: new View({ projection, extent, constrainOnlyCenter: true }),
+      layers: [
+        ...rasters,
+        bounds,
+        new VectorLayer({ source: routeSource.current }),
+        new VectorLayer({ source: markers.current }),
+      ], view: new View({ projection, extent, constrainOnlyCenter: true }),
       controls: defaultControls().extend([
         new MousePosition({ coordinateFormat: createStringXY(0), projection }),
       ]),
     });
     map.getView().fit(extent, { padding: [24, 24, 24, 24] });
 
+    map.on('click', (e) => {
+      if (!containsCoordinate(extent, e.coordinate)) return;
+      clickRef.current?.({
+        x_m: Math.round(e.coordinate[0]),
+        y_m: Math.round(e.coordinate[1]),
+        frame_id: manifest.frame.frame_id,
+      });
+    });
+
     return () => map.setTarget(undefined);
   }, [manifest]);
 
-  // 2. Visibilidad y opacidad de capas
   useEffect(() => {
     for (const [id, layer] of Object.entries(imageLayers.current)) {
       const s = layerState[id];
@@ -91,7 +137,6 @@ export default function MarsMap({ manifest, objectives, basePosition, layerState
     }
   }, [layerState, manifest]);
 
-  // 3. Marcadores de base y objetivos
   useEffect(() => {
     const frameId = manifest.frame.frame_id;
     const point = (p: Position, label: string, color: string) => {
@@ -107,9 +152,23 @@ export default function MarsMap({ manifest, objectives, basePosition, layerState
     markers.current?.clear();
     markers.current?.addFeatures([
       ...(basePosition ? point(basePosition, 'BASE', '#38bdf8') : []),
-      ...objectives.flatMap((o) => point(o.position, o.title, '#f97316')),
+      ...objectives.flatMap((o) =>
+        point(o.position, o.title, selectedObjectiveIds.includes(o.objective_id) ? '#22c55e' : '#f97316'),
+      ),
     ]);
-  }, [objectives, basePosition, manifest]);
+  }, [objectives, selectedObjectiveIds, basePosition, manifest]);
 
-  return <div ref={targetRef} className="h-full w-full" />;
+  useEffect(() => {
+    routeSource.current?.clear();
+    if (!route || route.path.length < 2) return;
+    const frameId = manifest.frame.frame_id;
+    if (route.path.some((p) => p.frame_id !== frameId)) {
+      console.warn(`Ruta en otro frame (se esperaba ${frameId}); no se dibuja.`);
+      return;
+    }
+    const f = new Feature(new LineString(route.path.map((p) => [p.x_m, p.y_m])));
+    f.setStyle(routeStyle(route.status));
+    routeSource.current?.addFeature(f);
+  }, [route, manifest]);
+  return <div ref={targetRef} className="h-full w-full cursor-crosshair" />;
 }
