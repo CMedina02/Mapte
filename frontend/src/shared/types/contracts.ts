@@ -1,7 +1,23 @@
-export interface LocalMarsPosition {
+export interface Position {
   x_m: number;
   y_m: number;
   frame_id: string;
+}
+
+export interface Constraints {
+  max_slope_deg: number;
+  speed_m_per_min: number;
+  avoid_unknown: boolean;
+}
+
+export interface Resources {
+  oxygen_available_min: number;
+  return_reserve_min: number;
+}
+
+export interface Health {
+  status: 'ok' | 'degraded';
+  api_version: string;
 }
 
 export interface Region {
@@ -12,80 +28,103 @@ export interface Region {
   available: boolean;
 }
 
-export interface MapLayerManifest {
-  layer_id: string;
-  kind: 'optical' | 'elevation' | 'slope' | 'geology' | 'thermal' | string;
-  title: string;
-  asset_url: string;
-  opacity_default: number;
-  resolution_m_per_pixel: number;
-  evidence_ids: string[];
-  nodata_policy: string;
+export interface RegionsResponse {
+  regions: Region[];
 }
 
-export interface EvidenceRecord {
+export interface Frame {
+  frame_id: string;
+  units: 'm';
+  origin_east_lon_deg: number;
+  origin_planetocentric_lat_deg: number;
+  projection_definition: string;
+  longitude_direction: 'east' | 'west';
+  latitude_type: 'planetocentric' | 'planetographic';
+}
+
+export interface Bounds {
+  min_x: number;
+  min_y: number;
+  max_x: number;
+  max_y: number;
+}
+
+export interface Evidence {
   evidence_id: string;
   title: string;
   mission: string;
   instrument: string;
   source_url: string;
   credit: string;
-  captured_at: string;
+  captured_at: string | null;
   resolution_m: number | null;
-  caveats: string;
+  caveats: string[];
+}
+
+export type LayerKind = 'optical' | 'topographic' | 'geologic' | 'thermal' | 'spectral' | 'other';
+
+export interface Layer {
+  layer_id: string;
+  kind: LayerKind;
+  title: string;
+  asset_url: string;
+  opacity_default: number;
+  resolution_m_per_pixel: number;
+  evidence_ids: string[];
+  nodata_policy: 'unknown';
 }
 
 export interface RegionManifest {
   region_id: string;
-  frame: {
-    frame_id: string;
-    units: 'm';
-    origin: LocalMarsPosition;
-    projection_definition: string;
-    longitude_direction: string;
-    latitude_type: string;
-  };
-  bounds_local_m: {
-    min_x: number;
-    min_y: number;
-    max_x: number;
-    max_y: number;
-  };
-  layers: MapLayerManifest[];
-  evidence: EvidenceRecord[];
+  frame: Frame;
+  bounds_local_m: Bounds;
+  layers: Layer[];
+  evidence: Evidence[];
+  sample_only?: boolean;
 }
 
-export interface PossibleFinding {
-  finding_code: string;
-  label: string;
-  description?: string;
-}
-
-export interface ScienceObjective {
+export interface Objective {
   objective_id: string;
   region_id: string;
   title: string;
-  position: LocalMarsPosition;
+  position: Position;
   science_question: string;
   priority_weight: number;
   activities: string[];
-  possible_findings: PossibleFinding[];
+  possible_findings: string[];
+  evidence_ids: string[];
+}
+
+export interface ObjectivesResponse {
+  objectives: Objective[];
 }
 
 export type LocationQuality = 'verified' | 'approximate' | 'unknown';
 
-export interface PhotoReference {
+export interface Photo {
   photo_id: string;
-  objective_id: string | null;
+  objective_id: string;
   image_url: string;
   camera: string;
-  sol: number;
-  captured_at: string;
+  sol: number | null;
+  captured_at: string | null;
   credit: string;
   source_url: string;
-  location: LocalMarsPosition | null;
+  location: Position | null;
   location_quality: LocationQuality;
-  limitations: string;
+  limitations: string[];
+}
+
+export interface PhotosResponse {
+  photos: Photo[];
+  sample_only?: boolean;
+}
+
+export interface RouteRequest {
+  region_id: string;
+  start: Position;
+  end: Position;
+  constraints: Constraints;
 }
 
 export type RouteStatus = 'viable' | 'not_viable' | 'unknown';
@@ -93,56 +132,87 @@ export type RouteStatus = 'viable' | 'not_viable' | 'unknown';
 export interface RouteResult {
   route_id: string;
   region_id: string;
-  path: LocalMarsPosition[];
+  path: Position[];
   distance_m: number | null;
   duration_min: number | null;
   ascent_m: number | null;
   max_slope_deg: number | null;
   status: RouteStatus;
-  unknown_segments: number[][];
+  unknown_segments: number;
   warnings: string[];
   evidence_ids: string[];
   assumptions: string[];
+  sample_only?: boolean;
 }
 
-export interface MissionAlert {
-  alert_id: string;
-  severity: 'info' | 'warning' | 'critical';
-  code: string;
+
+export interface MissionPlanRequest {
+  region_id: string;
+  base_position: Position;
+  objective_ids: string[];
+  constraints: Constraints;
+  resources: Resources;
+}
+
+export interface Decision {
+  event_type: string;
   message: string;
+  evidence_ids: string[];
+  simulated: boolean;
 }
 
-export interface DecisionLogEntry {
-  timestamp: string;
-  step: string;
-  reason: string;
-  evidence_ids?: string[];
-}
+export type MissionStatus = 'planned' | 'in_progress' | 'contingency' | 'completed' | 'cancelled';
 
 export interface Mission {
   mission_id: string;
   region_id: string;
   version: number;
-  status: 'planned' | 'active' | 'contingency' | 'completed' | 'aborted' | 'unknown';
-  base_position: LocalMarsPosition;
+  status: MissionStatus;
+  base_position: Position;
   objective_ids: string[];
   route: RouteResult;
-  resources: {
-    oxygen_available_min: number | null;
-    return_reserve_min: number | null;
-  };
+  resources: Resources;
   completed_objective_ids: string[];
   next_objective_id: string | null;
-  alerts: MissionAlert[];
-  decision_log: DecisionLogEntry[];
+  alerts: string[];
+  decision_log: Decision[];
   evidence_ids: string[];
+  sample_only?: boolean;
 }
 
-export interface ApiErrorResponse {
+export interface ObservationRequest {
+  mission_version: number;
+  objective_id: string;
+  finding_code: string;
+  notes?: string;
+}
+
+export type ContingencyType = 'oxygen_reduced' | 'rover_unavailable';
+
+export interface ContingencyRequest {
+  mission_version: number;
+  contingency_type: ContingencyType;
+  position: Position;
+  oxygen_available_min: number;
+}
+
+export interface MissionPackage {
+  package_version: string;
+  mission: Mission;
+  region_manifest: RegionManifest;
+  objectives: Objective[];
+  photos: Photo[];
+  offline_assets: string[];
+  package_status: string;
+  generated_at: string;
+  sample_only?: boolean;
+}
+
+export interface ApiError {
   error: {
     code: string;
     message: string;
-    details?: Record<string, unknown>;
-    request_id?: string;
+    details: Record<string, unknown>;
+    request_id: string;
   };
 }
