@@ -1,0 +1,11 @@
+{
+  "regions": [
+    {
+      "region_id": "demo-jezero",
+      "name": "Región sintética de pruebas (Jezero)",
+      "body": "Mars",
+      "description": "Solo mock para desarrollo; geometría y métricas ficticias",
+      "available": true
+    }
+  ]
+}

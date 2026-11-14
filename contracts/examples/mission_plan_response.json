@@ -1,0 +1,78 @@
+{
+  "mission_id": "mission-demo-001",
+  "region_id": "demo-jezero",
+  "version": 1,
+  "status": "planned",
+  "base_position": {
+    "x_m": 100,
+    "y_m": 200,
+    "frame_id": "DEMO_LOCAL_MARS_V1"
+  },
+  "objective_ids": [
+    "obj-001",
+    "obj-002"
+  ],
+  "route": {
+    "route_id": "route-001",
+    "region_id": "demo-jezero",
+    "path": [
+      {
+        "x_m": 100,
+        "y_m": 200,
+        "frame_id": "DEMO_LOCAL_MARS_V1"
+      },
+      {
+        "x_m": 250,
+        "y_m": 350,
+        "frame_id": "DEMO_LOCAL_MARS_V1"
+      },
+      {
+        "x_m": 400,
+        "y_m": 540,
+        "frame_id": "DEMO_LOCAL_MARS_V1"
+      },
+      {
+        "x_m": 600,
+        "y_m": 850,
+        "frame_id": "DEMO_LOCAL_MARS_V1"
+      }
+    ],
+    "distance_m": 900,
+    "duration_min": 45,
+    "ascent_m": 20,
+    "max_slope_deg": 10,
+    "status": "viable",
+    "unknown_segments": 0,
+    "warnings": [
+      "Métricas sintéticas: no usar para navegación real"
+    ],
+    "evidence_ids": [
+      "ev-demo"
+    ],
+    "assumptions": [
+      "Velocidad ficticia constante de 20 m/min"
+    ],
+    "sample_only": true
+  },
+  "resources": {
+    "oxygen_available_min": 240,
+    "return_reserve_min": 60
+  },
+  "completed_objective_ids": [],
+  "next_objective_id": "obj-001",
+  "alerts": [],
+  "decision_log": [
+    {
+      "event_type": "plan_created",
+      "message": "Objetivo obj-001 seleccionado bajo pesos ficticios",
+      "evidence_ids": [
+        "ev-demo"
+      ],
+      "simulated": true
+    }
+  ],
+  "evidence_ids": [
+    "ev-demo"
+  ],
+  "sample_only": true
+}

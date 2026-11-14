@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": "REGION_NOT_READY",
+    "message": "La región no tiene datos suficientes",
+    "details": {
+      "missing_layers": [
+        "elevation"
+      ]
+    },
+    "request_id": "req-demo-01"
+  }
+}

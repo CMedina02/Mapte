@@ -1,0 +1,18 @@
+{
+  "region_id": "demo-jezero",
+  "start": {
+    "x_m": 100,
+    "y_m": 200,
+    "frame_id": "DEMO_LOCAL_MARS_V1"
+  },
+  "end": {
+    "x_m": 600,
+    "y_m": 850,
+    "frame_id": "DEMO_LOCAL_MARS_V1"
+  },
+  "constraints": {
+    "max_slope_deg": 15,
+    "speed_m_per_min": 20,
+    "avoid_unknown": true
+  }
+}

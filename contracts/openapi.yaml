@@ -1,0 +1,890 @@
+openapi: 3.0.3
+info:
+  title: Mars Resilience Lab — API interna (contrato propuesto)
+  version: 1.0.0-draft
+  description: Contrato para tres desarrolladores. Los ejemplos demo son sintéticos, no datos NASA ni resultados
+    científicos.
+servers:
+- url: /api/v1
+  description: Mismo origen o proxy de desarrollo
+tags:
+- name: System
+- name: Catalog
+- name: Missions
+paths:
+  /health:
+    get:
+      tags:
+      - System
+      summary: Estado del servicio
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '400': &id001
+          description: Error con estructura consistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404': *id001
+        '422': *id001
+        '503': *id001
+  /regions:
+    get:
+      tags:
+      - Catalog
+      summary: Lista de regiones
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegionsResponse'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+  /regions/{region_id}/manifest:
+    get:
+      tags:
+      - Catalog
+      summary: Capas y referencia geográfica
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegionManifest'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+      parameters:
+      - name: region_id
+        in: path
+        required: true
+        schema:
+          type: string
+  /regions/{region_id}/objectives:
+    get:
+      tags:
+      - Catalog
+      summary: Objetivos científicos
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectivesResponse'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+      parameters:
+      - name: region_id
+        in: path
+        required: true
+        schema:
+          type: string
+  /regions/{region_id}/photos:
+    get:
+      tags:
+      - Catalog
+      summary: Fotografías asociadas
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotosResponse'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+      parameters:
+      - name: region_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: objective_id
+        in: query
+        required: false
+        schema:
+          type: string
+  /routes/compute:
+    post:
+      tags:
+      - Missions
+      summary: Evaluar una ruta
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResult'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+  /missions/plan:
+    post:
+      tags:
+      - Missions
+      summary: Crear un plan de misión
+      responses:
+        '201':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MissionPlanRequest'
+  /missions/{mission_id}:
+    get:
+      tags:
+      - Missions
+      summary: Consultar estado de misión
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+      parameters:
+      - name: mission_id
+        in: path
+        required: true
+        schema:
+          type: string
+  /missions/{mission_id}/observations:
+    post:
+      tags:
+      - Missions
+      summary: Registrar observación y replanificar
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+        '409': *id001
+      parameters:
+      - name: mission_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObservationRequest'
+  /missions/{mission_id}/contingencies:
+    post:
+      tags:
+      - Missions
+      summary: Reevaluar retorno ante escenario
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+        '409': *id001
+      parameters:
+      - name: mission_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContingencyRequest'
+  /missions/{mission_id}/package:
+    get:
+      tags:
+      - Missions
+      summary: Descargar paquete offline lógico
+      responses:
+        '200':
+          description: Respuesta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissionPackage'
+        '400': *id001
+        '404': *id001
+        '422': *id001
+        '503': *id001
+      parameters:
+      - name: mission_id
+        in: path
+        required: true
+        schema:
+          type: string
+components:
+  schemas:
+    Position:
+      type: object
+      required:
+      - x_m
+      - y_m
+      - frame_id
+      properties:
+        x_m:
+          type: number
+        y_m:
+          type: number
+        frame_id:
+          type: string
+          minLength: 1
+    Constraints:
+      type: object
+      required:
+      - max_slope_deg
+      - speed_m_per_min
+      - avoid_unknown
+      properties:
+        max_slope_deg:
+          type: number
+          minimum: 0
+          maximum: 90
+        speed_m_per_min:
+          type: number
+          exclusiveMinimum: 0
+        avoid_unknown:
+          type: boolean
+    Resources:
+      type: object
+      required:
+      - oxygen_available_min
+      - return_reserve_min
+      properties:
+        oxygen_available_min:
+          type: number
+          minimum: 0
+        return_reserve_min:
+          type: number
+          minimum: 0
+    Health:
+      type: object
+      required:
+      - status
+      - api_version
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - degraded
+        api_version:
+          type: string
+    Region:
+      type: object
+      required:
+      - region_id
+      - name
+      - body
+      - description
+      - available
+      properties:
+        region_id:
+          type: string
+        name:
+          type: string
+        body:
+          type: string
+          enum:
+          - Mars
+        description:
+          type: string
+        available:
+          type: boolean
+    RegionsResponse:
+      type: object
+      required:
+      - regions
+      properties:
+        regions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Region'
+    Frame:
+      type: object
+      required:
+      - frame_id
+      - units
+      - origin_east_lon_deg
+      - origin_planetocentric_lat_deg
+      - projection_definition
+      - longitude_direction
+      - latitude_type
+      properties:
+        frame_id:
+          type: string
+        units:
+          type: string
+          enum:
+          - m
+        origin_east_lon_deg:
+          type: number
+        origin_planetocentric_lat_deg:
+          type: number
+        projection_definition:
+          type: string
+        longitude_direction:
+          type: string
+          enum:
+          - east
+          - west
+        latitude_type:
+          type: string
+          enum:
+          - planetocentric
+          - planetographic
+    Bounds:
+      type: object
+      required:
+      - min_x
+      - min_y
+      - max_x
+      - max_y
+      properties:
+        min_x:
+          type: number
+        min_y:
+          type: number
+        max_x:
+          type: number
+        max_y:
+          type: number
+    Evidence:
+      type: object
+      required:
+      - evidence_id
+      - title
+      - mission
+      - instrument
+      - source_url
+      - credit
+      - captured_at
+      - resolution_m
+      - caveats
+      properties:
+        evidence_id:
+          type: string
+        title:
+          type: string
+        mission:
+          type: string
+        instrument:
+          type: string
+        source_url:
+          type: string
+          format: uri
+        credit:
+          type: string
+        captured_at:
+          type: string
+          format: date-time
+          nullable: true
+        resolution_m:
+          type: number
+          nullable: true
+        caveats:
+          type: array
+          items:
+            type: string
+    Layer:
+      type: object
+      required:
+      - layer_id
+      - kind
+      - title
+      - asset_url
+      - opacity_default
+      - resolution_m_per_pixel
+      - evidence_ids
+      - nodata_policy
+      properties:
+        layer_id:
+          type: string
+        kind:
+          type: string
+          enum:
+          - optical
+          - topographic
+          - geologic
+          - thermal
+          - spectral
+          - other
+        title:
+          type: string
+        asset_url:
+          type: string
+        opacity_default:
+          type: number
+          minimum: 0
+          maximum: 1
+        resolution_m_per_pixel:
+          type: number
+          exclusiveMinimum: 0
+        evidence_ids:
+          type: array
+          items:
+            type: string
+        nodata_policy:
+          type: string
+          enum:
+          - unknown
+    RegionManifest:
+      type: object
+      required:
+      - region_id
+      - frame
+      - bounds_local_m
+      - layers
+      - evidence
+      properties:
+        region_id:
+          type: string
+        frame:
+          $ref: '#/components/schemas/Frame'
+        bounds_local_m:
+          $ref: '#/components/schemas/Bounds'
+        layers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Layer'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+        sample_only:
+          type: boolean
+    Objective:
+      type: object
+      required:
+      - objective_id
+      - region_id
+      - title
+      - position
+      - science_question
+      - priority_weight
+      - activities
+      - possible_findings
+      - evidence_ids
+      properties:
+        objective_id:
+          type: string
+        region_id:
+          type: string
+        title:
+          type: string
+        position:
+          $ref: '#/components/schemas/Position'
+        science_question:
+          type: string
+        priority_weight:
+          type: number
+          minimum: 0
+        activities:
+          type: array
+          items:
+            type: string
+        possible_findings:
+          type: array
+          items:
+            type: string
+        evidence_ids:
+          type: array
+          items:
+            type: string
+    ObjectivesResponse:
+      type: object
+      required:
+      - objectives
+      properties:
+        objectives:
+          type: array
+          items:
+            $ref: '#/components/schemas/Objective'
+    Photo:
+      type: object
+      required:
+      - photo_id
+      - objective_id
+      - image_url
+      - camera
+      - sol
+      - captured_at
+      - credit
+      - source_url
+      - location
+      - location_quality
+      - limitations
+      properties:
+        photo_id:
+          type: string
+        objective_id:
+          type: string
+        image_url:
+          type: string
+        camera:
+          type: string
+        sol:
+          type: integer
+          nullable: true
+        captured_at:
+          type: string
+          format: date-time
+          nullable: true
+        credit:
+          type: string
+        source_url:
+          type: string
+          format: uri
+        location:
+          allOf:
+          - $ref: '#/components/schemas/Position'
+          nullable: true
+        location_quality:
+          type: string
+          enum:
+          - verified
+          - approximate
+          - unknown
+        limitations:
+          type: array
+          items:
+            type: string
+    PhotosResponse:
+      type: object
+      required:
+      - photos
+      properties:
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+        sample_only:
+          type: boolean
+    RouteRequest:
+      type: object
+      required:
+      - region_id
+      - start
+      - end
+      - constraints
+      properties:
+        region_id:
+          type: string
+        start:
+          $ref: '#/components/schemas/Position'
+        end:
+          $ref: '#/components/schemas/Position'
+        constraints:
+          $ref: '#/components/schemas/Constraints'
+    RouteResult:
+      type: object
+      required:
+      - route_id
+      - region_id
+      - path
+      - distance_m
+      - duration_min
+      - ascent_m
+      - max_slope_deg
+      - status
+      - unknown_segments
+      - warnings
+      - evidence_ids
+      - assumptions
+      properties:
+        route_id:
+          type: string
+        region_id:
+          type: string
+        path:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+        distance_m:
+          type: number
+          minimum: 0
+        duration_min:
+          type: number
+          minimum: 0
+        ascent_m:
+          type: number
+          minimum: 0
+        max_slope_deg:
+          type: number
+          minimum: 0
+        status:
+          type: string
+          enum:
+          - viable
+          - not_viable
+          - unknown
+        unknown_segments:
+          type: integer
+          minimum: 0
+        warnings:
+          type: array
+          items:
+            type: string
+        evidence_ids:
+          type: array
+          items:
+            type: string
+        assumptions:
+          type: array
+          items:
+            type: string
+        sample_only:
+          type: boolean
+    MissionPlanRequest:
+      type: object
+      required:
+      - region_id
+      - base_position
+      - objective_ids
+      - constraints
+      - resources
+      properties:
+        region_id:
+          type: string
+        base_position:
+          $ref: '#/components/schemas/Position'
+        objective_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        constraints:
+          $ref: '#/components/schemas/Constraints'
+        resources:
+          $ref: '#/components/schemas/Resources'
+    Decision:
+      type: object
+      required:
+      - event_type
+      - message
+      - evidence_ids
+      - simulated
+      properties:
+        event_type:
+          type: string
+        message:
+          type: string
+        evidence_ids:
+          type: array
+          items:
+            type: string
+        simulated:
+          type: boolean
+    Mission:
+      type: object
+      required:
+      - mission_id
+      - region_id
+      - version
+      - status
+      - base_position
+      - objective_ids
+      - route
+      - resources
+      - completed_objective_ids
+      - next_objective_id
+      - alerts
+      - decision_log
+      - evidence_ids
+      properties:
+        mission_id:
+          type: string
+        region_id:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - planned
+          - in_progress
+          - contingency
+          - completed
+          - cancelled
+        base_position:
+          $ref: '#/components/schemas/Position'
+        objective_ids:
+          type: array
+          items:
+            type: string
+        route:
+          $ref: '#/components/schemas/RouteResult'
+        resources:
+          $ref: '#/components/schemas/Resources'
+        completed_objective_ids:
+          type: array
+          items:
+            type: string
+        next_objective_id:
+          type: string
+          nullable: true
+        alerts:
+          type: array
+          items:
+            type: string
+        decision_log:
+          type: array
+          items:
+            $ref: '#/components/schemas/Decision'
+        evidence_ids:
+          type: array
+          items:
+            type: string
+        sample_only:
+          type: boolean
+    ObservationRequest:
+      type: object
+      required:
+      - mission_version
+      - objective_id
+      - finding_code
+      properties:
+        mission_version:
+          type: integer
+          minimum: 1
+        objective_id:
+          type: string
+        finding_code:
+          type: string
+        notes:
+          type: string
+          maxLength: 1000
+    ContingencyRequest:
+      type: object
+      required:
+      - mission_version
+      - contingency_type
+      - position
+      - oxygen_available_min
+      properties:
+        mission_version:
+          type: integer
+          minimum: 1
+        contingency_type:
+          type: string
+          enum:
+          - oxygen_reduced
+          - rover_unavailable
+        position:
+          $ref: '#/components/schemas/Position'
+        oxygen_available_min:
+          type: number
+          minimum: 0
+    MissionPackage:
+      type: object
+      required:
+      - package_version
+      - mission
+      - region_manifest
+      - objectives
+      - photos
+      - offline_assets
+      - package_status
+      - generated_at
+      properties:
+        package_version:
+          type: string
+        mission:
+          $ref: '#/components/schemas/Mission'
+        region_manifest:
+          $ref: '#/components/schemas/RegionManifest'
+        objectives:
+          type: array
+          items:
+            $ref: '#/components/schemas/Objective'
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+        offline_assets:
+          type: array
+          items:
+            type: string
+        package_status:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        sample_only:
+          type: boolean
+    ApiError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - details
+          - request_id
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+            request_id:
+              type: string

@@ -1,0 +1,21 @@
+{
+  "region_id": "demo-jezero",
+  "base_position": {
+    "x_m": 100,
+    "y_m": 200,
+    "frame_id": "DEMO_LOCAL_MARS_V1"
+  },
+  "objective_ids": [
+    "obj-001",
+    "obj-002"
+  ],
+  "constraints": {
+    "max_slope_deg": 15,
+    "speed_m_per_min": 20,
+    "avoid_unknown": true
+  },
+  "resources": {
+    "oxygen_available_min": 240,
+    "return_reserve_min": 60
+  }
+}

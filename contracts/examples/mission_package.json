@@ -1,0 +1,223 @@
+{
+  "package_version": "1.0",
+  "mission": {
+    "mission_id": "mission-demo-001",
+    "region_id": "demo-jezero",
+    "version": 1,
+    "status": "planned",
+    "base_position": {
+      "x_m": 100,
+      "y_m": 200,
+      "frame_id": "DEMO_LOCAL_MARS_V1"
+    },
+    "objective_ids": [
+      "obj-001",
+      "obj-002"
+    ],
+    "route": {
+      "route_id": "route-001",
+      "region_id": "demo-jezero",
+      "path": [
+        {
+          "x_m": 100,
+          "y_m": 200,
+          "frame_id": "DEMO_LOCAL_MARS_V1"
+        },
+        {
+          "x_m": 250,
+          "y_m": 350,
+          "frame_id": "DEMO_LOCAL_MARS_V1"
+        },
+        {
+          "x_m": 400,
+          "y_m": 540,
+          "frame_id": "DEMO_LOCAL_MARS_V1"
+        },
+        {
+          "x_m": 600,
+          "y_m": 850,
+          "frame_id": "DEMO_LOCAL_MARS_V1"
+        }
+      ],
+      "distance_m": 900,
+      "duration_min": 45,
+      "ascent_m": 20,
+      "max_slope_deg": 10,
+      "status": "viable",
+      "unknown_segments": 0,
+      "warnings": [
+        "Métricas sintéticas: no usar para navegación real"
+      ],
+      "evidence_ids": [
+        "ev-demo"
+      ],
+      "assumptions": [
+        "Velocidad ficticia constante de 20 m/min"
+      ],
+      "sample_only": true
+    },
+    "resources": {
+      "oxygen_available_min": 240,
+      "return_reserve_min": 60
+    },
+    "completed_objective_ids": [],
+    "next_objective_id": "obj-001",
+    "alerts": [],
+    "decision_log": [
+      {
+        "event_type": "plan_created",
+        "message": "Objetivo obj-001 seleccionado bajo pesos ficticios",
+        "evidence_ids": [
+          "ev-demo"
+        ],
+        "simulated": true
+      }
+    ],
+    "evidence_ids": [
+      "ev-demo"
+    ],
+    "sample_only": true
+  },
+  "region_manifest": {
+    "region_id": "demo-jezero",
+    "frame": {
+      "frame_id": "DEMO_LOCAL_MARS_V1",
+      "units": "m",
+      "origin_east_lon_deg": 0.0,
+      "origin_planetocentric_lat_deg": 0.0,
+      "projection_definition": "DEMO_ONLY_NOT_FOR_SCIENCE",
+      "longitude_direction": "east",
+      "latitude_type": "planetocentric"
+    },
+    "bounds_local_m": {
+      "min_x": 0,
+      "min_y": 0,
+      "max_x": 1000,
+      "max_y": 1000
+    },
+    "layers": [
+      {
+        "layer_id": "imagery",
+        "kind": "optical",
+        "title": "Imagen sintética de prueba",
+        "asset_url": "/assets/demo-jezero/imagery.png",
+        "opacity_default": 1,
+        "resolution_m_per_pixel": 5,
+        "evidence_ids": [
+          "ev-demo"
+        ],
+        "nodata_policy": "unknown"
+      },
+      {
+        "layer_id": "elevation",
+        "kind": "topographic",
+        "title": "Elevación sintética",
+        "asset_url": "/assets/demo-jezero/elevation.tif",
+        "opacity_default": 0.7,
+        "resolution_m_per_pixel": 10,
+        "evidence_ids": [
+          "ev-demo"
+        ],
+        "nodata_policy": "unknown"
+      },
+      {
+        "layer_id": "geology",
+        "kind": "geologic",
+        "title": "Unidades geológicas de prueba",
+        "asset_url": "/assets/demo-jezero/geology.json",
+        "opacity_default": 0.6,
+        "resolution_m_per_pixel": 20,
+        "evidence_ids": [
+          "ev-demo"
+        ],
+        "nodata_policy": "unknown"
+      }
+    ],
+    "evidence": [
+      {
+        "evidence_id": "ev-demo",
+        "title": "Ficha sintética de prueba",
+        "mission": "Demo, no misión NASA",
+        "instrument": "Ninguno",
+        "source_url": "https://trek.nasa.gov/mars/",
+        "credit": "Datos ficticios del kit; NO corresponden a NASA",
+        "captured_at": null,
+        "resolution_m": null,
+        "caveats": [
+          "Solo para desarrollo de interfaz; reemplazar por producto NASA real"
+        ]
+      }
+    ],
+    "sample_only": true
+  },
+  "objectives": [
+    {
+      "objective_id": "obj-001",
+      "region_id": "demo-jezero",
+      "title": "Formación A (ficticia)",
+      "position": {
+        "x_m": 600,
+        "y_m": 850,
+        "frame_id": "DEMO_LOCAL_MARS_V1"
+      },
+      "science_question": "¿Existe estratificación visible en este escenario simulado?",
+      "priority_weight": 2,
+      "activities": [
+        "Inspección visual"
+      ],
+      "possible_findings": [
+        "LAYERING_OBSERVED",
+        "NO_LAYERING_OBSERVED"
+      ],
+      "evidence_ids": [
+        "ev-demo"
+      ]
+    },
+    {
+      "objective_id": "obj-002",
+      "region_id": "demo-jezero",
+      "title": "Formación B (ficticia)",
+      "position": {
+        "x_m": 750,
+        "y_m": 600,
+        "frame_id": "DEMO_LOCAL_MARS_V1"
+      },
+      "science_question": "¿Qué unidad conviene comparar después?",
+      "priority_weight": 1,
+      "activities": [
+        "Comparación visual"
+      ],
+      "possible_findings": [
+        "DIFFERENT_TEXTURE",
+        "NO_CHANGE"
+      ],
+      "evidence_ids": [
+        "ev-demo"
+      ]
+    }
+  ],
+  "photos": [
+    {
+      "photo_id": "photo-001",
+      "objective_id": "obj-001",
+      "image_url": "/assets/demo-jezero/photo-placeholder.jpg",
+      "camera": "DEMO",
+      "sol": null,
+      "captured_at": null,
+      "credit": "Placeholder local ficticio; NO NASA",
+      "source_url": "https://mars.nasa.gov/mars2020/multimedia/raw-images/",
+      "location": null,
+      "location_quality": "unknown",
+      "limitations": [
+        "No es una fotografía geolocalizada de Marte. Sustituir por foto con metadatos verificados."
+      ]
+    }
+  ],
+  "offline_assets": [
+    "/assets/demo-jezero/imagery.png",
+    "/assets/demo-jezero/photo-placeholder.jpg"
+  ],
+  "package_status": "placeholder_assets_not_included",
+  "generated_at": "2026-11-14T00:00:00Z",
+  "sample_only": true
+}

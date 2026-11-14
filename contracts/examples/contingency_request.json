@@ -1,0 +1,10 @@
+{
+  "mission_version": 2,
+  "contingency_type": "oxygen_reduced",
+  "position": {
+    "x_m": 400,
+    "y_m": 540,
+    "frame_id": "DEMO_LOCAL_MARS_V1"
+  },
+  "oxygen_available_min": 90
+}

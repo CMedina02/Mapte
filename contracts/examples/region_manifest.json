@@ -1,0 +1,72 @@
+{
+  "region_id": "demo-jezero",
+  "frame": {
+    "frame_id": "DEMO_LOCAL_MARS_V1",
+    "units": "m",
+    "origin_east_lon_deg": 0.0,
+    "origin_planetocentric_lat_deg": 0.0,
+    "projection_definition": "DEMO_ONLY_NOT_FOR_SCIENCE",
+    "longitude_direction": "east",
+    "latitude_type": "planetocentric"
+  },
+  "bounds_local_m": {
+    "min_x": 0,
+    "min_y": 0,
+    "max_x": 1000,
+    "max_y": 1000
+  },
+  "layers": [
+    {
+      "layer_id": "imagery",
+      "kind": "optical",
+      "title": "Imagen sintética de prueba",
+      "asset_url": "/assets/demo-jezero/imagery.png",
+      "opacity_default": 1,
+      "resolution_m_per_pixel": 5,
+      "evidence_ids": [
+        "ev-demo"
+      ],
+      "nodata_policy": "unknown"
+    },
+    {
+      "layer_id": "elevation",
+      "kind": "topographic",
+      "title": "Elevación sintética",
+      "asset_url": "/assets/demo-jezero/elevation.tif",
+      "opacity_default": 0.7,
+      "resolution_m_per_pixel": 10,
+      "evidence_ids": [
+        "ev-demo"
+      ],
+      "nodata_policy": "unknown"
+    },
+    {
+      "layer_id": "geology",
+      "kind": "geologic",
+      "title": "Unidades geológicas de prueba",
+      "asset_url": "/assets/demo-jezero/geology.json",
+      "opacity_default": 0.6,
+      "resolution_m_per_pixel": 20,
+      "evidence_ids": [
+        "ev-demo"
+      ],
+      "nodata_policy": "unknown"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-demo",
+      "title": "Ficha sintética de prueba",
+      "mission": "Demo, no misión NASA",
+      "instrument": "Ninguno",
+      "source_url": "https://trek.nasa.gov/mars/",
+      "credit": "Datos ficticios del kit; NO corresponden a NASA",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": [
+        "Solo para desarrollo de interfaz; reemplazar por producto NASA real"
+      ]
+    }
+  ],
+  "sample_only": true
+}

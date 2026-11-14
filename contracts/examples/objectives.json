@@ -1,0 +1,48 @@
+{
+  "objectives": [
+    {
+      "objective_id": "obj-001",
+      "region_id": "demo-jezero",
+      "title": "Formación A (ficticia)",
+      "position": {
+        "x_m": 600,
+        "y_m": 850,
+        "frame_id": "DEMO_LOCAL_MARS_V1"
+      },
+      "science_question": "¿Existe estratificación visible en este escenario simulado?",
+      "priority_weight": 2,
+      "activities": [
+        "Inspección visual"
+      ],
+      "possible_findings": [
+        "LAYERING_OBSERVED",
+        "NO_LAYERING_OBSERVED"
+      ],
+      "evidence_ids": [
+        "ev-demo"
+      ]
+    },
+    {
+      "objective_id": "obj-002",
+      "region_id": "demo-jezero",
+      "title": "Formación B (ficticia)",
+      "position": {
+        "x_m": 750,
+        "y_m": 600,
+        "frame_id": "DEMO_LOCAL_MARS_V1"
+      },
+      "science_question": "¿Qué unidad conviene comparar después?",
+      "priority_weight": 1,
+      "activities": [
+        "Comparación visual"
+      ],
+      "possible_findings": [
+        "DIFFERENT_TEXTURE",
+        "NO_CHANGE"
+      ],
+      "evidence_ids": [
+        "ev-demo"
+      ]
+    }
+  ]
+}

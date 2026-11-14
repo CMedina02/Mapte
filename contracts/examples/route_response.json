@@ -1,0 +1,42 @@
+{
+  "route_id": "route-001",
+  "region_id": "demo-jezero",
+  "path": [
+    {
+      "x_m": 100,
+      "y_m": 200,
+      "frame_id": "DEMO_LOCAL_MARS_V1"
+    },
+    {
+      "x_m": 250,
+      "y_m": 350,
+      "frame_id": "DEMO_LOCAL_MARS_V1"
+    },
+    {
+      "x_m": 400,
+      "y_m": 540,
+      "frame_id": "DEMO_LOCAL_MARS_V1"
+    },
+    {
+      "x_m": 600,
+      "y_m": 850,
+      "frame_id": "DEMO_LOCAL_MARS_V1"
+    }
+  ],
+  "distance_m": 900,
+  "duration_min": 45,
+  "ascent_m": 20,
+  "max_slope_deg": 10,
+  "status": "viable",
+  "unknown_segments": 0,
+  "warnings": [
+    "Métricas sintéticas: no usar para navegación real"
+  ],
+  "evidence_ids": [
+    "ev-demo"
+  ],
+  "assumptions": [
+    "Velocidad ficticia constante de 20 m/min"
+  ],
+  "sample_only": true
+}
