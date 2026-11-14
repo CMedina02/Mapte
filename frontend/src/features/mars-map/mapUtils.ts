@@ -20,10 +20,14 @@ export function marsProjection(manifest: RegionManifest) {
   });
 }
 
-// ponytail: solo imágenes estática, .tif (GeoTIFF) 
-export const isImageLayer = (l: Layer) => /\.(png|jpe?g|webp)$/i.test(l.asset_url);
+// ponytail: solo imágenes estáticas (archivo o data URL); .tif (GeoTIFF) y .json (vector) cuando el backend los entregue
+export const isImageLayer = (l: Layer) => /^data:image\/|\.(png|jpe?g|webp)$/i.test(l.asset_url);
 
+// Al inicio solo se ve la capa base (óptica o topográfica); las demás se encienden a mano
 export const initialLayerState = (layers: Layer[]): Record<string, LayerState> =>
   Object.fromEntries(
-    layers.map((l) => [l.layer_id, { visible: isImageLayer(l), opacity: l.opacity_default }]),
+    layers.map((l) => [
+      l.layer_id,
+      { visible: isImageLayer(l) && (l.kind === 'optical' || l.kind === 'topographic'), opacity: l.opacity_default },
+    ]),
   );

@@ -73,7 +73,7 @@ export const marsApi = {
         ).then((r) => r.photos),
 
   computeRoute: (req: RouteRequest): Promise<RouteResult> =>
-    USE_MOCK ? mocked(mockApi.route) : post('/routes/compute', req),
+    USE_MOCK ? mocked(() => mockApi.route(req)) : post('/routes/compute', req),
 
   planMission: (req: MissionPlanRequest): Promise<Mission> =>
     USE_MOCK ? mocked(() => mockApi.plan(req)) : post('/missions/plan', req),

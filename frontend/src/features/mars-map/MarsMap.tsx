@@ -4,7 +4,7 @@ import View from 'ol/View';
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import LineString from 'ol/geom/LineString';
-import { fromExtent } from 'ol/geom/Polygon';
+import Polygon, { fromExtent } from 'ol/geom/Polygon';
 import ImageLayer from 'ol/layer/Image';
 import VectorLayer from 'ol/layer/Vector';
 import ImageStatic from 'ol/source/ImageStatic';
@@ -12,10 +12,10 @@ import VectorSource from 'ol/source/Vector';
 import MousePosition from 'ol/control/MousePosition';
 import { defaults as defaultControls } from 'ol/control/defaults';
 import { createStringXY } from 'ol/coordinate';
-import { containsCoordinate } from 'ol/extent';
+import { boundingExtent, buffer, containsCoordinate } from 'ol/extent';
 import { Circle, Fill, Stroke, Style, Text } from 'ol/style';
 import 'ol/ol.css';
-import type { Objective, Position, RegionManifest, RouteResult, RouteStatus } from '../../shared/types/contracts';
+import type { Hazard, Objective, Position, RegionManifest, RouteResult, RouteStatus } from '../../shared/types/contracts';
 import { isImageLayer, manifestExtent, marsProjection, type LayerState } from './mapUtils';
 
 interface Props {
@@ -26,12 +26,29 @@ interface Props {
   layerState: Record<string, LayerState>;
   onMapClick?: (p: Position) => void;
   route: RouteResult | null;
+  // Puntos a encuadrar al abrir el mapa (p. ej. objetivos o ruta); sin ellos, toda la zona
+  focus?: Position[];
 }
 
 const boundsStyle = new Style({
   stroke: new Stroke({ color: '#f97316', width: 1, lineDash: [6, 6] }),
 });
 
+// exclusión = rojo (no se cruza); precaución = ámbar punteado. Texto además de color.
+const hazardStyle = (kind: Hazard['kind'], label: string) => {
+  const color = kind === 'exclusion' ? '239,68,68' : '245,158,11';
+  return new Style({
+    fill: new Fill({ color: `rgba(${color},0.22)` }),
+    stroke: new Stroke({ color: `rgb(${color})`, width: 2, lineDash: kind === 'exclusion' ? undefined : [6, 4] }),
+    text: new Text({
+      text: kind === 'exclusion' ? `⛔ ${label}` : `⚠ ${label}`,
+      font: 'bold 11px monospace',
+      fill: new Fill({ color: `rgb(${color})` }),
+      stroke: new Stroke({ color: '#000', width: 3 }),
+      overflow: true,
+    }),
+  });
+};
 
 const ROUTE_COLOR: Record<RouteStatus, string> = {
   viable: '#22c55e',
@@ -72,15 +89,19 @@ export default function MarsMap({
   layerState,
   route,
   onMapClick,
+  focus,
 }: Props) {
   const targetRef = useRef<HTMLDivElement>(null);
   const imageLayers = useRef<Record<string, ImageLayer<ImageStatic>>>({});
   const markers = useRef<VectorSource | null>(null);
   const routeSource = useRef<VectorSource | null>(null);
   const clickRef = useRef(onMapClick);
+  const focusRef = useRef(focus);
 
+  // Mantiene handler y encuadre actualizados sin recrear el mapa
   useEffect(() => {
     clickRef.current = onMapClick;
+    focusRef.current = focus;
   });
 
   useEffect(() => {
@@ -103,19 +124,38 @@ export default function MarsMap({
       style: boundsStyle,
     });
 
+    // Zonas de riesgo del manifiesto (mismo frame que el mapa)
+    const hazards = new VectorLayer({
+      source: new VectorSource({
+        features: (manifest.hazards ?? [])
+          .filter((hz) => hz.polygon.every((p) => p.frame_id === manifest.frame.frame_id))
+          .map((hz) => {
+            const ring = hz.polygon.map((p) => [p.x_m, p.y_m]);
+            const f = new Feature(new Polygon([[...ring, ring[0]]]));
+            f.setStyle(hazardStyle(hz.kind, hz.risk_factor));
+            return f;
+          }),
+      }),
+    });
+
     const map = new OlMap({
       target: targetRef.current!,
       layers: [
         ...rasters,
         bounds,
+        hazards,
         new VectorLayer({ source: routeSource.current }),
         new VectorLayer({ source: markers.current }),
-      ], view: new View({ projection, extent, constrainOnlyCenter: true }),
+      ],
+      view: new View({ projection, extent, constrainOnlyCenter: true }),
       controls: defaultControls().extend([
-        new MousePosition({ coordinateFormat: createStringXY(0), projection }),
+        new MousePosition({ coordinateFormat: createStringXY(0), projection, placeholder: '' }),
       ]),
     });
-    map.getView().fit(extent, { padding: [24, 24, 24, 24] });
+    const points = focusRef.current?.map((p) => [p.x_m, p.y_m]) ?? [];
+    map.getView().fit(points.length > 0 ? buffer(boundingExtent(points), 400) : extent, {
+      padding: [24, 24, 24, 24],
+    });
 
     map.on('click', (e) => {
       if (!containsCoordinate(extent, e.coordinate)) return;

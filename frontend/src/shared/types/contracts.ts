@@ -75,6 +75,18 @@ export interface Layer {
   nodata_policy: 'unknown';
 }
 
+// PROPUESTA (pendiente de contrato): zonas de riesgo del sector.
+// exclusion = la ruta no puede cruzarla; caution = se cruza con alerta.
+export interface Hazard {
+  hazard_id: string;
+  kind: 'exclusion' | 'caution';
+  risk_factor: string;
+  description: string;
+  mitigation: string;
+  polygon: Position[];
+  evidence_ids: string[];
+}
+
 export interface RegionManifest {
   region_id: string;
   frame: Frame;
@@ -83,6 +95,7 @@ export interface RegionManifest {
   evidence: Evidence[];
   sample_only?: boolean;
   terrain?: Terrain;
+  hazards?: Hazard[]; // PROPUESTA: pendiente de acordar con backend (hoy solo la usa el mock)
 }
 
 export interface TerrainGrid {
