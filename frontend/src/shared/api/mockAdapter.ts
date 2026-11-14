@@ -1,5 +1,5 @@
 import type {
-  Health, Mission, MissionPackage, ObjectivesResponse, ObservationRequest,
+  Health, Mission, MissionPackage, MissionPlanRequest, ObjectivesResponse, ObservationRequest,
   ContingencyRequest, PhotosResponse, RegionManifest, RegionsResponse, RouteResult,
 } from '../types/contracts';
 import { MarsApiError } from './errors';
@@ -46,8 +46,30 @@ export const mockApi = {
     return objectiveId ? all.filter((p) => p.objective_id === objectiveId) : all;
   },
   route: () => as<RouteResult>(route),
-  plan: () => (mission = as<Mission>(planResponse)),
-  mission: () => structuredClone(mission),
+  plan: (req: MissionPlanRequest) => {
+    const example = as<Mission>(planResponse);
+    const all = as<ObjectivesResponse>(objectives).objectives;
+    const stops = req.objective_ids.flatMap((id) => all.filter((o) => o.objective_id === id));
+    mission = {
+      ...example,
+      region_id: req.region_id,
+      base_position: req.base_position,
+      objective_ids: req.objective_ids,
+      next_objective_id: req.objective_ids[0] ?? null,
+      resources: req.resources,
+      route: {
+        ...example.route,
+        path: [req.base_position, ...stops.map((o) => o.position)],
+        distance_m: null,
+        duration_min: null,
+        ascent_m: null,
+        max_slope_deg: null,
+        status: 'unknown',
+        warnings: ['Ruta mock en línea recta: el backend real calcula la ruta y sus métricas.'],
+      },
+    };
+    return structuredClone(mission);
+  },  mission: () => structuredClone(mission),
   observation: (req: ObservationRequest) => advance(observationResponse, req.mission_version),
   contingency: (req: ContingencyRequest) => advance(contingencyResponse, req.mission_version),
   package: () => ({ ...as<MissionPackage>(missionPackage), mission: structuredClone(mission) }),

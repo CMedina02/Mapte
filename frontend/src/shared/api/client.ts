@@ -76,8 +76,7 @@ export const marsApi = {
     USE_MOCK ? mocked(mockApi.route) : post('/routes/compute', req),
 
   planMission: (req: MissionPlanRequest): Promise<Mission> =>
-    USE_MOCK ? mocked(mockApi.plan) : post('/missions/plan', req),
-
+    USE_MOCK ? mocked(() => mockApi.plan(req)) : post('/missions/plan', req),
   getMission: (missionId: string): Promise<Mission> =>
     USE_MOCK ? mocked(mockApi.mission) : request(`/missions/${enc(missionId)}`),
 

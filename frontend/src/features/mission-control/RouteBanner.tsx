@@ -1,11 +1,6 @@
-import type { RouteResult, RouteStatus } from '../../shared/types/contracts';
-import { fmt } from '../../shared/format';
 
-const STATUS: Record<RouteStatus, { label: string; cls: string }> = {
-  viable: { label: 'VIABLE', cls: 'border-green-600 bg-green-950 text-green-300' },
-  not_viable: { label: 'NO VIABLE', cls: 'border-red-600 bg-red-950 text-red-300' },
-  unknown: { label: 'DESCONOCIDA · datos insuficientes', cls: 'border-amber-600 bg-amber-950 text-amber-300' },
-};
+import type { RouteResult } from '../../shared/types/contracts';
+import { fmt, ROUTE_STATUS } from '../../shared/format';
 
 function List({ title, items, cls }: { title: string; items: string[]; cls: string }) {
   return (
@@ -26,8 +21,7 @@ function List({ title, items, cls }: { title: string; items: string[]; cls: stri
 
 export default function RouteBanner({ route }: { route: RouteResult }) {
 
-  const s = STATUS[route.status] ?? STATUS.unknown;
-
+  const s = ROUTE_STATUS[route.status] ?? ROUTE_STATUS.unknown;
   return (
     <div className="absolute bottom-4 left-4 z-10 max-h-[calc(100%-2rem)] w-96 space-y-2 overflow-y-auto rounded border border-neutral-700 bg-neutral-950/90 p-3 text-xs">
       <p className={`rounded border px-2 py-1 font-bold ${s.cls}`}>RUTA {s.label}</p>
