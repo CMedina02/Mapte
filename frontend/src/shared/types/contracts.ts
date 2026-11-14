@@ -1,7 +1,7 @@
 export interface Position {
   x_m: number;
   y_m: number;
-  z_m: number;
+  z_m?: number | null;
   frame_id: string;
 }
 
@@ -85,6 +85,14 @@ export interface RegionManifest {
   terrain?: Terrain;
 }
 
+export interface TerrainGrid {
+  origin_center_x_m: number;
+  origin_center_y_m: number;
+  pixel_size_x_m: number;
+  pixel_size_y_m: number;
+  row_order: 'north_to_south';
+}
+
 export interface Terrain {
   heightmap_url: string; 
   width_px: number;
@@ -93,6 +101,17 @@ export interface Terrain {
   elevation_max_m: number;
   texture_layer_id: string;
   evidence_ids: string[];
+  frame_id: string;
+  terrain_version: string;
+  vertical_datum: string;
+  units: 'm';
+  format: 'f32';
+  dtype: 'float32_little_endian';
+  header_bytes: 0;
+  memory_order: 'row_major';
+  nodata_policy: 'f32_nan';
+  texture_aligned: boolean;
+  grid: TerrainGrid;
 }
 
 export interface Objective {
