@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo} from 'react';
 import { marsApi } from '../../shared/api/client';
 import type { Mission, Objective, Photo } from '../../shared/types/contracts';
 import DecisionLog from '../mission-control/DecisionLog';
+import { loadPackage, type PendingObservation } from '../offline-sync/offline';
 import ProgressCard from './ProgressCard';
 import PhotoViewer from './PhotoViewer';
 import ObservationForm from './ObservationForm';
@@ -10,22 +11,28 @@ import ContingencyPanel from './ContingencyPanel';
 interface Props {
   mission: Mission;
   onMission: (m: Mission) => void;
+  onQueue: (o: PendingObservation) => void;
 }
 
-export default function Explorer({ mission, onMission }: Props) {
-  const [objectives, setObjectives] = useState<Objective[]>([]);
-  const [photos, setPhotos] = useState<Photo[]>([]);
+export default function Explorer({ mission, onMission, onQueue }: Props) {
+    const [remote, setRemote] = useState<{ objectives: Objective[]; photos: Photo[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [change, setChange] = useState<{ before: string | null; after: string | null } | null>(null);
 
+  const local = useMemo(() => {
+    const pkg = loadPackage();
+    return pkg?.mission.mission_id === mission.mission_id ? pkg : null;
+  }, [mission.mission_id]);
+
   useEffect(() => {
+    if (local) return;
     Promise.all([marsApi.getObjectives(mission.region_id), marsApi.getPhotos(mission.region_id)])
-      .then(([objs, ph]) => {
-        setObjectives(objs);
-        setPhotos(ph);
-      })
+      .then(([objectives, photos]) => setRemote({ objectives, photos }))
       .catch((e) => setError(String(e)));
-  }, [mission.region_id]);
+  }, [local, mission.region_id]);
+
+  const objectives = local?.objectives ?? remote?.objectives ?? [];
+  const photos = local?.photos ?? remote?.photos ?? [];
 
   const title = (id: string | null) => objectives.find((o) => o.objective_id === id)?.title ?? id ?? '—';
   const current = objectives.find((o) => o.objective_id === mission.next_objective_id) ?? null;
@@ -56,7 +63,7 @@ export default function Explorer({ mission, onMission }: Props) {
             Plan actualizado · próximo objetivo: {title(change.before)} → {title(change.after)}
           </p>
         )}
-        <ObservationForm mission={mission} objectives={objectives} onUpdated={handleUpdated} />
+        <ObservationForm mission={mission} objectives={objectives} onUpdated={handleUpdated} onQueue={onQueue} />
         <ContingencyPanel mission={mission} onMission={onMission} />
       </div>
       <div className="space-y-4">

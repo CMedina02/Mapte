@@ -2,100 +2,102 @@ import { useState } from 'react';
 import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
 import type { ContingencyType, Mission } from '../../shared/types/contracts';
+import { useOnline } from '../offline-sync/offline';
 
 const TYPES: Record<ContingencyType, string> = {
-  oxygen_reduced: 'Reducción de O₂',
-  rover_unavailable: 'Rover no disponible',
+    oxygen_reduced: 'Reducción de O₂',
+    rover_unavailable: 'Rover no disponible',
 };
 
 interface Props {
-  mission: Mission;
-  onMission: (m: Mission) => void;
+    mission: Mission;
+    onMission: (m: Mission) => void;
 }
 
 export default function ContingencyPanel({ mission, onMission }: Props) {
-  const [type, setType] = useState<ContingencyType>('oxygen_reduced');
-  const [pointIdx, setPointIdx] = useState(0);
-  const [oxygen, setOxygen] = useState(mission.resources.oxygen_available_min);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    const [type, setType] = useState<ContingencyType>('oxygen_reduced');
+    const [pointIdx, setPointIdx] = useState(0);
+    const [oxygen, setOxygen] = useState(mission.resources.oxygen_available_min);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  const path = mission.route.path;
-  const idx = Math.min(pointIdx, path.length - 1);
-  const position = path[idx];
-  const invalid = !position || Number.isNaN(oxygen) || oxygen < 0;
+    const online = useOnline();
 
-  async function trigger() {
-    if (invalid) return;
-    setLoading(true);
-    setError(
-      await mutateMission(
-        mission.mission_id,
-        () =>
-          marsApi.triggerContingency(mission.mission_id, {
-            mission_version: mission.version,
-            contingency_type: type,
-            position,
-            oxygen_available_min: oxygen,
-          }),
-        onMission,
-      ),
+    const path = mission.route.path;
+    const idx = Math.min(pointIdx, path.length - 1);
+    const position = path[idx];
+    const invalid = !position || Number.isNaN(oxygen) || oxygen < 0;
+
+    async function trigger() {
+        if (invalid) return;
+        setLoading(true);
+        setError(
+            await mutateMission(
+                mission.mission_id,
+                () =>
+                    marsApi.triggerContingency(mission.mission_id, {
+                        mission_version: mission.version,
+                        contingency_type: type,
+                        position,
+                        oxygen_available_min: oxygen,
+                    }),
+                onMission,
+            ),
+        );
+        setLoading(false);
+    }
+
+    return (
+        <section className="space-y-3 rounded border border-red-900 p-4">
+            <p className="text-xs uppercase tracking-widest text-red-400">Simulador de contingencias</p>
+
+            <select
+                className="w-full rounded bg-neutral-900 p-3"
+                value={type}
+                onChange={(e) => setType(e.target.value as ContingencyType)}
+            >
+                {Object.entries(TYPES).map(([value, label]) => (
+                    <option key={value} value={value}>
+                        {label}
+                    </option>
+                ))}
+            </select>
+
+            <label className="block text-sm">
+                Posición simulada sobre la ruta (no hay GPS en Marte)
+                <select
+                    className="mt-1 w-full rounded bg-neutral-900 p-3"
+                    value={idx}
+                    onChange={(e) => setPointIdx(Number(e.target.value))}
+                >
+                    {path.map((p, i) => (
+                        <option key={i} value={i}>
+                            Punto {i + 1} · ({p.x_m}, {p.y_m}) m
+                        </option>
+                    ))}
+                </select>
+            </label>
+
+            <label className="flex items-center justify-between text-sm">
+                <span>O₂ disponible tras el evento (min)</span>
+                <input
+                    type="number"
+                    min={0}
+                    className="w-24 rounded bg-neutral-900 p-2 text-right"
+                    value={Number.isNaN(oxygen) ? '' : oxygen}
+                    onChange={(e) => setOxygen(e.target.valueAsNumber)}
+                />
+            </label>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            {!online && <p className="text-sm text-amber-400">Requiere conexión: el retorno lo evalúa el servidor.</p>}
+            <button
+                type="button"
+                onClick={trigger}
+                disabled={invalid || loading || !online} className="w-full rounded bg-red-700 p-3 font-bold disabled:opacity-40"
+            >
+                {loading ? 'Evaluando retorno…' : 'Disparar contingencia'}
+            </button>
+        </section>
     );
-    setLoading(false);
-  }
-
-  return (
-    <section className="space-y-3 rounded border border-red-900 p-4">
-      <p className="text-xs uppercase tracking-widest text-red-400">Simulador de contingencias</p>
-
-      <select
-        className="w-full rounded bg-neutral-900 p-3"
-        value={type}
-        onChange={(e) => setType(e.target.value as ContingencyType)}
-      >
-        {Object.entries(TYPES).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-
-      <label className="block text-sm">
-        Posición simulada sobre la ruta (no hay GPS en Marte)
-        <select
-          className="mt-1 w-full rounded bg-neutral-900 p-3"
-          value={idx}
-          onChange={(e) => setPointIdx(Number(e.target.value))}
-        >
-          {path.map((p, i) => (
-            <option key={i} value={i}>
-              Punto {i + 1} · ({p.x_m}, {p.y_m}) m
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="flex items-center justify-between text-sm">
-        <span>O₂ disponible tras el evento (min)</span>
-        <input
-          type="number"
-          min={0}
-          className="w-24 rounded bg-neutral-900 p-2 text-right"
-          value={Number.isNaN(oxygen) ? '' : oxygen}
-          onChange={(e) => setOxygen(e.target.valueAsNumber)}
-        />
-      </label>
-
-      {error && <p className="text-sm text-red-500">{error}</p>}
-
-      <button
-        type="button"
-        onClick={trigger}
-        disabled={invalid || loading}
-        className="w-full rounded bg-red-700 p-3 font-bold disabled:opacity-40"
-      >
-        {loading ? 'Evaluando retorno…' : 'Disparar contingencia'}
-      </button>
-    </section>
-  );
 }

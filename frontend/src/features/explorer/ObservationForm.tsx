@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { marsApi } from '../../shared/api/client';
 import type { Mission, Objective } from '../../shared/types/contracts';
+import type { PendingObservation } from '../offline-sync/offline';
 import { mutateMission } from '../../shared/api/mutateMission';
 
 interface Props {
   mission: Mission;
   objectives: Objective[];
   onUpdated: (m: Mission) => void;
+  onQueue: (o: PendingObservation) => void;
 }
 
-export default function ObservationForm({ mission, objectives, onUpdated }: Props) {
+export default function ObservationForm({ mission, objectives, onUpdated, onQueue }: Props) {
   const [objectiveId, setObjectiveId] = useState('');
   const [finding, setFinding] = useState('');
   const [notes, setNotes] = useState('');
@@ -19,13 +21,24 @@ export default function ObservationForm({ mission, objectives, onUpdated }: Prop
   const pending = objectives.filter(
     (o) => mission.objective_ids.includes(o.objective_id) && !mission.completed_objective_ids.includes(o.objective_id),
   );
-  // Por defecto, el objetivo que el plan marca como siguiente
   const selectedId = objectiveId || mission.next_objective_id || '';
   const objective = pending.find((o) => o.objective_id === selectedId) ?? null;
   const validFinding = !!objective?.possible_findings.includes(finding);
 
-    async function submit() {
+  async function submit() {
     if (!objective || !validFinding) return;
+    if (!navigator.onLine) {
+      onQueue({
+        objective_id: objective.objective_id,
+        finding_code: finding,
+        notes: notes.trim() || undefined,
+      });
+      setObjectiveId('');
+      setFinding('');
+      setNotes('');
+      setError('Sin conexión: observación guardada en cola; se enviará al sincronizar.');
+      return;
+    }
     setLoading(true);
     const err = await mutateMission(
       mission.mission_id,

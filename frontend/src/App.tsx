@@ -1,13 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Mission } from './shared/types/contracts';
 import MissionControl from './features/mission-control/MissionControl';
 import Explorer from './features/explorer/Explorer';
+import OfflineBar from './features/offline-sync/OfflineBar';
+import { loadPackage, updatePackageMission, usePendingQueue } from './features/offline-sync/offline';
 
 type View = 'control' | 'explorer';
 
 export default function App() {
-  const [mission, setMission] = useState<Mission | null>(null);
-  const [view, setView] = useState<View>('control');
+  // Si hay paquete local, la misión arranca desde ahí (permite abrir la app sin red)
+  const [mission, setMission] = useState<Mission | null>(() => loadPackage()?.mission ?? null);
+  const [view, setView] = useState<View>(() => (navigator.onLine ? 'control' : 'explorer'));
+  const [queue, setQueue] = usePendingQueue();
+
+  useEffect(() => {
+    if (mission) updatePackageMission(mission);
+  }, [mission]);
 
   const tab = (v: View, label: string, disabled = false) => (
     <button
@@ -30,10 +38,11 @@ export default function App() {
             {mission.mission_id} · v{mission.version} · {mission.status}
           </span>
         )}
+        <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
       </header>
       <div className="min-h-0 flex-1">
         {view === 'explorer' && mission ? (
-          <Explorer mission={mission} onMission={setMission} />
+          <Explorer mission={mission} onMission={setMission} onQueue={(o) => setQueue((q) => [...q, o])} />
         ) : (
           <MissionControl mission={mission} onMission={setMission} />
         )}
