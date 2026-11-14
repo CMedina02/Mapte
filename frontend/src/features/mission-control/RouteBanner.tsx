@@ -20,11 +20,16 @@ function List({ title, items, cls }: { title: string; items: string[]; cls: stri
 }
 
 export default function RouteBanner({ route }: { route: RouteResult }) {
-
+  // Un estado no reconocido se trata como desconocido, nunca como seguro
   const s = ROUTE_STATUS[route.status] ?? ROUTE_STATUS.unknown;
   return (
-    <div className="absolute bottom-4 left-4 z-10 max-h-[calc(100%-2rem)] w-96 space-y-2 overflow-y-auto rounded border border-neutral-700 bg-neutral-950/90 p-3 text-xs">
-      <p className={`rounded border px-2 py-1 font-bold ${s.cls}`}>RUTA {s.label}</p>
+    // Plegable para no tapar el mapa; el estado de la ruta siempre queda visible.
+    // Abierto de inicio solo en pantallas grandes; en móvil/tableta empieza plegado.
+    <details
+      open={window.matchMedia('(min-width: 1024px)').matches}
+      className="absolute bottom-2 left-2 z-10 max-h-[calc(100%-1rem)] w-[min(24rem,calc(100%-1rem))] space-y-2 overflow-y-auto rounded-lg border border-neutral-700 bg-neutral-950/90 p-2 text-xs sm:bottom-4 sm:left-4 sm:max-h-[calc(100%-2rem)] sm:p-3"
+    >
+      <summary className={`cursor-pointer rounded border px-2 py-1 font-bold ${s.cls}`}>RUTA {s.label}</summary>
 
       <dl className="grid grid-cols-2 gap-x-2">
         <dt className="text-neutral-500">Distancia</dt>
@@ -47,6 +52,6 @@ export default function RouteBanner({ route }: { route: RouteResult }) {
       {route.evidence_ids.length > 0 && (
         <p className="text-neutral-500">Evidencia: {route.evidence_ids.join(', ')}</p>
       )}
-    </div>
+    </details>
   );
 }

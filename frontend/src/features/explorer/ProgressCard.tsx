@@ -9,8 +9,8 @@ export default function ProgressCard({ mission, current }: { mission: Mission; c
   const total = mission.objective_ids.length;
 
   return (
-    <section className="space-y-3 rounded border border-neutral-700 p-4">
-      <p className="text-xs uppercase tracking-widest text-neutral-400">
+    <section className="card">
+      <p className="eyebrow">
         Objetivo actual · {done}/{total} completados
       </p>
       {current ? (
@@ -26,15 +26,15 @@ export default function ProgressCard({ mission, current }: { mission: Mission; c
       <dl className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded bg-neutral-900 p-2">
           <dt className="text-xs text-neutral-500">O₂ disponible</dt>
-          <dd className="text-xl">{fmt(o2, 'min')}</dd>
+          <dd className="text-lg sm:text-xl">{fmt(o2, 'min')}</dd>
         </div>
         <div className="rounded bg-neutral-900 p-2">
           <dt className="text-xs text-neutral-500">Reserva retorno</dt>
-          <dd className="text-xl">{fmt(reserve, 'min')}</dd>
+          <dd className="text-lg sm:text-xl">{fmt(reserve, 'min')}</dd>
         </div>
         <div className={`rounded p-2 ${margin !== null && margin <= 0 ? 'bg-red-950 text-red-300' : 'bg-neutral-900'}`}>
           <dt className="text-xs text-neutral-500">Margen (O₂ − reserva)</dt>
-          <dd className="text-xl">{fmt(margin, 'min')}</dd>
+          <dd className="text-lg sm:text-xl">{fmt(margin, 'min')}</dd>
         </div>
       </dl>
 

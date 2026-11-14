@@ -61,15 +61,15 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
   }
 
   if (pending.length === 0) {
-    return <section className="rounded border border-neutral-700 p-4">Todos los objetivos completados.</section>;
+    return <section className="card">Todos los objetivos completados.</section>;
   }
 
   return (
-    <section className="space-y-3 rounded border border-neutral-700 p-4">
-      <p className="text-xs uppercase tracking-widest text-neutral-400">Registrar observación</p>
+    <section className="card">
+      <p className="eyebrow">Registrar observación</p>
 
       <select
-        className="w-full rounded bg-neutral-900 p-3"
+        className="field"
         value={selectedId}
         onChange={(e) => {
           setObjectiveId(e.target.value);
@@ -94,7 +94,7 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
               type="button"
               aria-pressed={finding === code}
               onClick={() => setFinding(code)}
-              className={`rounded p-3 text-sm ${finding === code ? 'bg-orange-600 font-bold' : 'bg-neutral-800'}`}
+              className={`btn break-all ${finding === code ? 'bg-orange-600 text-white' : 'border border-neutral-700 bg-neutral-900'}`}
             >
               {code}
             </button>
@@ -103,7 +103,7 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
       )}
 
       <textarea
-        className="w-full rounded bg-neutral-900 p-3 text-sm"
+        className="field"
         rows={3}
         maxLength={1000}
         placeholder="Notas (opcional)"
@@ -117,7 +117,7 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
         type="button"
         onClick={submit}
         disabled={!validFinding || loading}
-        className="w-full rounded bg-orange-600 p-3 font-bold disabled:opacity-40"
+        className="btn-primary w-full"
       >
         {loading ? 'Enviando…' : 'Registrar hallazgo'}
       </button>

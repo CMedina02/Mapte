@@ -21,26 +21,32 @@ export default function App() {
     <button
       type="button"
       disabled={disabled}
+      aria-current={view === v ? 'page' : undefined}
       onClick={() => setView(v)}
-      className={`rounded px-4 py-2 disabled:opacity-40 ${view === v ? 'bg-orange-600 font-bold' : 'bg-neutral-800'}`}
+      className={view === v ? 'btn-primary' : 'btn-ghost'}
     >
       {label}
     </button>
   );
 
   return (
-    <div className="flex h-screen flex-col bg-neutral-950 font-mono text-neutral-100">
-      <header className="flex items-center gap-2 border-b border-neutral-800 p-2">
-        {tab('control', 'Mission Control')}
-        {tab('explorer', 'Explorer', !mission)}
+    <div className="flex h-dvh flex-col">
+      <header className="flex flex-wrap items-center gap-2 border-b border-neutral-800 px-2 py-2 sm:px-3">
+        <nav className="flex gap-2" aria-label="Vistas">
+          {tab('control', 'Mission Control')}
+          {tab('explorer', 'Explorer', !mission)}
+        </nav>
         {mission && (
-          <span className="ml-auto text-xs text-neutral-400">
+          <span className="hidden text-xs text-neutral-400 lg:inline">
             {mission.mission_id} · v{mission.version} · {mission.status}
           </span>
         )}
-        <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
+        <div className="ml-auto">
+          <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
+        </div>
       </header>
-      <div className="min-h-0 flex-1">
+      {/* Hasta lg la vista hace scroll completa; desde lg cada panel gestiona su scroll */}
+      <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
         {view === 'explorer' && mission ? (
           <Explorer mission={mission} onMission={setMission} onQueue={(o) => setQueue((q) => [...q, o])} />
         ) : (

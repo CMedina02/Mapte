@@ -3,7 +3,7 @@ import type { Mission } from '../../shared/types/contracts';
 export default function DecisionLog({ mission }: { mission: Mission }) {
   return (
     <section className="space-y-2 text-sm">
-      <h2 className="text-xs uppercase tracking-widest text-neutral-400">
+      <h2 className="eyebrow">
         Misión {mission.mission_id} · v{mission.version}
       </h2>
       <p className="text-xs">

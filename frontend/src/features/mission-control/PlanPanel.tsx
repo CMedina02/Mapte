@@ -23,7 +23,7 @@ function NumberField(props: {
       <span>{props.label}</span>
       <input
         type="number"
-        className="w-24 rounded bg-neutral-900 p-1 text-right"
+        className="field w-24 text-right"
         value={Number.isNaN(props.value) ? '' : props.value}
         min={props.min}
         max={props.max}
@@ -81,9 +81,9 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
 
   return (
     <section className="space-y-3 text-sm">
-      <h2 className="text-xs uppercase tracking-widest text-neutral-400">Objetivos</h2>
+      <h2 className="eyebrow">Objetivos</h2>
       {objectives.map((o) => (
-        <label key={o.objective_id} className="flex gap-2 rounded border border-neutral-800 p-2">
+        <label key={o.objective_id} className="flex cursor-pointer gap-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 has-checked:border-orange-600">
           <input
             type="checkbox"
             checked={selectedIds.includes(o.objective_id)}
@@ -103,7 +103,7 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
         Base: {base ? `(${base.x_m}, ${base.y_m}) m` : 'sin fijar (clic en el mapa)'}
       </p>
 
-      <h2 className="pt-2 text-xs uppercase tracking-widest text-neutral-400">Parámetros</h2>
+      <h2 className="eyebrow pt-2">Parámetros</h2>
       <NumberField label="Pendiente máx. (°)" value={maxSlope} onChange={setMaxSlope} min={0} max={90} />
       <NumberField label="Velocidad (m/min)" value={speed} onChange={setSpeed} min={1} />
       <label className="flex items-center justify-between">
@@ -120,7 +120,7 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
         type="button"
         onClick={plan}
         disabled={!!problem || loading}
-        className="w-full rounded bg-orange-600 p-2 font-bold disabled:opacity-40"
+        className="btn-primary w-full"
       >
         {loading ? 'Planificando…' : 'Planificar misión'}
       </button>

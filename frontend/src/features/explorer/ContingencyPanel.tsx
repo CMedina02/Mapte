@@ -48,11 +48,11 @@ export default function ContingencyPanel({ mission, onMission }: Props) {
     }
 
     return (
-        <section className="space-y-3 rounded border border-red-900 p-4">
-            <p className="text-xs uppercase tracking-widest text-red-400">Simulador de contingencias</p>
+        <section className="card border-red-900">
+            <p className="eyebrow text-red-400">Simulador de contingencias</p>
 
             <select
-                className="w-full rounded bg-neutral-900 p-3"
+                className="field"
                 value={type}
                 onChange={(e) => setType(e.target.value as ContingencyType)}
             >
@@ -66,7 +66,7 @@ export default function ContingencyPanel({ mission, onMission }: Props) {
             <label className="block text-sm">
                 Posición simulada sobre la ruta (no hay GPS en Marte)
                 <select
-                    className="mt-1 w-full rounded bg-neutral-900 p-3"
+                    className="field mt-1"
                     value={idx}
                     onChange={(e) => setPointIdx(Number(e.target.value))}
                 >
@@ -83,7 +83,7 @@ export default function ContingencyPanel({ mission, onMission }: Props) {
                 <input
                     type="number"
                     min={0}
-                    className="w-24 rounded bg-neutral-900 p-2 text-right"
+                    className="field w-24 text-right"
                     value={Number.isNaN(oxygen) ? '' : oxygen}
                     onChange={(e) => setOxygen(e.target.valueAsNumber)}
                 />
@@ -94,7 +94,7 @@ export default function ContingencyPanel({ mission, onMission }: Props) {
             <button
                 type="button"
                 onClick={trigger}
-                disabled={invalid || loading || !online} className="w-full rounded bg-red-700 p-3 font-bold disabled:opacity-40"
+                disabled={invalid || loading || !online} className="btn-danger w-full"
             >
                 {loading ? 'Evaluando retorno…' : 'Disparar contingencia'}
             </button>

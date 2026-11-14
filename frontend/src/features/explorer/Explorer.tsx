@@ -45,10 +45,10 @@ export default function Explorer({ mission, onMission, onQueue }: Props) {
   if (error) return <p className="p-6 text-red-500">{error}</p>;
 
   return (
-    <div className="grid h-full gap-4 overflow-y-auto p-4 md:grid-cols-2">
+    <div className="mx-auto grid max-w-7xl items-start gap-4 p-3 sm:p-4 lg:h-full lg:grid-cols-2 lg:overflow-y-auto">
       <div className="space-y-4">
         {mission.alerts.length > 0 && (
-          <div className="space-y-1 rounded border border-red-600 bg-red-950 p-3 text-red-200">
+          <div role="alert" className="space-y-1 rounded-lg border border-red-600 bg-red-950 p-3 text-red-200">
             <p className="font-bold">⚠ {mission.status === 'contingency' ? 'CONTINGENCIA ACTIVA' : 'ALERTAS'}</p>
             {mission.alerts.map((a) => (
               <p key={a} className="text-sm">
@@ -59,7 +59,7 @@ export default function Explorer({ mission, onMission, onQueue }: Props) {
         )}
         <ProgressCard mission={mission} current={current} />
         {change && (
-          <p className="rounded border border-sky-700 bg-sky-950 p-3 text-sm">
+          <p role="status" className="rounded-lg border border-sky-700 bg-sky-950 p-3 text-sm">
             Plan actualizado · próximo objetivo: {title(change.before)} → {title(change.after)}
           </p>
         )}

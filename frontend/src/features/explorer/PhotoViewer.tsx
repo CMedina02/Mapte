@@ -13,7 +13,7 @@ export default function PhotoViewer({ photos }: { photos: Photo[] }) {
 
   if (photos.length === 0) {
     return (
-      <section className="rounded border border-neutral-700 p-4 text-sm text-neutral-500">
+      <section className="card text-sm text-neutral-500">
         Sin fotografías para este objetivo.
       </section>
     );
@@ -25,8 +25,8 @@ export default function PhotoViewer({ photos }: { photos: Photo[] }) {
   const q = QUALITY[p.location_quality] ?? QUALITY.unknown;
 
   return (
-    <section className="space-y-2 rounded border border-neutral-700 p-4 text-sm">
-      <p className="text-xs uppercase tracking-widest text-neutral-400">
+    <section className="card text-sm">
+      <p className="eyebrow">
         Vista POV · {idx + 1}/{n}
       </p>
 
@@ -63,10 +63,10 @@ export default function PhotoViewer({ photos }: { photos: Photo[] }) {
 
       {n > 1 && (
         <div className="flex gap-2">
-          <button type="button" className="flex-1 rounded bg-neutral-800 p-3" onClick={() => setI((idx - 1 + n) % n)}>
+          <button type="button" className="btn-ghost flex-1" onClick={() => setI((idx - 1 + n) % n)}>
             ◀ Anterior
           </button>
-          <button type="button" className="flex-1 rounded bg-neutral-800 p-3" onClick={() => setI((idx + 1) % n)}>
+          <button type="button" className="btn-ghost flex-1" onClick={() => setI((idx + 1) % n)}>
             Siguiente ▶
           </button>
         </div>

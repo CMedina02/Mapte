@@ -46,18 +46,19 @@ export default function MissionControl({ mission, onMission }: Props) {
       .catch((e) => setError(String(e)));
   }, [regionId]);
 
-  if (error) return <p className="p-6 font-mono text-red-500">{error}</p>;
+  if (error) return <p className="p-6 text-red-500">{error}</p>;
 
   return (
-        <div className="flex h-full">
-      <aside className="w-80 space-y-6 overflow-y-auto border-r border-neutral-800 p-4">
+    // Móvil y tableta vertical: mapa arriba y panel debajo (scroll de página). Desde lg: panel lateral + mapa.
+    <div className="flex flex-col lg:h-full lg:flex-row">
+      <aside className="order-2 w-full space-y-6 p-3 sm:p-4 lg:order-1 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-neutral-800 xl:w-96">
         <section>
-          <label htmlFor="region" className="text-xs uppercase tracking-widest text-neutral-400">
+          <label htmlFor="region" className="eyebrow">
             Región
           </label>
           <select
             id="region"
-            className="mt-1 w-full rounded bg-neutral-900 p-2 text-sm"
+            className="field mt-1"
             value={regionId ?? ''}
             onChange={(e) => {
               setRegionId(e.target.value);
@@ -93,11 +94,12 @@ export default function MissionControl({ mission, onMission }: Props) {
         )}
       </aside>
 
-      <main className="relative flex-1">
+      <main className="relative order-1 h-[60dvh] shrink-0 border-b border-neutral-800 lg:order-2 lg:h-auto lg:flex-1 lg:border-b-0">
         {manifest ? (
           <MarsMap
             manifest={manifest}
             objectives={objectives}
+            focus={[...objectives.map((o) => o.position), ...(manifest.hazards ?? []).flatMap((h) => h.polygon)]}
             selectedObjectiveIds={selectedIds}
             basePosition={mission?.base_position ?? base}
             layerState={layerState}

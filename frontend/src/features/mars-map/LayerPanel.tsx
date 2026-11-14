@@ -10,12 +10,12 @@ interface Props {
 export default function LayerPanel({ layers, state, onChange }: Props) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xs uppercase tracking-widest text-neutral-400">Capas</h2>
+      <h2 className="eyebrow">Capas</h2>
       {layers.map((l) => {
         const s = state[l.layer_id];
         const supported = isImageLayer(l);
         return (
-          <div key={l.layer_id} className="rounded border border-neutral-800 p-2 text-sm">
+          <div key={l.layer_id} className="card space-y-1 text-sm">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
