@@ -1,48 +1,43 @@
-import { useEffect, useState } from 'react';
-import { marsApi } from './shared/api/client';
-import type { Objective, Position, RegionManifest } from './shared/types/contracts';
-import MarsMap from './features/mars-map/MarsMap';
-import LayerPanel from './features/mars-map/LayerPanel';
-import { initialLayerState, type LayerState } from './features/mars-map/mapUtils';
+import { useState } from 'react';
+import type { Mission } from './shared/types/contracts';
+import MissionControl from './features/mission-control/MissionControl';
+import Explorer from './features/explorer/Explorer';
+
+type View = 'control' | 'explorer';
 
 export default function App() {
-  const [manifest, setManifest] = useState<RegionManifest | null>(null);
-  const [objectives, setObjectives] = useState<Objective[]>([]);
-  const [base, setBase] = useState<Position | null>(null);
-  const [layerState, setLayerState] = useState<Record<string, LayerState>>({});
-  const [error, setError] = useState<string | null>(null);
+  const [mission, setMission] = useState<Mission | null>(null);
+  const [view, setView] = useState<View>('control');
 
-  useEffect(() => {
-    (async () => {
-      const [region] = await marsApi.getRegions();
-      const [m, objs, mission] = await Promise.all([
-        marsApi.getManifest(region.region_id),
-        marsApi.getObjectives(region.region_id),
-        marsApi.getMission('mission-demo-001'), // temporal: la base llega con la misión (FE-03)
-      ]);
-      setManifest(m);
-      setObjectives(objs);
-      setBase(mission.base_position);
-      setLayerState(initialLayerState(m.layers));
-    })().catch((e) => setError(String(e)));
-  }, []);
-
-  if (error) return <p className="p-6 text-red-500">{error}</p>;
-  if (!manifest) return <p className="p-6 font-mono">Cargando región…</p>;
+  const tab = (v: View, label: string, disabled = false) => (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => setView(v)}
+      className={`rounded px-4 py-2 disabled:opacity-40 ${view === v ? 'bg-orange-600 font-bold' : 'bg-neutral-800'}`}
+    >
+      {label}
+    </button>
+  );
 
   return (
-    <div className="flex h-screen bg-neutral-950 font-mono text-neutral-100">
-      <aside className="w-72 overflow-y-auto border-r border-neutral-800 p-4">
-        <p className="mb-4 text-xs text-neutral-500">Frame: {manifest.frame.frame_id}</p>
-        <LayerPanel
-          layers={manifest.layers}
-          state={layerState}
-          onChange={(id, next) => setLayerState((prev) => ({ ...prev, [id]: next }))}
-        />
-      </aside>
-      <main className="flex-1">
-        <MarsMap manifest={manifest} objectives={objectives} basePosition={base} layerState={layerState} />
-      </main>
+    <div className="flex h-screen flex-col bg-neutral-950 font-mono text-neutral-100">
+      <header className="flex items-center gap-2 border-b border-neutral-800 p-2">
+        {tab('control', 'Mission Control')}
+        {tab('explorer', 'Explorer', !mission)}
+        {mission && (
+          <span className="ml-auto text-xs text-neutral-400">
+            {mission.mission_id} · v{mission.version} · {mission.status}
+          </span>
+        )}
+      </header>
+      <div className="min-h-0 flex-1">
+        {view === 'explorer' && mission ? (
+          <Explorer mission={mission} onMission={setMission} />
+        ) : (
+          <MissionControl mission={mission} onMission={setMission} />
+        )}
+      </div>
     </div>
   );
 }
