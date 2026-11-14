@@ -1,6 +1,7 @@
 export interface Position {
   x_m: number;
   y_m: number;
+  z_m: number;
   frame_id: string;
 }
 
@@ -81,6 +82,17 @@ export interface RegionManifest {
   layers: Layer[];
   evidence: Evidence[];
   sample_only?: boolean;
+  terrain?: Terrain;
+}
+
+export interface Terrain {
+  heightmap_url: string; 
+  width_px: number;
+  height_px: number;
+  elevation_min_m: number;
+  elevation_max_m: number;
+  texture_layer_id: string;
+  evidence_ids: string[];
 }
 
 export interface Objective {
