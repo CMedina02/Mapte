@@ -24,12 +24,12 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
   ];
 
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4">
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-2 sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="rc-title"
-        className="w-full max-w-lg space-y-4 rounded border border-orange-500 bg-neutral-950/95 p-6"
+        className="max-h-full w-full max-w-lg space-y-4 overflow-y-auto rounded-lg border border-orange-500 bg-neutral-950/95 p-4 sm:p-6"
       >
         <div className="text-center">
           <h2 id="rc-title" className="text-xl font-bold uppercase tracking-widest">
@@ -42,7 +42,7 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
 
         <p className={`rounded border px-3 py-2 text-center font-bold ${s.cls}`}>Ruta {s.label}</p>
 
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
           {rows.map(([k, v]) => (
             <div key={k} className="flex justify-between gap-2">
               <dt className="text-orange-500">{k}</dt>
@@ -68,11 +68,11 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
             type="button"
             onClick={onConfirm}
             disabled={blocked}
-            className="rounded bg-sky-600 p-4 font-bold text-white disabled:opacity-40"
+            className="btn-go min-h-14"
           >
             Confirmar destino
           </button>
-          <button type="button" onClick={onCancel} className="rounded border border-orange-500 p-4 font-bold">
+          <button type="button" onClick={onCancel} className="btn min-h-14 border border-orange-500 text-orange-300">
             Cancelar
           </button>
         </div>

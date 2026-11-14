@@ -1,8 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { marsApi } from '../../shared/api/client';
-import { mutateMission } from '../../shared/api/mutateMission';
 import type { Mission } from '../../shared/types/contracts';
-import { loadPackage, savePackage, useOnline, type PendingObservation } from './offline';
+import { loadPackage, savePackage, sendQueue, useOnline, type PendingObservation } from './offline';
 
 interface Props {
   mission: Mission | null;
@@ -11,8 +10,8 @@ interface Props {
   setQueue: Dispatch<SetStateAction<PendingObservation[]>>;
 }
 
-const badge = 'rounded px-2 py-1 text-xs font-bold';
-const action = 'rounded bg-neutral-800 px-3 py-1 text-xs disabled:opacity-40';
+const badge = 'chip';
+const action = 'btn-ghost min-h-9 px-3 py-1 text-xs';
 
 export default function OfflineBar({ mission, onMission, queue, setQueue }: Props) {
   const online = useOnline();
@@ -42,31 +41,17 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
   async function sync() {
     if (!mission) return;
     setBusy(true);
-    setMsg(null);
-    let current = mission;
-    for (const item of queue) {
-      const err = await mutateMission(
-        current.mission_id,
-        () => marsApi.submitObservation(current.mission_id, { ...item, mission_version: current.version }),
-        (m) => {
-          current = m;
-          onMission(m);
-        },
-      );
-      if (err) {
-        setMsg(err);
-        setBusy(false);
-        return;
-      }
-      setQueue((q) => q.slice(1));
-    }
-    setMsg('Cambios sincronizados ✓');
+    setMsg(await sendQueue(mission, queue, onMission, setQueue));
     setBusy(false);
   }
 
   return (
-    <div className="flex items-center gap-2">
-      {msg && <span className="text-xs text-neutral-400">{msg}</span>}
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {msg && (
+        <span role="status" className="text-xs text-neutral-400">
+          {msg}
+        </span>
+      )}
 
       {online ? (
         <span className={`${badge} bg-green-900 text-green-300`}>● Online</span>

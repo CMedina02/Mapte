@@ -1,4 +1,6 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from 'react';
+import { marsApi } from '../../shared/api/client';
+import { mutateMission } from '../../shared/api/mutateMission';
 import type { Mission, MissionPackage, ObservationRequest } from '../../shared/types/contracts';
 
 const PKG_KEY = 'mars.package.v1';
@@ -60,3 +62,28 @@ function subscribe(cb: () => void) {
 }
 
 export const useOnline = () => useSyncExternalStore(subscribe, () => navigator.onLine);
+// ---------- Envío de la cola al reconectar ----------
+
+// Envía las observaciones en orden con la versión vigente. Se detiene en el primer error
+// (409 recarga la misión vía mutateMission) y devuelve el mensaje a mostrar.
+export async function sendQueue(
+  mission: Mission,
+  queue: PendingObservation[],
+  onMission: (m: Mission) => void,
+  setQueue: Dispatch<SetStateAction<PendingObservation[]>>,
+): Promise<string> {
+  let current = mission;
+  for (const item of queue) {
+    const err = await mutateMission(
+      current.mission_id,
+      () => marsApi.submitObservation(current.mission_id, { ...item, mission_version: current.version }),
+      (m) => {
+        current = m;
+        onMission(m);
+      },
+    );
+    if (err) return err;
+    setQueue((q) => q.slice(1));
+  }
+  return 'Cambios sincronizados ✓';
+}

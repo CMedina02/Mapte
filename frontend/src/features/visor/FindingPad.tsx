@@ -10,9 +10,10 @@ interface Props {
   onMission: (m: Mission) => void;
   onQueue: (o: PendingObservation) => void;
   onDone: (message: string) => void;
+  onBack: () => void;
 }
 
-export default function FindingPad({ mission, objective, onMission, onQueue, onDone }: Props) {
+export default function FindingPad({ mission, objective, onMission, onQueue, onDone, onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,15 +37,20 @@ export default function FindingPad({ mission, objective, onMission, onQueue, onD
 
   return (
     <div className="space-y-2">
-      <p className="text-sm">¿Qué observas en {objective.title}?</p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm">¿Qué observas en {objective.title}?</p>
+        <button type="button" onClick={onBack} disabled={busy} className="btn min-h-9 border border-orange-500 px-3 py-1 text-orange-300">
+          Volver
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
         {objective.possible_findings.map((code) => (
           <button
             key={code}
             type="button"
             disabled={busy}
             onClick={() => send(code)}
-            className="rounded border border-orange-500 bg-orange-950 p-5 text-lg font-bold disabled:opacity-40"
+            className="btn min-h-14 break-all border border-orange-500 bg-orange-950 text-base text-orange-200 sm:text-lg"
           >
             {code}
           </button>
