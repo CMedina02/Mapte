@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { marsApi } from '../../shared/api/client';
-import type { Mission, Objective, Position } from '../../shared/types/contracts';
+import type { Mission, MissionPlanRequest, Objective, Position } from '../../shared/types/contracts';
 
 interface Props {
   regionId: string;
@@ -9,7 +9,7 @@ interface Props {
   replan?: boolean; // hay una base nueva sobre una misión ya planificada
   selectedIds: string[];
   onSelectedIds: (ids: string[]) => void;
-  onPlanned: (m: Mission) => void;
+  onPlanned: (m: Mission, req: MissionPlanRequest) => void; // req: para explicar exclusiones
 }
 
 function NumberField(props: {
@@ -51,13 +51,13 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
     [maxSlope, speed, oxygen, reserve].some((n) => Number.isNaN(n) || n < 0) || maxSlope > 90 || speed <= 0;
 
   const problem = !base
-    ? 'Haz clic en el mapa para fijar la base.'
+    ? 'Toca el mapa para fijar la base.'
     : selectedIds.length === 0
       ? 'Selecciona al menos un objetivo.'
       : badNumber
-        ? 'Revisa los parámetros (pendiente 0–90°, velocidad > 0).'
+        ? 'Revisa los parámetros.'
         : reserve >= oxygen
-          ? 'La reserva de retorno debe ser menor que el O₂ disponible.'
+          ? 'La reserva debe ser menor que el O₂.'
           : null;
 
   async function plan() {
@@ -65,16 +65,15 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
     setLoading(true);
     setError(null);
     try {
-      onPlanned(
-        await marsApi.planMission({
-          region_id: regionId,
-          base_position: base,
-          objective_ids: selectedIds, // el backend decide el orden real de visita
-          constraints: { max_slope_deg: maxSlope, speed_m_per_min: speed, avoid_unknown: avoidUnknown },
-          resources: { oxygen_available_min: oxygen, return_reserve_min: reserve },
-          activity_durations_min: Object.fromEntries(selectedIds.map((id) => [id, activityMin])),
-        }),
-      );
+      const req: MissionPlanRequest = {
+        region_id: regionId,
+        base_position: base,
+        objective_ids: selectedIds, // el backend decide el orden real de visita
+        constraints: { max_slope_deg: maxSlope, speed_m_per_min: speed, avoid_unknown: avoidUnknown },
+        resources: { oxygen_available_min: oxygen, return_reserve_min: reserve },
+        activity_durations_min: Object.fromEntries(selectedIds.map((id) => [id, activityMin])),
+      };
+      onPlanned(await marsApi.planMission(req), req);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -93,18 +92,12 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
             onChange={() => toggle(o.objective_id)}
           />
           <span>
-            <span className="block">{o.title}</span>
-            <span className="block text-xs text-space-400">{o.science_question}</span>
-            <span className="block text-xs text-space-400">
-              Prioridad {o.priority_weight} · ({o.position.x_m}, {o.position.y_m}) m
+            <span className="block" title={o.science_question}>
+              {o.title}
             </span>
           </span>
         </label>
       ))}
-
-      <p className="text-xs text-space-300">
-        Base: {base ? `(${base.x_m}, ${base.y_m}) m` : 'sin fijar (clic en el mapa)'}
-      </p>
 
       <h2 className="eyebrow pt-2">Parámetros</h2>
       <NumberField label="Pendiente máx. (°)" value={maxSlope} onChange={setMaxSlope} min={0} max={90} />
@@ -126,7 +119,7 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
         disabled={!!problem || loading}
         className="btn-primary w-full"
       >
-        {loading ? 'Planificando…' : replan ? 'Recalcular desde nueva base' : 'Planificar misión'}
+        {loading ? 'Planificando…' : replan ? 'Recalcular' : 'Planificar'}
       </button>
     </section>
   );

@@ -16,11 +16,11 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
   // ponytail: cuando el backend agregue radiación/energía/agua al contrato, se suman aquí como filas
   const rows: [string, string][] = [
     ['Distancia', fmt(r.distance_m, 'm')],
-    ['Tiempo estimado', fmt(r.duration_min, 'min')],
+    ['Tiempo', fmt(r.duration_min, 'min')],
     ['Pendiente máx.', fmt(r.max_slope_deg, '°')],
     ['Ascenso', fmt(r.ascent_m, 'm')],
     ['O₂ disponible', fmt(resources.oxygen_available_min, 'min')],
-    ['Reserva de retorno', fmt(resources.return_reserve_min, 'min')],
+    ['Reserva', fmt(resources.return_reserve_min, 'min')],
   ];
 
   return (
@@ -57,10 +57,10 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
           </p>
         ))}
         {blocked && (
-          <p className="text-sm font-bold text-alert-400">Ruta no viable: no se puede confirmar. Contacta al panel de control.</p>
+          <p className="text-sm font-bold text-alert-400">Ruta no viable.</p>
         )}
         {r.status === 'unknown' && (
-          <p className="text-sm text-amber-300">Datos insuficientes: la ruta no está confirmada como segura.</p>
+          <p className="text-sm text-amber-300">Ruta sin confirmar.</p>
         )}
 
         <div className="grid grid-cols-2 gap-3">

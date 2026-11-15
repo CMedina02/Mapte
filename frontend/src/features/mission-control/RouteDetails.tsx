@@ -2,7 +2,7 @@ import type { Mission } from '../../shared/types/contracts';
 import { fmt, notices, ROUTE_STATUS } from '../../shared/format';
 import { missionRoute } from '../../shared/mission';
 
-// Panel derecho: estado y métricas, luego avisos; supuestos y evidencia plegados para consulta.
+// Panel derecho: estado, métricas y avisos.
 export default function RouteDetails({ mission }: { mission: Mission }) {
   const route = missionRoute(mission);
   const items = notices(route.warnings, mission.alerts);
@@ -26,7 +26,7 @@ export default function RouteDetails({ mission }: { mission: Mission }) {
         <ul className="space-y-1.5">
           {route.unknown_segments > 0 && (
             <li className="rounded bg-amber-950 p-2 text-xs text-amber-300">
-              {route.unknown_segments} segmento(s) sin datos de terreno.
+              {route.unknown_segments} tramo(s) sin datos de terreno.
             </li>
           )}
           {items.map((t) => (
@@ -35,26 +35,6 @@ export default function RouteDetails({ mission }: { mission: Mission }) {
             </li>
           ))}
         </ul>
-      )}
-      {route.assumptions.length > 0 && (
-        <details className="text-xs text-space-300">
-          <summary className="eyebrow cursor-pointer">Supuestos del modelo</summary>
-          <ul className="mt-1 list-disc space-y-0.5 pl-4">
-            {route.assumptions.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ul>
-        </details>
-      )}
-      {route.evidence_ids.length > 0 && (
-        <details className="text-xs text-space-400">
-          <summary className="eyebrow cursor-pointer">Evidencia ({route.evidence_ids.length})</summary>
-          <ul className="mt-1 space-y-0.5 break-all">
-            {route.evidence_ids.map((e) => (
-              <li key={e}>{e}</li>
-            ))}
-          </ul>
-        </details>
       )}
     </section>
   );

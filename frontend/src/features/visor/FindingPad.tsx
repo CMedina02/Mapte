@@ -21,7 +21,7 @@ export default function FindingPad({ mission, objective, onMission, onQueue, onD
     const obs = { objective_id: objective.objective_id, finding_code: code };
     if (!navigator.onLine) {
       onQueue(obs);
-      onDone('Sin enlace: hallazgo guardado; se enviará al reconectar.');
+      onDone('Guardado; se enviará al reconectar.');
       return;
     }
     setBusy(true);

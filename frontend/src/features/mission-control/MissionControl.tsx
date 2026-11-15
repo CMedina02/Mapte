@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { marsApi } from '../../shared/api/client';
-import type { Mission, Objective, Position, Region, RegionManifest } from '../../shared/types/contracts';
+import type { Mission, MissionPlanRequest, Objective, Position, Region, RegionManifest } from '../../shared/types/contracts';
 import MarsMap from '../mars-map/MarsMap';
 import LayerPanel from '../mars-map/LayerPanel';
 import { initialLayerState, type LayerState } from '../mars-map/mapUtils';
@@ -37,6 +37,8 @@ export default function MissionControl({ mission, onMission }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('plan');
+  // Solicitud del último plan hecho aquí: con ella se explica qué parámetro faltó a un objetivo excluido
+  const [planReq, setPlanReq] = useState<{ id: string; req: MissionPlanRequest } | null>(null);
 
   useEffect(() => {
     marsApi
@@ -120,8 +122,9 @@ export default function MissionControl({ mission, onMission }: Props) {
                 replan={!!newBase}
                 selectedIds={selectedIds}
                 onSelectedIds={setSelectedIds}
-                onPlanned={(m) => {
+                onPlanned={(m, req) => {
                   onMission(m);
+                  setPlanReq({ id: m.mission_id, req });
                   setBase(null); // la base ya es la de la misión: se quita el círculo punteado
                 }}
               />
@@ -162,7 +165,7 @@ export default function MissionControl({ mission, onMission }: Props) {
       {mission && (
         <aside className="order-4 w-full space-y-6 border-t border-space-800 p-3 sm:p-4 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-96">
           <RouteDetails mission={mission} />
-          <LegTimeline mission={mission} objectives={objectives} />
+          <LegTimeline mission={mission} objectives={objectives} request={planReq?.id === mission.mission_id ? planReq.req : null} />
           <DecisionLog mission={mission} objectives={objectives} />
         </aside>
       )}

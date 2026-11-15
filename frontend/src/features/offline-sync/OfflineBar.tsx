@@ -1,7 +1,7 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { marsApi } from '../../shared/api/client';
 import type { Mission } from '../../shared/types/contracts';
-import { loadPackage, savePackage, sendQueue, useOnline, type PendingObservation } from './offline';
+import { savePackage, sendQueue, useOnline, type PendingObservation } from './offline';
 
 interface Props {
   mission: Mission | null;
@@ -15,16 +15,10 @@ const action = 'btn-ghost min-h-9 px-3 py-1 text-xs';
 
 export default function OfflineBar({ mission, onMission, queue, setQueue }: Props) {
   const online = useOnline();
-  const [synced, setSynced] = useState(() => {
-    const m = loadPackage()?.mission;
-    return m ? { id: m.mission_id, version: m.mission_version } : null;
-  });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const missionId = mission?.mission_id ?? null;
   const version = mission?.mission_version ?? null;
-  const hasPkg = !!mission && synced?.id === mission.mission_id;
-  const upToDate = hasPkg && synced?.version === version;
 
   // Transferencia automática al visor: cada misión nueva o versión nueva se empaqueta sin pulsar nada.
   // El visor (otra pestaña) recibe el cambio por el evento 'storage'; en otro dispositivo, por sondeo.
@@ -52,7 +46,6 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
           return;
         }
         savePackage(pkg);
-        setSynced({ id: pkg.mission.mission_id, version: pkg.mission.mission_version });
         setMsg(null);
       })
       .catch((e: unknown) => alive && setMsg(`Visor sin actualizar: ${e instanceof Error ? e.message : String(e)}`));
@@ -76,22 +69,11 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
         </span>
       )}
 
-      {online ? (
-        <span className={`${badge} bg-green-900 text-green-300`}>● Online</span>
-      ) : (
-        <span className={`${badge} ${hasPkg ? 'bg-amber-900 text-amber-300' : 'bg-alert-950 text-alert-300'}`}>
-          ● Offline {hasPkg ? '(Paquete Local)' : '(sin paquete)'}
-        </span>
-      )}
-
-      {mission && (
-        <span className={`${badge} ${upToDate ? 'bg-primary-900 text-primary-200' : 'bg-space-800 text-space-300'}`} title="Paquete que usa el visor del astronauta">
-          Visor {upToDate ? 'al día' : 'sincronizando…'}
-        </span>
-      )}
+      {/* Solo lo que pide atención: sin conexión. 'En línea' y 'visor al día' son el estado normal. */}
+      {!online && <span className={`${badge} bg-amber-900 text-amber-300`}>Sin conexión</span>}
 
       {queue.length > 0 && (
-        <span className={`${badge} bg-primary-900 text-primary-300`}>● Cambios pendientes ({queue.length})</span>
+        <span className={`${badge} bg-primary-900 text-primary-300`}>{queue.length} sin enviar</span>
       )}
 
       {online && queue.length > 0 && (

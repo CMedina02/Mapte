@@ -1,13 +1,22 @@
-import type { Mission, Objective } from '../../shared/types/contracts';
+import type { Mission, MissionPlanRequest, Objective } from '../../shared/types/contracts';
+import ExclusionHint from './ExclusionHint';
 import { fmt, ROUTE_STATUS } from '../../shared/format';
-import { decisionPoints, excludedObjectives, stopLetters } from '../../shared/mission';
+import { decisionPoints, excludedObjectives, shortReason, stopLetters } from '../../shared/mission';
 import { LEG_COLORS } from '../mars-map/mapUtils';
 
 const verdict = (ok: boolean | null) =>
   ok === null ? <span className="text-space-400">—</span> : ok ? <span className="text-green-400">✓</span> : <span className="text-alert-400">✕</span>;
 
 // Tramos de la multirruta con su color del mapa + en qué parada deja de ser viable seguir o regresar
-export default function LegTimeline({ mission, objectives }: { mission: Mission; objectives: Objective[] }) {
+export default function LegTimeline({
+  mission,
+  objectives,
+  request,
+}: {
+  mission: Mission;
+  objectives: Objective[];
+  request?: MissionPlanRequest | null; // la solicitud del plan, si se hizo desde este panel
+}) {
   const letters = stopLetters(mission);
   // En los tramos la base es destino ('Base'); en los puntos de decisión es el inicio ('Salida')
   const name = (id: string, start = false) => (id === 'base' ? (start ? 'Salida' : 'Base') : (objectives.find((o) => o.objective_id === id)?.title.split(' — ')[0] ?? id));
@@ -42,7 +51,16 @@ export default function LegTimeline({ mission, objectives }: { mission: Mission;
         <ul className="space-y-1">
           {excluded.map((x) => (
             <li key={x.objective_id} className="rounded bg-alert-950 p-2 text-xs text-alert-300">
-              <span className="font-bold">✕ {name(x.objective_id)}</span> fuera del plan: {x.reason}.
+              <span className="font-bold">✕ {name(x.objective_id)}</span> · {shortReason(x.reason)}
+              {/* Solo el primero: los siguientes se excluyen porque dependen de él */}
+              {request && x === excluded[0] && (
+                <ExclusionHint
+                  mission={mission}
+                  excluded={x}
+                  objective={objectives.find((o) => o.objective_id === x.objective_id)}
+                  request={request}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -79,7 +97,7 @@ export default function LegTimeline({ mission, objectives }: { mission: Mission;
           </table>
           {limit && (
             <p className="rounded bg-alert-950 p-2 text-xs text-alert-300">
-              Límite en {letters[limit.stop]} · {name(limit.stop, true)}: desde ahí solo es seguro regresar a base.
+              Desde {letters[limit.stop]} solo es seguro regresar.
             </p>
           )}
         </>

@@ -6,7 +6,6 @@ import { loadPackage, type PendingObservation } from '../offline-sync/offline';
 import ProgressCard from './ProgressCard';
 import PhotoViewer from './PhotoViewer';
 import ObservationForm from './ObservationForm';
-import ContingencyPanel from './ContingencyPanel';
 import { warningText } from '../../shared/format';
 
 interface Props {
@@ -65,7 +64,6 @@ export default function Explorer({ mission, onMission, onQueue }: Props) {
           </p>
         )}
         <ObservationForm mission={mission} objectives={objectives} onUpdated={handleUpdated} onQueue={onQueue} />
-        <ContingencyPanel mission={mission} onMission={onMission} />
       </div>
       <div className="space-y-4">
         <PhotoViewer photos={photos.filter((p) => p.objective_id === current?.objective_id)} />

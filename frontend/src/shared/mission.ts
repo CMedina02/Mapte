@@ -115,3 +115,17 @@ export function decisionPoints(mission: Mission): DecisionPoint[] {
     };
   });
 }
+
+// Motivos del backend en pocas palabras
+export const shortReason = (r: string) =>
+  r.includes('recursos')
+    ? 'sin O₂ para volver con reserva'
+    : r.includes('anterior excluido')
+      ? 'depende del anterior'
+      : r.includes('no es viable')
+        ? 'sin ruta viable'
+        : r.includes('desconocido')
+          ? 'cruza terreno sin datos'
+          : r.includes('consumo')
+            ? 'consumo sin confirmar'
+            : r;

@@ -134,7 +134,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
 
       <div className="pointer-events-none absolute inset-x-2 top-2 z-20 flex flex-wrap items-start gap-2 sm:inset-x-3 sm:top-3">
         {here && <PositionCard frame={manifest.frame} here={here} label="Sin misión" online={online} />}
-        <p className="hud mx-auto px-3 py-1.5 text-xs">Sin misión · toca el radar para elegir objetivos</p>
+        <p className="hud mx-auto px-3 py-1.5 text-xs">Sin misión</p>
       </div>
 
       {/* Radar: abre la selección de objetivos */}
@@ -169,7 +169,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
           <div className="relative min-h-0 flex-1">{map2d}</div>
           <aside className="hud m-2 max-h-[55dvh] space-y-3 overflow-y-auto p-3 sm:p-4 lg:max-h-none lg:w-96 lg:self-end">
             <div className="flex items-center justify-between gap-2">
-              <p className="eyebrow">Tu misión · elige objetivos en orden</p>
+              <p className="eyebrow">Objetivos</p>
               <button type="button" className="btn min-h-9 px-3 text-lg" aria-label="Cerrar" onClick={() => setPicking(false)}>
                 ✕
               </button>
@@ -196,7 +196,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
                         <span className="block truncate text-sm font-bold">{o.title.split(' — ')[0]}</span>
                         {dist !== null && brg !== null && (
                           <span className="block text-[11px] text-space-300">
-                            {(dist / 1000).toFixed(1)} km en línea recta · rumbo {Math.round(brg)}° {cardinal(brg)}
+                            {(dist / 1000).toFixed(1)} km · {Math.round(brg)}° {cardinal(brg)}
                           </span>
                         )}
                       </span>
@@ -206,8 +206,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
               })}
             </ul>
             <p className="text-[11px] text-space-400">
-              Sales desde tu posición · O₂ {EVA_PLAN.resources.oxygen_available_min} min · reserva {EVA_PLAN.resources.return_reserve_min} min ·{' '}
-              {EVA_PLAN.activity_min} min por objetivo
+              O₂ {EVA_PLAN.resources.oxygen_available_min} · reserva {EVA_PLAN.resources.return_reserve_min} · {EVA_PLAN.activity_min} min/objetivo
             </p>
             {!here && <p className="text-xs text-amber-300">Toca el mapa para fijar tu posición.</p>}
             {msg && <p className="text-xs text-alert-300">{msg}</p>}
@@ -217,7 +216,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
               onClick={plan}
               className="btn min-h-14 w-full bg-primary-600 px-5 text-base text-white enabled:hover:bg-primary-500 sm:text-lg"
             >
-              {planning ? 'Calculando ruta segura…' : 'Planificar mi misión'}
+              {planning ? 'Calculando…' : 'Planificar'}
             </button>
           </aside>
         </div>

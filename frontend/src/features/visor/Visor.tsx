@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { Constraints, Mission, MissionPackage, Position, RouteResult } from '../../shared/types/contracts';
-import { fmt, ROUTE_STATUS, warningText } from '../../shared/format';
+import { fmt, notices, ROUTE_STATUS, warningText } from '../../shared/format';
 import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
 import MarsMap from '../mars-map/MarsMap';
@@ -19,7 +19,7 @@ import CompassTape from './nav/CompassTape';
 import ElevationProfile from './nav/ElevationProfile';
 import { bearingDeg, norm360, samePlace } from './nav/geo';
 import { compassAvailable, useDeviceCompass } from './nav/useDeviceCompass';
-import { activeMissionLeg, missionRoute } from '../../shared/mission';
+import { activeMissionLeg, excludedObjectives, missionRoute, shortReason } from '../../shared/mission';
 
 // three.js pesa: se descarga solo al abrir la vista 3D
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
@@ -115,6 +115,8 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       title: o.title,
       position: o.position,
       recommended: o.objective_id === mission.next_objective_id,
+      // el backend solo acepta un objetivo si desde él se puede volver con reserva
+      reach: mission.viability_status === 'viable' ? ('ok' as const) : undefined,
     })),
     // Regresar a base solo tiene sentido si no estás ya en ella (o si no queda nada pendiente)
     ...(hereLabel !== 'Base' || pending.length === 0
@@ -122,6 +124,11 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       : []),
     ...(custom ? [{ id: 'custom', title: 'Punto marcado', position: custom, recommended: false }] : []),
   ];
+  // Objetivos que el plan dejó fuera: se muestran bloqueados con su motivo, como en el panel
+  const unreachable: Destination[] = excludedObjectives(mission).flatMap((x) => {
+    const o = pkg.objectives.find((ob) => ob.objective_id === x.objective_id);
+    return o ? [{ id: o.objective_id, title: o.title, position: o.position, recommended: false, reach: 'no' as const, note: shortReason(x.reason) }] : [];
+  });
   const defaultId = pending.some((o) => o.objective_id === mission.next_objective_id) ? mission.next_objective_id! : 'base';
   const dest = destinations.find((d) => d.id === chosenId) ?? destinations.find((d) => d.id === defaultId)!;
   const objective = pkg.objectives.find((o) => o.objective_id === dest.id) ?? null;
@@ -149,13 +156,15 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       ? 'Calculando ruta…'
       : preview === 'error'
         ? isPlanNext
-          ? 'Sin enlace: se muestra la ruta del plan.'
-          : 'Sin enlace: este destino no tiene ruta calculada. Elige el destino del plan o espera al enlace.'
+          ? 'Sin enlace · ruta del plan'
+          : 'Sin enlace · sin ruta'
         : null;
   const shownRoute = legRoute ?? plannedRoute;
   const bearing = bearingDeg(here, dest.position);
 
   const { oxygen_available_min: o2, return_reserve_min: reserve } = mission.resources;
+  // Al astronauta solo lo accionable (sin avisos implícitos ni del modelo)
+  const alerts = notices([], mission.alerts);
   const reservePct = o2 > 0 ? Math.min(100, (reserve / o2) * 100) : 100;
 
   const imageryLayer =
@@ -299,7 +308,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                   aria-label="Orientar la vista con la brújula del dispositivo"
                   onClick={async () => {
                     if (compass.enabled) compass.disable();
-                    else if (!(await compass.enable())) setNotice('Sin permiso para usar la brújula del dispositivo.');
+                    else if (!(await compass.enable())) setNotice('Sin permiso de brújula.');
                   }}
                 >
                   🧭{compass.enabled && compass.heading === null ? '…' : ''}
@@ -319,11 +328,11 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
           )}
         </div>
 
-        {mission.alerts.length > 0 && (
+        {alerts.length > 0 && (
           <div role="alert" className="mx-auto max-w-md rounded border border-alert-500 bg-alert-950/85 px-2 py-0.5 text-[11px] font-semibold text-alert-100">
             {/* Al astronauta solo la primera alerta; el detalle completo está en el panel de control */}
-            ⚠ {warningText(mission.alerts[0])}
-            {mission.alerts.length > 1 && <span className="font-normal opacity-80"> (+{mission.alerts.length - 1})</span>}
+            ⚠ {alerts[0]}
+            {alerts.length > 1 && <span className="font-normal opacity-80"> (+{alerts.length - 1})</span>}
           </div>
         )}
       </div>
@@ -412,7 +421,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
             {phase === 'arrived' && dest.id === 'custom' && (
               // ponytail: la posición no se mueve hasta que el backend acepte posiciones libres en /progress
               <div className="flex items-center justify-between gap-3">
-                <p className="font-bold">Llegaste al punto marcado.</p>
+                <p className="font-bold">En el punto marcado</p>
                 <button
                   type="button"
                   className={`${bigButton} bg-primary-600 text-white`}
@@ -438,7 +447,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                 />
               ) : (
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-bold">Llegaste a la base.</p>
+                  <p className="font-bold">En base</p>
                   <button
                     type="button"
                     className={`${bigButton} bg-primary-600 text-white`}
@@ -475,13 +484,13 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
           <div className="relative min-h-0 flex-1">{map2d(true)}</div>
           <aside className="hud m-2 space-y-3 p-3 sm:p-4 lg:w-96 lg:self-end">
             <div className="flex items-center justify-between gap-2">
-              <p className="eyebrow">¿A dónde vas? · toca un punto o elige</p>
+              <p className="eyebrow">Destino</p>
               <button type="button" className="btn min-h-9 px-3 text-lg" aria-label="Cerrar mapa" onClick={() => setPicking(false)}>
                 ✕
               </button>
             </div>
             <DestinationPicker
-              destinations={destinations}
+              destinations={[...destinations, ...unreachable]}
               selectedId={dest.id}
               here={here}
               onSelect={(id) => {

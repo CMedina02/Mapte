@@ -36,7 +36,7 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
       setObjectiveId('');
       setFinding('');
       setNotes('');
-      setError('Sin conexión: observación guardada en cola; se enviará al sincronizar.');
+      setError('Guardado; se enviará al reconectar.');
       return;
     }
     setLoading(true);

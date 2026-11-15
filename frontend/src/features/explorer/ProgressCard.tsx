@@ -31,11 +31,11 @@ export default function ProgressCard({ mission, current }: { mission: Mission; c
           <dd className="text-lg sm:text-xl">{fmt(o2, 'min')}</dd>
         </div>
         <div className="rounded bg-space-900 p-2">
-          <dt className="text-xs text-space-400">Reserva retorno</dt>
+          <dt className="text-xs text-space-400">Reserva</dt>
           <dd className="text-lg sm:text-xl">{fmt(reserve, 'min')}</dd>
         </div>
         <div className={`rounded p-2 ${margin !== null && margin <= 0 ? 'bg-alert-950 text-alert-300' : 'bg-space-900'}`}>
-          <dt className="text-xs text-space-400">Margen (O₂ − reserva)</dt>
+          <dt className="text-xs text-space-400">Margen</dt>
           <dd className="text-lg sm:text-xl">{fmt(margin, 'min')}</dd>
         </div>
       </dl>
