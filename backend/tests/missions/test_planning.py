@@ -1,0 +1,150 @@
+from dataclasses import replace
+
+import pytest
+
+from app.modules.catalog.domain import (
+    InMemoryTerrainRepository,
+    TerrainDataset,
+    TerrainGridData,
+    VerticalReferenceSpec,
+    build_synthetic_terrain,
+)
+from app.modules.missions.planning import (
+    InMemoryObjectiveRepository,
+    MissionObjective,
+    MissionPlanner,
+    MissionPlanningRequest,
+    MissionPlanViability,
+    UnknownObjectiveError,
+)
+from app.modules.missions.resources import SupportResources
+from app.modules.missions.routing import RoutePlanningConstraints
+from app.modules.missions.terrain import GridCell, LocalPosition
+
+REGION_ID = "mc23-gale-mount-sharp"
+FRAME_ID = "MARS_GALE_MS_LOCAL_V1"
+
+
+def position(row: int, column: int) -> LocalPosition:
+    return LocalPosition(5 + column * 10, 25 - row * 10, FRAME_ID)
+
+
+def terrain_repository(*, blocked: set[GridCell] | None = None) -> InMemoryTerrainRepository:
+    source = build_synthetic_terrain(
+        region_id=REGION_ID,
+        frame_id=FRAME_ID,
+        width_px=3,
+        height_px=3,
+        pixel_size_m=10,
+        terrain_version="planning-test-v1",
+    )
+    metadata = replace(
+        source.metadata,
+        vertical=VerticalReferenceSpec("test", -5000, 0),
+    )
+    blocked_mask = [
+        GridCell(row, column) in (blocked or set()) for row in range(3) for column in range(3)
+    ]
+    grid = TerrainGridData(
+        metadata=metadata,
+        elevations_m=[-3500.0] * 9,
+        blocked_mask=blocked_mask,
+    )
+    return InMemoryTerrainRepository((TerrainDataset(metadata, grid),))
+
+
+def objectives() -> InMemoryObjectiveRepository:
+    return InMemoryObjectiveRepository(
+        (
+            MissionObjective(
+                objective_id="obj-a",
+                region_id=REGION_ID,
+                title="Objetivo A",
+                position=position(0, 2),
+                activities=("Fotografía",),
+                evidence_ids=("ev-a",),
+            ),
+            MissionObjective(
+                objective_id="obj-b",
+                region_id=REGION_ID,
+                title="Objetivo B",
+                position=position(1, 2),
+                activities=("Muestreo",),
+                evidence_ids=("ev-b",),
+            ),
+        )
+    )
+
+
+def request(
+    *,
+    available_min: float = 200,
+    durations: tuple[tuple[str, float], ...] = (("obj-a", 10), ("obj-b", 20)),
+) -> MissionPlanningRequest:
+    return MissionPlanningRequest(
+        region_id=REGION_ID,
+        base_position=position(1, 0),
+        objective_ids=("obj-a", "obj-b"),
+        constraints=RoutePlanningConstraints(speed_m_per_min=10),
+        resources=SupportResources(available_min, 30),
+        activity_durations_min=durations,
+    )
+
+
+def planner(*, blocked: set[GridCell] | None = None) -> MissionPlanner:
+    return MissionPlanner(terrain_repository(blocked=blocked), objectives())
+
+
+def test_planner_preserves_requested_order_and_returns_to_base() -> None:
+    plan = planner().plan(request())
+
+    assert plan.viability is MissionPlanViability.VIABLE
+    assert plan.version == 1
+    assert plan.objective_ids == ("obj-a", "obj-b")
+    assert plan.next_objective_id == "obj-a"
+    assert [(leg.start_label, leg.end_label) for leg in plan.legs] == [
+        ("base", "obj-a"),
+        ("obj-a", "obj-b"),
+        ("obj-b", "base"),
+    ]
+    assert plan.resource_evaluation.projected_consumption_min == pytest.approx(
+        sum(leg.route.route.duration_min for leg in plan.legs if leg.route.route) + 30
+    )
+    assert plan.evidence_ids == ("ev-a", "ev-b", "ev-synthetic-terrain-gale-ms")
+    assert "Orden solicitado conservado" in plan.decision_log[0].message
+
+
+def test_missing_activity_duration_makes_plan_unknown() -> None:
+    plan = planner().plan(request(durations=(("obj-a", 10),)))
+
+    assert plan.viability is MissionPlanViability.UNKNOWN
+    assert "DURATION_UNKNOWN" in plan.resource_evaluation.reason_codes
+    assert "MISSION_UNKNOWN" in plan.alerts
+
+
+def test_insufficient_support_makes_plan_not_viable() -> None:
+    plan = planner().plan(request(available_min=40))
+
+    assert plan.viability is MissionPlanViability.NOT_VIABLE
+    assert "INSUFFICIENT_RETURN_RESERVE" in plan.resource_evaluation.reason_codes
+    assert "MISSION_NOT_VIABLE" in plan.alerts
+
+
+def test_unreachable_leg_makes_plan_not_viable() -> None:
+    wall = {GridCell(row, 1) for row in range(3)}
+    plan = planner(blocked=wall).plan(request())
+
+    assert plan.viability is MissionPlanViability.NOT_VIABLE
+    assert any(leg.route.status.value == "not_viable" for leg in plan.legs)
+    assert "SEGMENT_NOT_VIABLE" in plan.resource_evaluation.reason_codes
+
+
+def test_unknown_objective_and_invalid_request_are_rejected() -> None:
+    invalid_objective = replace(request(), objective_ids=("missing",), activity_durations_min=())
+    with pytest.raises(UnknownObjectiveError):
+        planner().plan(invalid_objective)
+
+    with pytest.raises(ValueError, match="duplicados"):
+        replace(request(), objective_ids=("obj-a", "obj-a"))
+    with pytest.raises(ValueError, match="no solicitados"):
+        replace(request(), activity_durations_min=(("other", 10),))
