@@ -101,6 +101,7 @@ function terrain(): Terrain {
     memory_order: 'row_major',
     nodata_policy: 'f32_nan',
     texture_aligned: true, // ortofoto y DEM cubren la misma zona de 10 km
+    quality_zones: RT.quality_zones as Terrain['quality_zones'],
     normal_map_url: RT.normal_map_url,
     grid: { ...RT.grid, row_order: 'north_to_south' },
   };
@@ -109,7 +110,7 @@ function terrain(): Terrain {
 let manifestCache: RegionManifest | null = null;
 function manifest(): RegionManifest {
   if (!manifestCache) {
-    const clay = OBJECTIVES.find((o) => o.objective_id === 'obj-clay-sulfate')!.position;
+    const clay = (OBJECTIVES.find((o) => o.objective_id === 'obj-glen-torridon-aberlady') ?? OBJECTIVES[0]).position;
     const contactZ = elevationAt(clay.x_m, clay.y_m);
     manifestCache = {
       region_id: REGION_ID,
@@ -156,6 +157,9 @@ function save(state: MockState): Mission {
 }
 
 const notFound = () => new MarsApiError(404, 'MISSION_NOT_FOUND', 'No hay misión planificada.');
+// Como el backend: z_m de cada objetivo muestreado del DEM (null si cae sin dato)
+const withZ = (p: Position): Position => ({ ...p, z_m: Math.round(elevationAt(p.x_m, p.y_m) * 10) / 10 });
+const objectivesWithZ = () => OBJECTIVES.map((o) => ({ ...structuredClone(o), position: withZ(o.position) }));
 const positionOf = (id: string): Position | undefined => OBJECTIVES.find((o) => o.objective_id === id)?.position;
 const titleOf = (id: string) => OBJECTIVES.find((o) => o.objective_id === id)?.title ?? id;
 
@@ -260,18 +264,44 @@ export const mockApi = {
   health: (): Health => ({ status: 'ok', api_version: 'mock' }),
   regions: () => structuredClone(REGIONS),
   manifest,
-  objectives: () => structuredClone(OBJECTIVES),
+  objectives: () => objectivesWithZ(),
   photos: (objectiveId?: string) =>
     structuredClone(objectiveId ? PHOTOS.filter((p) => p.objective_id === objectiveId) : PHOTOS),
 
   // Vista previa: sin recursos, no evalúa O₂
   route: (req: RouteRequest) => simulateRoute([req.start, req.end], req.constraints),
 
-  plan: (req: MissionPlanRequest) => {
+  // Paradas del plan: base → objetivos → base (el cliente híbrido pide cada tramo al A* real)
+  planStops: (req: MissionPlanRequest) => [
+    req.base_position,
+    ...req.objective_ids.flatMap((id) => positionOf(id) ?? []),
+    req.base_position,
+  ],
+
+  // legs: tramos ya calculados por el backend (modo híbrido); sin ellos, simulación en línea recta
+  plan: (req: MissionPlanRequest, computedRoutes?: RouteResult[]) => {
     const stops = req.objective_ids.flatMap((id) => positionOf(id) ?? []);
     const points = [req.base_position, ...stops, req.base_position];
     const labels = ['base', ...req.objective_ids, 'base'];
-    const legs = missionLegs(points, labels, req.constraints, req.resources);
+    const legs = computedRoutes?.length
+      ? computedRoutes.map((route, index): MissionLeg => ({
+          leg_id: `leg-${index + 1}`,
+          route_id: route.route_id,
+          start_label: labels[index],
+          end_label: labels[index + 1],
+          status: route.status,
+          path: route.path,
+          metrics: {
+            distance_m: route.distance_m,
+            duration_min: route.duration_min,
+            ascent_m: route.ascent_m,
+            max_slope_deg: route.max_slope_deg,
+            unknown_segments: route.unknown_segments,
+          },
+          warnings: route.warnings,
+          assumptions: route.assumptions,
+        }))
+      : missionLegs(points, labels, req.constraints, req.resources);
     const activityMin = Object.values(req.activity_durations_min ?? {}).reduce((total, value) => total + value, 0);
     const resourceEvaluation = evaluateLegs(legs, req.resources, activityMin);
     return save({
@@ -308,6 +338,10 @@ export const mockApi = {
       },
     });
   },
+
+  // Cierre de la EVA al volver a la base con todo completado
+  complete: (version: number) =>
+    advance((m) => ({ ...m, lifecycle_status: 'completed', current_position: m.return_position, next_objective_id: null }), version),
 
   mission: () => {
     const { mission } = loadState();
@@ -424,14 +458,15 @@ export const mockApi = {
     };
   },
 
-  package: (): MissionPackage => {
-    const { mission } = loadState();
+  // mission: la del backend en modo híbrido; si no, la del estado del mock
+  package: (override?: Mission): MissionPackage => {
+    const mission = override ?? loadState().mission;
     if (!mission) throw notFound();
     return {
       package_version: '1.0',
       mission,
       region_manifest: manifest(),
-      objectives: structuredClone(OBJECTIVES),
+      objectives: objectivesWithZ(),
       photos: structuredClone(PHOTOS),
       offline_assets: [RT.heightmap_url, RT.texture_url, RT.normal_map_url],
       missing_assets: [],

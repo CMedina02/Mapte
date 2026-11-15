@@ -50,17 +50,32 @@ const hazardStyle = (kind: Hazard['kind'], label: string) => {
   });
 };
 
+// Calidad 'unknown' del DEM: gris, nunca verde ni sin marcar (desconocido no es seguro)
+const unknownZoneStyle = new Style({
+  fill: new Fill({ color: 'rgba(148,163,184,0.18)' }),
+  stroke: new Stroke({ color: '#94a3b8', width: 1.5, lineDash: [2, 6] }),
+  text: new Text({
+    text: '? Terreno de calidad desconocida',
+    font: 'bold 11px monospace',
+    fill: new Fill({ color: '#cbd5e1' }),
+    stroke: new Stroke({ color: '#000', width: 3 }),
+    overflow: true,
+  }),
+});
+
 const ROUTE_COLOR: Record<RouteStatus, string> = {
   viable: '#22c55e',
   not_viable: '#fc3d21',
   unknown: '#f59e0b',
 };
 
-const routeStyle = (status: RouteStatus) =>
+// Regreso: el A* penaliza subir, así que de vuelta (cuesta abajo) puede elegir otro camino.
+// Se dibuja más delgado y translúcido para que no parezca una segunda ruta.
+const routeStyle = (status: RouteStatus, isReturn = false) =>
   new Style({
     stroke: new Stroke({
-      color: ROUTE_COLOR[status] ?? ROUTE_COLOR.unknown,
-      width: 3,
+      color: (ROUTE_COLOR[status] ?? ROUTE_COLOR.unknown) + (isReturn ? '80' : ''),
+      width: isReturn ? 2 : 3,
       lineDash: status === 'viable' ? undefined : [8, 6],
     }),
   });
@@ -138,11 +153,26 @@ export default function MarsMap({
       }),
     });
 
+    const unknownZones = new VectorLayer({
+      source: new VectorSource({
+        features: (manifest.terrain?.quality_zones ?? [])
+          .filter((z) => z.quality === 'unknown')
+          .map((z) => {
+            const e = z.extent_m;
+            const f = new Feature(fromExtent([e.x_min_m, e.y_min_m, e.x_max_m, e.y_max_m]));
+            f.setStyle(unknownZoneStyle);
+            f.set('reason', z.reason);
+            return f;
+          }),
+      }),
+    });
+
     const map = new OlMap({
       target: targetRef.current!,
       layers: [
         ...rasters,
         bounds,
+        unknownZones,
         hazards,
         new VectorLayer({ source: routeSource.current }),
         new VectorLayer({ source: markers.current }),
@@ -206,9 +236,15 @@ export default function MarsMap({
       console.warn(`Ruta en otro frame (se esperaba ${frameId}); no se dibuja.`);
       return;
     }
-    const f = new Feature(new LineString(route.path.map((p) => [p.x_m, p.y_m])));
-    f.setStyle(routeStyle(route.status));
-    routeSource.current?.addFeature(f);
+    const coords = route.path.map((p) => [p.x_m, p.y_m]);
+    const cut = route.return_start_index ?? coords.length;
+    const parts: [number[][], boolean][] = [[coords.slice(cut), true], [coords.slice(0, cut + 1), false]]; // ida encima
+    for (const [line, isReturn] of parts) {
+      if (line.length < 2) continue;
+      const f = new Feature(new LineString(line));
+      f.setStyle(routeStyle(route.status, isReturn));
+      routeSource.current?.addFeature(f);
+    }
   }, [route, manifest]);
   return <div ref={targetRef} className="h-full w-full cursor-crosshair" />;
 }

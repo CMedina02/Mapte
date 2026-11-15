@@ -1,5 +1,5 @@
 import type { Mission, Objective } from '../../shared/types/contracts';
-import { fmt } from '../../shared/format';
+import { fmt, warningText } from '../../shared/format';
 import { missionRoute } from '../../shared/mission';
 
 export default function ProgressCard({ mission, current }: { mission: Mission; current: Objective | null }) {
@@ -46,7 +46,7 @@ export default function ProgressCard({ mission, current }: { mission: Mission; c
       </p>
       {route.warnings.map((w) => (
         <p key={w} className="text-xs text-amber-300">
-          ⚠ {w}
+          ⚠ {warningText(w)}
         </p>
       ))}
     </section>

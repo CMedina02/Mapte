@@ -1,5 +1,5 @@
 import type { Resources, RouteResult } from '../../shared/types/contracts';
-import { fmt, ROUTE_STATUS } from '../../shared/format';
+import { fmt, ROUTE_STATUS, warningText } from '../../shared/format';
 
 interface Props {
   route: RouteResult;
@@ -53,7 +53,7 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
 
         {r.warnings.map((w) => (
           <p key={w} className="text-sm text-amber-300">
-            ⚠ {w}
+            ⚠ {warningText(w)}
           </p>
         ))}
         {blocked && (

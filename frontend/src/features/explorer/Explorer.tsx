@@ -7,6 +7,7 @@ import ProgressCard from './ProgressCard';
 import PhotoViewer from './PhotoViewer';
 import ObservationForm from './ObservationForm';
 import ContingencyPanel from './ContingencyPanel';
+import { warningText } from '../../shared/format';
 
 interface Props {
   mission: Mission;
@@ -52,7 +53,7 @@ export default function Explorer({ mission, onMission, onQueue }: Props) {
             <p className="font-bold">⚠ {mission.alerts.includes('OXYGEN_REDUCED') ? 'CONTINGENCIA ACTIVA' : 'ALERTAS'}</p>
             {mission.alerts.map((a) => (
               <p key={a} className="text-sm">
-                {a}
+                {warningText(a)}
               </p>
             ))}
           </div>
@@ -68,7 +69,7 @@ export default function Explorer({ mission, onMission, onQueue }: Props) {
       </div>
       <div className="space-y-4">
         <PhotoViewer photos={photos.filter((p) => p.objective_id === current?.objective_id)} />
-        <DecisionLog mission={mission} />
+        <DecisionLog mission={mission} objectives={objectives} />
       </div>
     </div>
   );

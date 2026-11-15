@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { Constraints, Mission, MissionPackage, RouteResult } from '../../shared/types/contracts';
-import { fmt, ROUTE_STATUS } from '../../shared/format';
+import { fmt, ROUTE_STATUS, warningText } from '../../shared/format';
 import { marsApi } from '../../shared/api/client';
+import { mutateMission } from '../../shared/api/mutateMission';
 import MarsMap from '../mars-map/MarsMap';
 import { initialLayerState } from '../mars-map/mapUtils';
 import {
@@ -131,7 +132,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     return () => {
       alive = false;
     };
-  }, [preview, previewKey, mission.region_id, here, dest.position]);
+  }, [preview, previewKey, mission.region_id, mission.routing_constraints, here, dest.position]);
 
   const isPlanNext = dest.id === mission.next_objective_id;
   const legRoute: RouteResult | null =
@@ -284,7 +285,9 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
 
         {mission.alerts.length > 0 && (
           <div role="alert" className="mx-auto max-w-md rounded border border-alert-500 bg-alert-950/85 px-2 py-0.5 text-[11px] font-semibold text-alert-100">
-            ⚠ {mission.alerts.join(' · ')}
+            {/* Al astronauta solo la primera alerta; el detalle completo está en el panel de control */}
+            ⚠ {warningText(mission.alerts[0])}
+            {mission.alerts.length > 1 && <span className="font-normal opacity-80"> (+{mission.alerts.length - 1})</span>}
           </div>
         )}
       </div>
@@ -309,6 +312,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
               hazards={manifest.hazards ?? []}
               heading={view3d ? heading : null}
               imagery={imagery}
+              unknownZones={manifest.terrain?.quality_zones?.filter((z) => z.quality === 'unknown')}
             />
             <span
               aria-hidden="true"
@@ -358,7 +362,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                     </div>
                     {legRoute.warnings.map((w) => (
                       <p key={w} className="mt-1 text-amber-300">
-                        {w}
+                        {warningText(w)}
                       </p>
                     ))}
                   </details>
@@ -382,7 +386,22 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-bold">Llegaste a la base.</p>
-                  <button type="button" className={`${bigButton} bg-primary-600 text-white`} onClick={() => backToSelect()}>
+                  <button
+                    type="button"
+                    className={`${bigButton} bg-primary-600 text-white`}
+                    onClick={async () => {
+                      // Sin objetivos pendientes: la EVA termina y se cierra la misión (si la versión cambió, se recarga)
+                      if (pending.length === 0 && mission.lifecycle_status !== 'completed') {
+                        const err = await mutateMission(
+                          mission.mission_id,
+                          () => marsApi.completeMission(mission.mission_id, mission.mission_version, mission.return_position),
+                          setMission,
+                        );
+                        if (err) return setNotice(err);
+                      }
+                      backToSelect(pending.length === 0 ? 'EVA completada ✓' : undefined);
+                    }}
+                  >
                     Listo
                   </button>
                 </div>

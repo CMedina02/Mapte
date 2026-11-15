@@ -106,6 +106,14 @@ export interface TerrainGrid {
   row_order: 'north_to_south';
 }
 
+// Zona del DEM con calidad no nominal (p. ej. artefactos): 'unknown' nunca se presenta como segura
+export interface QualityZone {
+  zone_id: string;
+  quality: 'nominal' | 'unknown';
+  extent_m: { x_min_m: number; x_max_m: number; y_min_m: number; y_max_m: number };
+  reason: string;
+}
+
 export interface Terrain {
   heightmap_url: string; 
   width_px: number;
@@ -128,12 +136,19 @@ export interface Terrain {
   // con el relieve fino que el heightmap no representa; cubre la misma extensión que el heightmap.
   normal_map_url?: string | null;
   grid: TerrainGrid;
+  // Opcionales que ya publica el backend (schemas.py → TerrainManifestSchema)
+  texture_url?: string | null;
+  blocked_mask_url?: string | null;
+  dataset_checksum_sha256?: string | null;
+  sector_id?: string;
+  quality_zones?: QualityZone[];
 }
 
 export interface Objective {
   objective_id: string;
   region_id: string;
   title: string;
+  description?: string; // contexto del sitio (el backend lo envía; puede venir vacío)
   position: Position;
   science_question: string;
   priority_weight: number;
@@ -192,6 +207,7 @@ export interface RouteResult {
   evidence_ids: string[];
   assumptions: string[];
   sample_only?: boolean;
+  return_start_index?: number; // del cliente: índice de path donde empieza el regreso a base (solo para dibujar)
 }
 
 
@@ -201,6 +217,7 @@ export interface MissionPlanRequest {
   objective_ids: string[];
   constraints: Constraints;
   resources: Resources;
+  // Minutos de actividad en cada objetivo: sin ellos el backend no puede asegurar el O₂ (viabilidad 'unknown')
   activity_durations_min?: Record<string, number>;
 }
 

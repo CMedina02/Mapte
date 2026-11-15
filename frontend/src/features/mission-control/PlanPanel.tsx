@@ -39,6 +39,7 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
   const [avoidUnknown, setAvoidUnknown] = useState(true);
   const [oxygen, setOxygen] = useState(240);
   const [reserve, setReserve] = useState(60);
+  const [activityMin, setActivityMin] = useState(30); // parámetro del escenario: tiempo de trabajo en cada objetivo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +71,7 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
           objective_ids: selectedIds, // el backend decide el orden real de visita
           constraints: { max_slope_deg: maxSlope, speed_m_per_min: speed, avoid_unknown: avoidUnknown },
           resources: { oxygen_available_min: oxygen, return_reserve_min: reserve },
+          activity_durations_min: Object.fromEntries(selectedIds.map((id) => [id, activityMin])),
         }),
       );
     } catch (e) {
@@ -112,6 +114,7 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
       </label>
       <NumberField label="O₂ disponible (min)" value={oxygen} onChange={setOxygen} min={0} />
       <NumberField label="Reserva retorno (min)" value={reserve} onChange={setReserve} min={0} />
+      <NumberField label="Actividad por objetivo (min)" value={activityMin} onChange={setActivityMin} min={0} />
 
       {error && <p className="text-xs text-alert-500">{error}</p>}
       {!error && problem && <p className="text-xs text-amber-400">{problem}</p>}

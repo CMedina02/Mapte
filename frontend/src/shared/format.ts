@@ -1,11 +1,57 @@
-import type { RouteStatus } from './types/contracts';
+import type { MissionLifecycleStatus, RouteStatus } from './types/contracts';
 
 // Nunca sustituir null por 0: el dato faltante se dice explícitamente.
+// Presentación: 1 decimal como máximo (el backend envía floats completos; el dato no se altera, solo se muestra).
 export const fmt = (v: number | null | undefined, unit: string) =>
-  v == null ? 'Desconocido' : `${v} ${unit}`;
+  v == null ? 'Desconocido' : `${Math.round(v * 10) / 10} ${unit}`;
 
 export const ROUTE_STATUS: Record<RouteStatus, { label: string; cls: string }> = {
   viable: { label: 'VIABLE', cls: 'border-green-600 bg-green-950 text-green-300' },
   not_viable: { label: 'NO VIABLE', cls: 'border-alert-600 bg-alert-950 text-alert-300' },
   unknown: { label: 'DESCONOCIDA · datos insuficientes', cls: 'border-amber-600 bg-amber-950 text-amber-300' },
 };
+// Códigos de aviso del backend (routing/resources) → texto para la interfaz. Un código desconocido se muestra tal cual.
+const WARNING_TEXT: Record<string, string> = {
+  STATIC_HAZARDS_NOT_AVAILABLE: 'Las zonas de riesgo del catálogo aún no se usan en el cálculo de esta ruta.',
+  ENDPOINTS_SNAPPED_TO_TERRAIN_CELL_CENTERS: 'Inicio y destino ajustados al centro de la celda del terreno (≤ 2 m).',
+  NO_ROUTE_WITHIN_CONSTRAINTS: 'No existe ruta que cumpla las restricciones (pendiente, terreno desconocido).',
+  ROUTE_CROSSES_UNKNOWN_TERRAIN: 'La ruta cruza terreno de calidad desconocida.',
+  SEGMENT_NOT_VIABLE: 'Un tramo de la misión no es viable.',
+  SEGMENT_STATUS_UNKNOWN: 'Hay tramos con viabilidad desconocida.',
+  DURATION_UNKNOWN: 'Duración desconocida: no se puede asegurar el O₂.',
+  INSUFFICIENT_RETURN_RESERVE: 'El O₂ no alcanza para conservar la reserva de retorno.',
+  RESOURCE_READING_REQUIRED_AFTER_OBSERVATION: 'Hallazgo registrado: falta una lectura nueva de O₂ para reevaluar la ruta.',
+  OXYGEN_REDUCED: 'O₂ reducido: el backend recalculó el regreso directo a base.',
+  ROUTE_REVALIDATION_REQUIRED: 'La ruta debe volver a validarse (cambió el terreno o los riesgos).',
+  MISSION_NOT_VIABLE: 'Plan no viable: revisa las advertencias de la ruta.',
+  MISSION_UNKNOWN: 'Viabilidad del plan desconocida.',
+};
+export const warningText = (w: string) => WARNING_TEXT[w] ?? w;
+
+// Códigos que no se listan como aviso: ya los dice el estado de la ruta o los supuestos del modelo.
+const IMPLIED = new Set([
+  'MISSION_NOT_VIABLE', 'MISSION_UNKNOWN', 'SEGMENT_NOT_VIABLE', 'SEGMENT_STATUS_UNKNOWN',
+  'ENDPOINTS_SNAPPED_TO_TERRAIN_CELL_CENTERS', 'STATIC_HAZARDS_NOT_AVAILABLE',
+]);
+// Avisos de la ruta + alertas de la misión, sin repetidos ni redundantes, ya traducidos
+export const notices = (warnings: string[], alerts: string[] = []) =>
+  [...new Set([...warnings, ...alerts].filter((c) => !IMPLIED.has(c)).map(warningText))];
+
+export const MISSION_STATUS: Record<MissionLifecycleStatus, string> = {
+  draft: 'Planificada',
+  active: 'En curso',
+  completed: 'Completada',
+  aborted: 'Abortada',
+};
+
+const EVENT_TEXT: Record<string, string> = {
+  plan_created: 'Plan creado',
+  mission_active: 'Misión iniciada',
+  progress_updated: 'Avance',
+  observation_recorded: 'Hallazgo',
+  hazard_reported: 'Riesgo reportado',
+  contingency_evaluated: 'Contingencia',
+  mission_completed: 'Misión completada',
+  mission_aborted: 'Misión abortada',
+};
+export const eventText = (e: string) => EVENT_TEXT[e] ?? e.replaceAll('_', ' ');

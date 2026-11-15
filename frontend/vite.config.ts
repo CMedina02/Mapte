@@ -10,8 +10,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Mars EVA Tactical System',
-        short_name: 'Mars EVA',
+        name: 'Mapte',
+        short_name: 'Mapte',
         start_url: '/visor',
         display: 'standalone',
         background_color: '#0a0a0a',
