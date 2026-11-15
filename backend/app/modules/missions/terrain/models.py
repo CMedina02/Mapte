@@ -1,12 +1,12 @@
-"""Modelos de dominio para terreno marciano en una cuadrícula local."""
+"""Mission routing models layered over the shared catalog terrain contract."""
 
 from dataclasses import dataclass
 from enum import StrEnum
-from math import floor, isfinite
+from math import isfinite
 
 
 class FrameMismatchError(ValueError):
-    """La posición recibida pertenece a otro marco de coordenadas."""
+    """Raised when a local position uses a different coordinate frame."""
 
 
 class TerrainDataStatus(StrEnum):
@@ -41,75 +41,6 @@ class GridCell:
 
 
 @dataclass(frozen=True, slots=True)
-class GridGeometry:
-    """Geometría norte-arriba; el origen es la esquina exterior superior izquierda."""
-
-    frame_id: str
-    width: int
-    height: int
-    cell_size_m: float
-    upper_left_x_m: float
-    upper_left_y_m: float
-
-    def __post_init__(self) -> None:
-        if not self.frame_id.strip():
-            raise ValueError("frame_id no puede estar vacío")
-        if self.width <= 0 or self.height <= 0:
-            raise ValueError("width y height deben ser positivos")
-        if not isfinite(self.cell_size_m) or self.cell_size_m <= 0:
-            raise ValueError("cell_size_m debe ser un número positivo y finito")
-        if not isfinite(self.upper_left_x_m) or not isfinite(self.upper_left_y_m):
-            raise ValueError("El origen de la cuadrícula debe ser finito")
-
-    @property
-    def min_x_m(self) -> float:
-        return self.upper_left_x_m
-
-    @property
-    def max_x_m(self) -> float:
-        return self.upper_left_x_m + self.width * self.cell_size_m
-
-    @property
-    def max_y_m(self) -> float:
-        return self.upper_left_y_m
-
-    @property
-    def min_y_m(self) -> float:
-        return self.upper_left_y_m - self.height * self.cell_size_m
-
-    def contains_cell(self, cell: GridCell) -> bool:
-        return 0 <= cell.row < self.height and 0 <= cell.column < self.width
-
-    def world_to_cell(self, position: LocalPosition) -> GridCell | None:
-        if position.frame_id != self.frame_id:
-            raise FrameMismatchError(
-                f"Se esperaba frame_id={self.frame_id}, se recibió {position.frame_id}"
-            )
-
-        inside = (
-            self.min_x_m <= position.x_m < self.max_x_m
-            and self.min_y_m < position.y_m <= self.max_y_m
-        )
-        if not inside:
-            return None
-
-        column = floor((position.x_m - self.upper_left_x_m) / self.cell_size_m)
-        row = floor((self.upper_left_y_m - position.y_m) / self.cell_size_m)
-        cell = GridCell(row=row, column=column)
-        return cell if self.contains_cell(cell) else None
-
-    def cell_center(self, cell: GridCell) -> LocalPosition:
-        if not self.contains_cell(cell):
-            raise ValueError(f"Celda fuera de la cuadrícula: {cell}")
-
-        return LocalPosition(
-            x_m=self.upper_left_x_m + (cell.column + 0.5) * self.cell_size_m,
-            y_m=self.upper_left_y_m - (cell.row + 0.5) * self.cell_size_m,
-            frame_id=self.frame_id,
-        )
-
-
-@dataclass(frozen=True, slots=True)
 class TerrainRestriction:
     code: str
     traversal_status: TraversalStatus
@@ -123,7 +54,9 @@ class TerrainRestriction:
 
 
 @dataclass(frozen=True, slots=True)
-class TerrainSample:
+class RoutingTerrainSample:
+    """Terrain interpretation consumed by the mission route planner."""
+
     elevation_m: float | None
     data_status: TerrainDataStatus
     traversal_status: TraversalStatus
@@ -144,9 +77,9 @@ class TerrainSample:
 
 
 def apply_restrictions(
-    sample: TerrainSample, restrictions: tuple[TerrainRestriction, ...]
-) -> TerrainSample:
-    """Combina restricciones de forma conservadora: blocked domina a unknown."""
+    sample: RoutingTerrainSample, restrictions: tuple[TerrainRestriction, ...]
+) -> RoutingTerrainSample:
+    """Combine restrictions conservatively: blocked dominates unknown."""
 
     if not restrictions:
         return sample
@@ -160,7 +93,7 @@ def apply_restrictions(
         traversal_status = TraversalStatus.TRAVERSABLE
 
     codes = tuple(dict.fromkeys((*sample.restriction_codes, *(item.code for item in restrictions))))
-    return TerrainSample(
+    return RoutingTerrainSample(
         elevation_m=sample.elevation_m,
         data_status=sample.data_status,
         traversal_status=traversal_status,
