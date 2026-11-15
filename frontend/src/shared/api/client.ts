@@ -46,6 +46,7 @@ const post = <T>(path: string, body: unknown) =>
 
 async function mocked<T>(fn: () => T): Promise<T> {
   assertOnline();
+  await mockApi.ready(); // el mock carga una vez el DEM real para sus simulaciones
   await new Promise((r) => setTimeout(r, 250));
   return fn();
 }

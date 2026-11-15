@@ -4,12 +4,50 @@ import type {
 } from '../types/contracts';
 import { MarsApiError } from './errors';
 import {
-  BOUNDS, CLAY_SULFATE_CONTACT_Z, ELEVATION_RANGE, EVIDENCE, FRAME, FRAME_ID, HAZARDS, HEIGHTMAP_URL, LAYERS,
-  OBJECTIVES, PHOTOS, REGIONS, REGION_ID, elevationAt, sectorHeightmap,
+  BOUNDS, EVIDENCE, FRAME, FRAME_ID, HAZARDS, LAYERS, OBJECTIVES, PHOTOS, REAL_TERRAIN, REGIONS, REGION_ID,
+  elevationAt, setElevationSampler,
 } from './mocks/monteSharp';
 import { simulateRoute } from './mocks/simulateRoute';
 
-// ---------- Capas sintéticas (se dibujan en el navegador) ----------
+// ---------- Terreno real (DEM USGS reducido a 20 m) ----------
+
+const RT = REAL_TERRAIN;
+
+// Interpolación bilineal sobre la cuadrícula del heightmap; null fuera de ella o sin dato
+function makeSampler(data: Float32Array) {
+  const { width_px: w, height_px: h, grid: g } = RT;
+  return (x: number, y: number): number | null => {
+    const fx = (x - g.origin_center_x_m) / g.pixel_size_x_m;
+    const fy = (g.origin_center_y_m - y) / g.pixel_size_y_m;
+    if (fx < 0 || fy < 0 || fx > w - 1 || fy > h - 1) return null;
+    const x0 = Math.floor(fx), y0 = Math.floor(fy);
+    const x1 = Math.min(x0 + 1, w - 1), y1 = Math.min(y0 + 1, h - 1);
+    const tx = fx - x0, ty = fy - y0;
+    const v = (r: number, c: number) => data[r * w + c];
+    const z = v(y0, x0) * (1 - tx) * (1 - ty) + v(y0, x1) * tx * (1 - ty) + v(y1, x0) * (1 - tx) * ty + v(y1, x1) * tx * ty;
+    return Number.isNaN(z) ? null : z;
+  };
+}
+
+// Se descarga una sola vez antes de la primera llamada al mock; si falla, el mock usa el terreno sintético
+let terrainReady: Promise<void> | null = null;
+function ready(): Promise<void> {
+  terrainReady ??= fetch(RT.heightmap_url)
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.arrayBuffer();
+    })
+    .then((buf) => {
+      const data = new Float32Array(buf);
+      if (data.length !== RT.width_px * RT.height_px) throw new Error('tamaño inesperado');
+      setElevationSampler(makeSampler(data));
+      manifestCache = null;
+    })
+    .catch((e) => console.warn('Mock: no se pudo cargar el DEM real; se usa terreno sintético.', e));
+  return terrainReady;
+}
+
+// ---------- Capa mineral sintética (se dibuja en el navegador) ----------
 
 type Rgba = [number, number, number, number];
 
@@ -32,69 +70,56 @@ function renderLayer(color: (x: number, y: number) => Rgba): string {
   return canvas.toDataURL('image/png');
 }
 
-// Relieve sombreado con paleta marciana (luz desde el noroeste)
-function topoColor(x: number, y: number): Rgba {
-  const dzdx = (elevationAt(x + 5, y) - elevationAt(x - 5, y)) / 10;
-  const dzdy = (elevationAt(x, y + 5) - elevationAt(x, y - 5)) / 10;
-  const len = Math.hypot(dzdx, dzdy, 1);
-  const light = [-0.5, 0.5, 0.7];
-  const lightLen = Math.hypot(...light);
-  const shade = Math.max(0.25, (-dzdx * light[0] - dzdy * light[1] + light[2]) / (len * lightLen));
-  const t = (elevationAt(x, y) - ELEVATION_RANGE.min) / (ELEVATION_RANGE.max - ELEVATION_RANGE.min);
-  const base = [110 + 120 * t, 45 + 95 * t, 25 + 55 * t];
-  return [...base.map((v) => Math.min(255, v * shade * 1.25)), 255] as Rgba;
+// Contacto mineral SINTÉTICO: la curva de nivel que pasa por el objetivo de arcillas–sulfatos.
+// Debajo arcillas (azul, lago antiguo), encima sulfatos (amarillo, clima árido), contacto en blanco.
+function spectralColor(contactZ: number) {
+  return (x: number, y: number): Rgba => {
+    const dz = elevationAt(x, y) - contactZ;
+    if (Math.abs(dz) < 3) return [255, 255, 255, 230];
+    return dz < 0 ? [60, 140, 210, 150] : [235, 200, 60, 150];
+  };
 }
 
-// Arcillas (azul) bajo el contacto, sulfatos (amarillo) encima, contacto en blanco
-function spectralColor(x: number, y: number): Rgba {
-  const dz = elevationAt(x, y) - CLAY_SULFATE_CONTACT_Z;
-  if (Math.abs(dz) < 3) return [255, 255, 255, 230];
-  return dz < 0 ? [60, 140, 210, 170] : [235, 200, 60, 170];
-}
-
-// Bloque terrain del contrato para el .f32 del sector (generado con scripts/gen-mock-terrain.ts)
+// Bloque terrain del contrato apuntando al DEM real reducido
 function terrain(): Terrain {
-  const hm = sectorHeightmap();
   return {
-    heightmap_url: HEIGHTMAP_URL,
-    width_px: hm.width,
-    height_px: hm.height,
-    elevation_min_m: hm.min,
-    elevation_max_m: hm.max,
-    texture_layer_id: 'topography',
-    evidence_ids: ['ev-hirise-dem'],
+    heightmap_url: RT.heightmap_url,
+    width_px: RT.width_px,
+    height_px: RT.height_px,
+    elevation_min_m: RT.elevation_min_m,
+    elevation_max_m: RT.elevation_max_m,
+    texture_layer_id: 'imagery',
+    evidence_ids: RT.evidence_ids,
     frame_id: FRAME_ID,
-    terrain_version: 'mock-1',
-    vertical_datum: 'MOCK (terreno sintético)',
+    terrain_version: `${RT.source_terrain_version}-20m`,
+    vertical_datum: RT.vertical_datum,
     units: 'm',
     format: 'f32',
     dtype: 'float32_little_endian',
     header_bytes: 0,
     memory_order: 'row_major',
     nodata_policy: 'f32_nan',
-    texture_aligned: false, // la textura cubre toda la zona, no solo el sector
-    grid: {
-      origin_center_x_m: hm.originCenterX,
-      origin_center_y_m: hm.originCenterY,
-      pixel_size_x_m: hm.pixelX,
-      pixel_size_y_m: hm.pixelY,
-      row_order: 'north_to_south',
-    },
+    texture_aligned: true, // ortofoto y DEM cubren la misma zona de 10 km
+    grid: { ...RT.grid, row_order: 'north_to_south' },
   };
 }
 
 let manifestCache: RegionManifest | null = null;
 function manifest(): RegionManifest {
-  manifestCache ??= {
-    region_id: REGION_ID,
-    frame: FRAME,
-    bounds_local_m: BOUNDS,
-    layers: LAYERS.map((l) => ({ ...l, asset_url: renderLayer(l.kind === 'spectral' ? spectralColor : topoColor) })),
-    evidence: EVIDENCE,
-    hazards: HAZARDS,
-    terrain: terrain(),
-    sample_only: true,
-  };
+  if (!manifestCache) {
+    const clay = OBJECTIVES.find((o) => o.objective_id === 'obj-clay-sulfate')!.position;
+    const contactZ = elevationAt(clay.x_m, clay.y_m);
+    manifestCache = {
+      region_id: REGION_ID,
+      frame: FRAME,
+      bounds_local_m: BOUNDS,
+      layers: LAYERS.map((l) => (l.kind === 'spectral' ? { ...l, asset_url: renderLayer(spectralColor(contactZ)) } : l)),
+      evidence: EVIDENCE,
+      hazards: HAZARDS,
+      terrain: terrain(),
+      sample_only: true,
+    };
+  }
   return structuredClone(manifestCache);
 }
 
@@ -102,7 +127,7 @@ function manifest(): RegionManifest {
 
 // Guarda misión y restricciones en localStorage para que el panel (/) y el visor (/visor),
 // en pestañas distintas, vean la misma misión como con el backend real.
-const STORE_KEY = 'mars.mock.state.v2';
+const STORE_KEY = 'mars.mock.state.v3'; // v3: marco real del backend (las misiones v2 usaban otro frame_id)
 
 interface MockState {
   mission: Mission | null;
@@ -156,6 +181,7 @@ function advance(update: (m: Mission, c: Constraints) => Mission, clientVersion:
 }
 
 export const mockApi = {
+  ready,
   health: (): Health => ({ status: 'ok', api_version: 'mock' }),
   regions: () => structuredClone(REGIONS),
   manifest,
@@ -270,7 +296,7 @@ export const mockApi = {
       region_manifest: manifest(),
       objectives: structuredClone(OBJECTIVES),
       photos: structuredClone(PHOTOS),
-      offline_assets: [HEIGHTMAP_URL],
+      offline_assets: [RT.heightmap_url, RT.texture_url],
       package_status: 'mock_assets_embedded',
       generated_at: new Date().toISOString(),
       sample_only: true,
