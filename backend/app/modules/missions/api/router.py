@@ -793,14 +793,9 @@ def submit_observation(
 ) -> MissionPlanResponseSchema:
     stored = _current_mission(missions, mission_id, payload.mission_version)
     if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
-<<<<<<< HEAD
         raise HTTPException(status_code=409, detail="Only an active mission accepts observations.")
     # El astronauta puede elegir cualquier objetivo pendiente (el visor lo permite); después el
     # cliente pide /replan desde ese objetivo. Solo se rechaza repetir uno ya completado.
-=======
-        raise HTTPException(status_code=409, detail="Solo una misión activa admite observaciones.")
-    # Acepta hallazgos en cualquier objetivo pendiente de la misión.
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
     if payload.objective_id in stored.snapshot.get("completed_objective_ids", []):
         raise HTTPException(
             status_code=409,

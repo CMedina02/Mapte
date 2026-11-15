@@ -14,16 +14,12 @@ export default function App() {
     else clearPackage();
   }, [mission]);
 
-<<<<<<< HEAD
   // Cambios hechos desde el visor (hallazgos, avance) o reinicios llegan al panel sin recargar
   usePackageUpdates((pkg) =>
     setMission((m) =>
       pkg ? (m?.mission_id === pkg.mission.mission_id && isNewerMission(m, pkg.mission) ? pkg.mission : m) : null,
     ),
   );
-=======
-  usePackageUpdates((pkg) => setMission((m) => (m?.mission_id === pkg.mission.mission_id && isNewerMission(m, pkg.mission) ? pkg.mission : m)));
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 
   return (
     <div className="flex h-dvh flex-col bg-space-950 text-space-100">

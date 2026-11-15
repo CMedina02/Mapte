@@ -404,7 +404,6 @@ function HeadingDriver({ heading, pitch }: { heading: number | null; pitch: numb
   return null;
 }
 
-<<<<<<< HEAD
 // Coloca la cámara detrás del astronauta mirando al destino cada vez que cambian (sin recrear la escena)
 function CameraRig({ camera: pos, target }: { camera: Vec3; target: Vec3 }) {
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
@@ -426,9 +425,6 @@ function CameraRig({ camera: pos, target }: { camera: Vec3; target: Vec3 }) {
 }
 
 // Modo seguimiento: desplaza cámara y objetivo de la órbita hacia el astronauta, sin cambiar el ángulo de vista
-=======
-// Desplaza la cámara y el centro de órbita junto al astronauta.
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 function FollowDriver({ me }: { me: Vec3 }) {
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
   const camera = useThree((s) => s.camera);

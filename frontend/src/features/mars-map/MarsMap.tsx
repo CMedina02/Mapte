@@ -68,13 +68,8 @@ const hereStyle = new Style({
   zIndex: 10, // Sobre los marcadores de base y objetivos.
   image: new Circle({ radius: 9, fill: new Fill({ color: '#1a73e8' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
   text: new Text({
-<<<<<<< HEAD
     text: 'You',
     offsetY: 20, // debajo del punto: arriba van las etiquetas de base y objetivos
-=======
-    text: 'Tú',
-    offsetY: 20,
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
     font: LABEL_FONT,
     fill: new Fill({ color: '#fff' }),
     stroke: HALO,

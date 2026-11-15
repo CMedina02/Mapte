@@ -135,6 +135,7 @@ function loadState(): MockState {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) return JSON.parse(raw) as MockState;
   } catch {
+    // almacenamiento no disponible o JSON corrupto: se empieza de cero
   }
   return { mission: null, constraints: { max_slope_deg: 15, speed_m_per_min: 20, avoid_unknown: true } };
 }
@@ -148,13 +149,8 @@ function save(state: MockState): Mission {
   return structuredClone(state.mission!);
 }
 
-<<<<<<< HEAD
 const notFound = () => new MarsApiError(404, 'MISSION_NOT_FOUND', 'No mission planned.');
 // Como el backend: z_m de cada objetivo muestreado del DEM (null si cae sin dato)
-=======
-const notFound = () => new MarsApiError(404, 'MISSION_NOT_FOUND', 'No hay misión planificada.');
-// Muestrea la altura de cada objetivo en el DEM.
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 const withZ = (p: Position): Position => ({ ...p, z_m: Math.round(elevationAt(p.x_m, p.y_m) * 10) / 10 });
 const objectivesWithZ = () => OBJECTIVES.map((o) => ({ ...structuredClone(o), position: withZ(o.position) }));
 const positionOf = (id: string): Position | undefined => OBJECTIVES.find((o) => o.objective_id === id)?.position;

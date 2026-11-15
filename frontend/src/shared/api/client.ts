@@ -75,15 +75,10 @@ async function observeInBackend(missionId: string, req: ObservationRequest): Pro
     notes: req.notes ?? null,
   });
 
-<<<<<<< HEAD
   // ponytail: lectura de O₂ ESTIMADA (O₂ previo − tramo caminado − trabajo en el objetivo) porque el traje
   // aún no envía telemetría; cuando la haya, se manda la lectura real.
   const arrival = objectivePosition(before, req.objective_id);
   const walked = arrival ? await walkedMinutes(before, arrival) : null;
-=======
-  // Estima el O₂ al llegar restando marcha y actividad al soporte anterior.
-  const walked = before.legs.find((leg) => leg.end_label === req.objective_id)?.metrics.duration_min;
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   const oxygenNow =
     walked == null
       ? before.resources.oxygen_available_min
@@ -102,7 +97,6 @@ async function observeInBackend(missionId: string, req: ObservationRequest): Pro
   }
 }
 
-<<<<<<< HEAD
 // Dónde está el astronauta según la misión: último recálculo o, si aún no hay, la base de salida
 const missionHere = (m: Mission): Position => m.current_position ?? m.start_position;
 const near = (a: Position, b: Position) => Math.hypot(a.x_m - b.x_m, a.y_m - b.y_m) < 5;
@@ -145,8 +139,6 @@ async function moveInBackend(missionId: string, version: number, at: Position): 
 }
 
 // Paquete para el visor: misión del backend + catálogo (real si no hay mock, del mock en modo híbrido)
-=======
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 async function packageFromBackend(missionId: string): Promise<MissionPackage> {
   const mission = await backendMission(missionId);
   if (USE_MOCK) return mocked(() => ({ ...mockApi.package(mission), sample_only: false }));
@@ -234,7 +226,6 @@ export const marsApi = {
   triggerContingency: (missionId: string, req: ContingencyRequest): Promise<Mission> =>
     realMissions ? contingencyInBackend(missionId, req) : mocked(() => mockApi.contingency(req)),
 
-<<<<<<< HEAD
   // Llegada a un punto libre (no objetivo): mueve la posición y recalcula los tramos desde ahí
   moveTo: (mission: Mission, at: Position): Promise<Mission> =>
     realMissions
@@ -242,8 +233,6 @@ export const marsApi = {
       : mocked(() => ({ ...mission, mission_version: mission.mission_version + 1, current_position: at })),
 
   // De vuelta en la base con todos los objetivos: cierra la misión (backend: POST /status action=complete)
-=======
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   completeMission: (missionId: string, version: number, at: Position): Promise<Mission> =>
     realMissions
       ? post<Mission>(`/missions/${enc(missionId)}/status`, {

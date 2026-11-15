@@ -62,11 +62,8 @@ export function missionRoute(mission: Mission): RouteResult {
   };
 }
 
-<<<<<<< HEAD
 // Letra de cada parada para identificar los tramos: base = A, objetivos en orden = B, C, …
 // Un tramo recalculado desde un punto libre del radar sale de «You».
-=======
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 export function stopLetters(mission: Mission): Record<string, string> {
   return Object.fromEntries([
     ['base', 'A'],
@@ -122,7 +119,6 @@ export function decisionPoints(mission: Mission): DecisionPoint[] {
   });
 }
 
-<<<<<<< HEAD
 // Tipo de motivo del backend (acepta también los textos en español de misiones guardadas antes)
 export type ReasonKind = 'resources' | 'previous' | 'slope' | 'unknown' | 'consumption' | 'limit';
 export function reasonKind(r: string): ReasonKind | null {
@@ -148,22 +144,6 @@ export const shortReason = (r: string) => {
   const k = reasonKind(r);
   return k ? SHORT_REASON[k] : r;
 };
-=======
-export const shortReason = (r: string) =>
-  r.includes('recursos')
-    ? 'no alcanza el oxígeno para volver con reserva'
-    : r.includes('anterior excluido')
-      ? 'depende de un objetivo anterior'
-      : r.includes('no es viable')
-        ? 'no hay un camino seguro'
-        : r.includes('desconocido')
-          ? 'el camino cruza terreno sin datos'
-          : r.includes('consumo')
-            ? 'falta el tiempo de trabajo'
-            : r.includes('límite')
-              ? 'el cálculo no terminó'
-              : r;
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 
 // Punto dentro de polígono (ray casting) en el marco local
 function insidePolygon(p: Position, poly: Position[]): boolean {

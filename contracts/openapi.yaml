@@ -221,7 +221,7 @@
             "description": "Successful Response"
           },
           "404": {
-            "description": "Región o asset no publicado."
+            "description": "Region or asset not published."
           },
           "422": {
             "description": "Validation Error",
@@ -704,6 +704,59 @@
         }
       }
     },
+    "/api/v1/missions/{mission_id}/replan": {
+      "post": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Replan From Current Position",
+        "description": "Recalcula la ruta de los objetivos pendientes desde la posición actual.\n\nUsa el mismo planificador de regreso seguro, las restricciones del plan y los riesgos ya\nreportados. Conserva la base, los objetivos originales y lo completado.",
+        "operationId": "replan_from_current_position_api_v1_missions__mission_id__replan_post",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissionAdvanceRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlanResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/missions/{mission_id}/observations": {
       "post": {
         "tags": [
@@ -1071,7 +1124,7 @@
             "exclusiveMaximum": 1.0,
             "exclusiveMinimum": 0.0,
             "title": "At Fraction",
-            "description": "Fracción de la ruta.",
+            "description": "Fraction of the route.",
             "default": 0.4
           },
           "side": {
@@ -1359,6 +1412,48 @@
           "evidence_ids"
         ],
         "title": "LayerSchema"
+      },
+      "MissionAdvanceRequestSchema": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "current_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "from_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Label"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/MissionResourcesSchema"
+          },
+          "activity_durations_min": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Activity Durations Min"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "current_position",
+          "resources"
+        ],
+        "title": "MissionAdvanceRequestSchema",
+        "description": "Recalcular los objetivos pendientes desde donde está el astronauta."
       },
       "MissionDecisionSchema": {
         "properties": {
@@ -2219,7 +2314,7 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Priority Weight",
-            "description": "Parámetro del escenario de misión; no es una puntuación de NASA."
+            "description": "Mission scenario parameter; not a NASA score."
           },
           "activities": {
             "items": {
@@ -3066,7 +3161,7 @@
                 "type": "null"
               }
             ],
-            "description": "Desvío automático; null para caminar sin desviarse."
+            "description": "Automatic deviation; null to walk without deviating."
           }
         },
         "additionalProperties": false,
@@ -3220,7 +3315,7 @@
           "t_s": {
             "type": "number",
             "title": "T S",
-            "description": "Tiempo simulado transcurrido (s)."
+            "description": "Simulated elapsed time (s)."
           },
           "speed_factor": {
             "type": "number",

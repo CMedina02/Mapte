@@ -43,11 +43,7 @@ export default function Visor() {
     if (mission) updatePackageMission(mission);
   }, [mission]);
 
-<<<<<<< HEAD
   // En vivo desde el panel de control: el panel guarda o borra el paquete y esta pestaña lo recibe al instante
-=======
-  // El evento storage recibe paquetes guardados por el panel.
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   usePackageUpdates((p) => {
     setPkg(p);
     setMission((m) => (p ? (isNewerMission(m, p.mission) ? p.mission : m) : null));
@@ -89,17 +85,11 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const [view3d, setView3d] = useState(() => !!manifest.terrain);
   const [heading, setHeading] = useState<number | null>(null);
   const [chosenId, setChosenId] = useState<string | null>(null);
-<<<<<<< HEAD
   const [picking, setPicking] = useState(false); // mapa de selección (se abre tocando el radar)
   const [custom, setCustom] = useState<Position | null>(null); // punto libre que el astronauta marcó en el mapa
   const [moving, setMoving] = useState(false);
   const [exploring, setExploring] = useState(false); // ficha del objetivo con fotos del rover («Explorar»)
   // Hacia dónde mira el astronauta: brújula del dispositivo (casco/brazo) o, en escritorio, la posición del ratón
-=======
-  const [picking, setPicking] = useState(false);
-  const [custom, setCustom] = useState<Position | null>(null);
-  // El rumbo viene de la brújula o del ratón.
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   const compass = useDeviceCompass();
   const [hasCompass] = useState(compassAvailable);
   const [mouseLook, setMouseLook] = useState<number | null>(null);
@@ -156,11 +146,8 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const dest = destinations.find((d) => d.id === chosenId) ?? destinations.find((d) => d.id === defaultId)!;
   const objective = pkg.objectives.find((o) => o.objective_id === dest.id) ?? null;
 
-<<<<<<< HEAD
   // Ruta del tramo actual → destino elegido (la calcula el backend)
   const finished = mission.lifecycle_status === 'completed';
-=======
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   const previewKey = `${dest.id}@${Math.round(here.x_m)},${Math.round(here.y_m)}`;
   const preview = previews[previewKey];
   useEffect(() => {
@@ -192,12 +179,8 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
 
   const { oxygen_available_min: o2, return_reserve_min: reserve } = mission.resources;
   const alerts = [
-<<<<<<< HEAD
     // el A* del backend aún no evita estas zonas: al astronauta se le avisa primero
     ...exclusionsCrossed(shownRoute.path, manifest.hazards ?? []).map((z) => `Route crosses ${z}`),
-=======
-    ...exclusionsCrossed(shownRoute.path, manifest.hazards ?? []).map((z) => `La ruta cruza ${z}`),
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
     ...notices([], mission.alerts),
   ];
   const reservePct = o2 > 0 ? Math.min(100, (reserve / o2) * 100) : 100;
@@ -516,10 +499,6 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
             )}
 
             {phase === 'arrived' && dest.id === 'custom' && (
-<<<<<<< HEAD
-=======
-              // Llegar a un destino libre no actualiza la posición de misión.
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
               <div className="flex items-center justify-between gap-3">
                 <p className="font-bold">At the marked point</p>
                 <button

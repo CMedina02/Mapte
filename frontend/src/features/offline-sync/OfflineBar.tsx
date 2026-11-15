@@ -68,12 +68,8 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
         </span>
       )}
 
-<<<<<<< HEAD
       {/* Solo lo que pide atención: sin conexión. 'En línea' y 'visor al día' son el estado normal. */}
       {!online && <span className={`${badge} bg-amber-900 text-amber-300`}>Offline</span>}
-=======
-      {!online && <span className={`${badge} bg-amber-900 text-amber-300`}>Sin conexión</span>}
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 
       {queue.length > 0 && (
         <span className={`${badge} bg-primary-900 text-primary-300`}>{queue.length} unsent</span>

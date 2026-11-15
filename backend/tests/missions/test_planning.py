@@ -148,7 +148,7 @@ def test_planner_preserves_requested_order_and_returns_to_base() -> None:
         sum(leg.route.route.duration_min for leg in plan.legs if leg.route.route) + 30
     )
     assert plan.evidence_ids == ("ev-a", "ev-b", "ev-synthetic-terrain-gale-ms")
-    assert "Orden solicitado conservado" in plan.decision_log[0].message
+    assert "Safe order planned" in plan.decision_log[0].message
 
 
 def test_missing_activity_duration_makes_plan_unknown() -> None:

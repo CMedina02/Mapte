@@ -36,14 +36,9 @@ export function updatePackageMission(m: Mission) {
 export const isNewerMission = (a: Mission | null, b: Mission) =>
   !a || a.mission_id !== b.mission_id || b.mission_version > a.mission_version;
 
-<<<<<<< HEAD
 // Otra pestaña (panel ↔ visor) guardó el paquete: el evento 'storage' llega al instante en el mismo navegador.
 // ponytail: entre dispositivos distintos lo cubre el sondeo de GET /missions/{id}; WebSocket/SSE si hace falta < 1 s.
 export function usePackageUpdates(onPkg: (pkg: MissionPackage | null) => void) {
-=======
-// storage sincroniza el paquete entre pestañas del mismo navegador.
-export function usePackageUpdates(onPkg: (pkg: MissionPackage) => void) {
->>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   const ref = useRef(onPkg);
   useEffect(() => {
     ref.current = onPkg;
