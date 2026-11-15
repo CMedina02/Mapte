@@ -1,0 +1,234 @@
+{
+  "region_id": "mc23-gale-mount-sharp",
+  "frame_id": "MARS_GALE_MS_LOCAL_V1",
+  "generated_from": [
+    "https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints.json",
+    "https://mars.nasa.gov/msl/multimedia/raw-images/"
+  ],
+  "photos": [
+    {
+      "photo_id": "photo-msl-2224-543711",
+      "objective_id": "obj-vrr-highfield",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/ncam/NLA_594936581EDR_F0730550NCAM00309M_.JPG",
+      "camera": "Navcam izquierda (RCE-A)",
+      "sol": 2224,
+      "captured_at": "2018-11-08T08:42:51Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/543711/",
+      "location": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "73_550",
+          "sol": 2222,
+          "east_lon_deg": 137.3775706,
+          "planetocentric_lat_deg": -4.72851354,
+          "elev_geoid_m": -4146.95
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Navcam del sol de perforación de Highfield.",
+        "La ubicación es la del rover (site/drive 73_550 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    },
+    {
+      "photo_id": "photo-msl-2224-543723",
+      "objective_id": "obj-vrr-highfield",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/fcam/FLA_594936755EDR_F0730550FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-A)",
+      "sol": 2224,
+      "captured_at": "2018-11-08T08:45:46Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/543723/",
+      "location": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "73_550",
+          "sol": 2222,
+          "east_lon_deg": 137.3775706,
+          "planetocentric_lat_deg": -4.72851354,
+          "elev_geoid_m": -4146.95
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal: espacio de trabajo del brazo en Highfield.",
+        "La ubicación es la del rover (site/drive 73_550 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    },
+    {
+      "photo_id": "photo-msl-2370-580044",
+      "objective_id": "obj-glen-torridon-aberlady",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02370/opgs/edr/ncam/NLB_607886379EDR_F0751386NCAM00309M_.JPG",
+      "camera": "Navcam izquierda (RCE-B)",
+      "sol": 2370,
+      "captured_at": "2019-04-07T05:54:52Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/580044/",
+      "location": {
+        "x_m": 4034.4,
+        "y_m": 6417.9,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "75_1386",
+          "sol": 2365,
+          "east_lon_deg": 137.3836534,
+          "planetocentric_lat_deg": -4.7260789,
+          "elev_geoid_m": -4157.94
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Navcam del sol de perforación de Aberlady.",
+        "La ubicación es la del rover (site/drive 75_1386 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    },
+    {
+      "photo_id": "photo-msl-2370-580059",
+      "objective_id": "obj-glen-torridon-aberlady",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02370/opgs/edr/fcam/FLB_607886624EDR_F0751386FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "sol": 2370,
+      "captured_at": "2019-04-07T05:58:57Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/580059/",
+      "location": {
+        "x_m": 4034.4,
+        "y_m": 6417.9,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "75_1386",
+          "sol": 2365,
+          "east_lon_deg": 137.3836534,
+          "planetocentric_lat_deg": -4.7260789,
+          "elev_geoid_m": -4157.94
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal: espacio de trabajo en Aberlady.",
+        "La ubicación es la del rover (site/drive 75_1386 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    },
+    {
+      "photo_id": "photo-msl-2384-582595",
+      "objective_id": "obj-glen-torridon-aberlady",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02384/opgs/edr/fcam/FLB_609132715EDR_F0751398FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "sol": 2384,
+      "captured_at": "2019-04-21T16:07:20Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/582595/",
+      "location": {
+        "x_m": 4034.4,
+        "y_m": 6418.2,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "75_1398",
+          "sol": 2381,
+          "east_lon_deg": 137.3836548,
+          "planetocentric_lat_deg": -4.72607377,
+          "elev_geoid_m": -4157.95
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal del sol de perforación de Kilmarie.",
+        "La ubicación es la del rover (site/drive 75_1398 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    },
+    {
+      "photo_id": "photo-msl-4219-1346655",
+      "objective_id": "obj-gediz-vallis-mammoth-lakes",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/04219/opgs/edr/ncam/NLB_772032056EDR_F1072496NCAM00309M_.JPG",
+      "camera": "Navcam izquierda (RCE-B)",
+      "sol": 4219,
+      "captured_at": "2024-06-19T02:21:53Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/1346655/",
+      "location": {
+        "x_m": 5523.3,
+        "y_m": 2882.8,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "107_2496",
+          "sol": 4210,
+          "east_lon_deg": 137.4088596,
+          "planetocentric_lat_deg": -4.78571901,
+          "elev_geoid_m": -3688.18
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Navcam del sol planificado para perforar Mammoth Lakes.",
+        "La ubicación es la del rover (site/drive 107_2496 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    },
+    {
+      "photo_id": "photo-msl-4219-1346664",
+      "objective_id": "obj-gediz-vallis-mammoth-lakes",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/04219/opgs/edr/fcam/FLB_772034139EDR_F1072496FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "sol": 4219,
+      "captured_at": "2024-06-19T02:56:36Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/1346664/",
+      "location": {
+        "x_m": 5523.3,
+        "y_m": 2882.8,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "107_2496",
+          "sol": 4210,
+          "east_lon_deg": 137.4088596,
+          "planetocentric_lat_deg": -4.78571901,
+          "elev_geoid_m": -3688.18
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal: espacio de trabajo en Mammoth Lakes.",
+        "La ubicación es la del rover (site/drive 107_2496 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    }
+  ]
+}

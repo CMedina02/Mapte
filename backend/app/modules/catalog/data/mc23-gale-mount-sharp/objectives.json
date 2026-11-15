@@ -1,0 +1,207 @@
+{
+  "region_id": "mc23-gale-mount-sharp",
+  "frame_id": "MARS_GALE_MS_LOCAL_V1",
+  "generated_from": [
+    "https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints.json",
+    "https://mars.nasa.gov/msl/multimedia/raw-images/"
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-nasa-msl-localized-waypoints",
+      "title": "Curiosity (MSL) localized rover waypoints",
+      "mission": "MSL",
+      "instrument": "Rover localization (site/drive)",
+      "source_url": "https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints.json",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": [
+        "Posición del rover al final de cada drive (RMC site_drive), no del blanco exacto; el blanco queda al alcance del brazo (~2 m).",
+        "Lat/lon planetocéntricas sobre la esfera Mars 2000; proyectadas al marco local con la definición PROJ de MARS_GALE_MS_LOCAL_V1 (verificado con gdaltransform)."
+      ]
+    },
+    {
+      "evidence_id": "ev-nasa-msl-raw-images",
+      "title": "Curiosity (MSL) raw images",
+      "mission": "MSL",
+      "instrument": "Navcam / Hazcam",
+      "source_url": "https://mars.nasa.gov/msl/multimedia/raw-images/",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": [
+        "Imágenes crudas (EDR JPEG) sin calibrar; no son productos PDS calibrados."
+      ]
+    },
+    {
+      "evidence_id": "ev-nasa-msl-blog-sol-2224-highfield",
+      "title": "Sol 2224: Go for Drilling at Highfield!",
+      "mission": "MSL",
+      "instrument": "Drill / CheMin / SAM",
+      "source_url": "https://science.nasa.gov/blog/sol-2224-go-for-drilling-at-highfield/",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": "2018-11-08",
+      "resolution_m": null,
+      "caveats": []
+    },
+    {
+      "evidence_id": "ev-fraeman-2020-vera-rubin-ridge",
+      "title": "Evidence for a Diagenetic Origin of Vera Rubin Ridge, Gale Crater, Mars (Fraeman et al., 2020, JGR Planets)",
+      "mission": "MSL",
+      "instrument": "CheMin / ChemCam / Mastcam",
+      "source_url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7818385/",
+      "credit": "Fraeman et al. (2020), JGR Planets",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": []
+    },
+    {
+      "evidence_id": "ev-planetary-msl-sols-2313-2387",
+      "title": "Curiosity Update, Sols 2313-2387: Two New Drill Holes (Aberlady, Kilmarie)",
+      "mission": "MSL",
+      "instrument": "Drill / CheMin",
+      "source_url": "https://www.planetary.org/articles/curiosity-update-sols-2313-2387",
+      "credit": "The Planetary Society",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": [
+        "Fuente secundaria (resumen de la misión); fechas de perforación: Aberlady sol 2370, Kilmarie sol 2384."
+      ]
+    },
+    {
+      "evidence_id": "ev-jpl-2024-gediz-vallis-sulfur",
+      "title": "NASA's Curiosity Rover Discovers a Surprise in a Martian Rock (elemental sulfur, Gediz Vallis)",
+      "mission": "MSL",
+      "instrument": "Drill / APXS / Mastcam",
+      "source_url": "https://www.jpl.nasa.gov/news/nasas-curiosity-rover-discovers-a-surprise-in-a-martian-rock/",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": "2024-07-18",
+      "resolution_m": null,
+      "caveats": []
+    },
+    {
+      "evidence_id": "ev-nasa-msl-blog-sols-4219-4221",
+      "title": "Sols 4219-4221: It's a Complex Morning",
+      "mission": "MSL",
+      "instrument": "Drill / ChemCam",
+      "source_url": "https://science.nasa.gov/blog/sols-4219-4221-its-a-complex-morning",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": "2024-06-18",
+      "resolution_m": null,
+      "caveats": [
+        "El blog planifica la perforación de Mammoth Lakes en el sol 4219; NASA indica que el primer agujero limpio fue 'Mammoth Lakes 2' (sol 4222) tras mover ligeramente el rover."
+      ]
+    }
+  ],
+  "objectives": [
+    {
+      "objective_id": "obj-vrr-highfield",
+      "region_id": "mc23-gale-mount-sharp",
+      "title": "Vera Rubin Ridge — sitio de perforación Highfield",
+      "description": "Afloramiento gris de la cresta Vera Rubin, perforado por Curiosity en el sol 2224 (8 nov 2018) tras el intento fallido en Inverness por la dureza de la roca.",
+      "position": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "73_550",
+          "sol": 2222,
+          "east_lon_deg": 137.3775706,
+          "planetocentric_lat_deg": -4.72851354,
+          "elev_geoid_m": -4146.95
+        }
+      },
+      "science_question": "¿La resistencia de Vera Rubin Ridge y su hematita se deben a alteración diagenética por agua subterránea y no a una capa de composición distinta?",
+      "priority_weight": 2.0,
+      "activities": [
+        "Raspado con el DRT (Dust Removal Tool)",
+        "Perforación y toma de muestra",
+        "Mineralogía con CheMin",
+        "Análisis de gases con SAM",
+        "Imágenes de contexto Mastcam/MAHLI"
+      ],
+      "possible_findings": [
+        "HEMATITE_DETECTED",
+        "COARSE_HEMATITE_ONLY",
+        "DIAGENETIC_ALTERATION_OBSERVED",
+        "NO_HEMATITE_DETECTED"
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-localized-waypoints",
+        "ev-nasa-msl-blog-sol-2224-highfield",
+        "ev-fraeman-2020-vera-rubin-ridge"
+      ]
+    },
+    {
+      "objective_id": "obj-glen-torridon-aberlady",
+      "region_id": "mc23-gale-mount-sharp",
+      "title": "Glen Torridon (unidad con arcillas) — Aberlady y Kilmarie",
+      "description": "Unidad con arcillas al sur de Vera Rubin Ridge; Aberlady se perforó en el sol 2370 y Kilmarie, a ~80 cm, en el sol 2384. CheMin midió las mayores abundancias de arcilla de la misión hasta ese momento.",
+      "position": {
+        "x_m": 4034.4,
+        "y_m": 6417.9,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "75_1386",
+          "sol": 2365,
+          "east_lon_deg": 137.3836534,
+          "planetocentric_lat_deg": -4.7260789,
+          "elev_geoid_m": -4157.94
+        }
+      },
+      "science_question": "¿Qué abundancia de minerales arcillosos conserva la unidad de Glen Torridon y qué indica sobre la persistencia del antiguo lago de Gale?",
+      "priority_weight": 3.0,
+      "activities": [
+        "Perforación y toma de muestra",
+        "Mineralogía con CheMin",
+        "Prueba de gases desprendidos con SAM",
+        "Química con ChemCam/APXS"
+      ],
+      "possible_findings": [
+        "CLAY_MINERALS_DETECTED",
+        "FE_CARBONATE_DETECTED",
+        "NO_CLAY_ENRICHMENT"
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-localized-waypoints",
+        "ev-planetary-msl-sols-2313-2387"
+      ]
+    },
+    {
+      "objective_id": "obj-gediz-vallis-mammoth-lakes",
+      "region_id": "mc23-gale-mount-sharp",
+      "title": "Canal Gediz Vallis — perforación Mammoth Lakes (azufre elemental)",
+      "description": "Campo de rocas claras en el canal Gediz Vallis donde Curiosity rompió una roca (30 may 2024) y expuso cristales de azufre elemental; la perforación se hizo en la roca cercana 'Mammoth Lakes' (18 jun 2024).",
+      "position": {
+        "x_m": 5523.3,
+        "y_m": 2882.8,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "107_2496",
+          "sol": 4210,
+          "east_lon_deg": 137.4088596,
+          "planetocentric_lat_deg": -4.78571901,
+          "elev_geoid_m": -3688.18
+        }
+      },
+      "science_question": "¿Cómo se formó el azufre elemental del canal Gediz Vallis, en condiciones que no se asociaban con la historia de este lugar?",
+      "priority_weight": 3.0,
+      "activities": [
+        "Perforación y toma de muestra",
+        "Química con APXS/ChemCam",
+        "Mineralogía con CheMin",
+        "Panorámica Mastcam del campo de rocas"
+      ],
+      "possible_findings": [
+        "ELEMENTAL_SULFUR_DETECTED",
+        "SULFATE_ONLY",
+        "NO_SULFUR_PHASE"
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-localized-waypoints",
+        "ev-jpl-2024-gediz-vallis-sulfur",
+        "ev-nasa-msl-blog-sols-4219-4221"
+      ]
+    }
+  ]
+}

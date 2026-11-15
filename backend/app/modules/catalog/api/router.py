@@ -5,6 +5,8 @@ startup), so this module has no globals and tests can inject their own store.
 
 - ``GET /regions``
 - ``GET /regions/{region_id}/manifest``
+- ``GET /regions/{region_id}/objectives``: objetivos científicos con ``z_m`` muestreado del DEM.
+- ``GET /regions/{region_id}/photos``: fotografías y su calidad de localización; ``?objective_id``.
 - ``GET /assets/{region_id}/{filename}``: only the files declared in the region metadata,
   never subdirectories, ``..`` or anything outside ``data/regions/<region_id>/derived/``.
 """
@@ -21,10 +23,21 @@ from app.modules.catalog.api.schemas import (
     EvidenceSchema,
     FrameSchema,
     LayerSchema,
+    ObjectiveSchema,
+    ObjectivesResponse,
+    PhotoSchema,
+    PhotosResponse,
+    PositionSchema,
     RegionManifestResponse,
     RegionSchema,
     RegionsResponse,
     TerrainManifestSchema,
+)
+from app.modules.catalog.infrastructure.science_loader import (
+    LocalPosition,
+    ScienceCatalog,
+    ScienceDataError,
+    load_science_catalog,
 )
 from app.modules.catalog.infrastructure.terrain_loader import CatalogStore, LoadedRegion
 
@@ -74,6 +87,81 @@ def get_region_manifest(region_id: str, store: StoreDep) -> RegionManifestRespon
     return build_region_manifest(region)
 
 
+@catalog_router.get("/regions/{region_id}/objectives", response_model=ObjectivesResponse)
+def get_objectives(region_id: str, store: StoreDep) -> ObjectivesResponse:
+    region = _require_region(store, region_id)
+    catalog = _science_catalog(region)
+    if catalog is None:
+        return ObjectivesResponse(objectives=[])
+    return ObjectivesResponse(
+        objectives=[
+            ObjectiveSchema(
+                objective_id=item.objective_id,
+                region_id=item.region_id,
+                title=item.title,
+                description=item.description,
+                position=_position(store, region_id, item.position),
+                science_question=item.science_question,
+                priority_weight=item.priority_weight,
+                activities=list(item.activities),
+                possible_findings=list(item.possible_findings),
+                evidence_ids=list(item.evidence_ids),
+            )
+            for item in catalog.objectives
+        ]
+    )
+
+
+@catalog_router.get("/regions/{region_id}/photos", response_model=PhotosResponse)
+def get_photos(region_id: str, store: StoreDep, objective_id: str | None = None) -> PhotosResponse:
+    region = _require_region(store, region_id)
+    catalog = _science_catalog(region)
+    if catalog is None:
+        return PhotosResponse(photos=[])
+    if objective_id is not None and objective_id not in {
+        item.objective_id for item in catalog.objectives
+    }:
+        raise HTTPException(status_code=404, detail=f"Objetivo desconocido: {objective_id!r}.")
+    return PhotosResponse(
+        photos=[
+            PhotoSchema(
+                photo_id=item.photo_id,
+                objective_id=item.objective_id,
+                image_url=item.image_url,
+                camera=item.camera,
+                sol=item.sol,
+                captured_at=item.captured_at,
+                credit=item.credit,
+                source_url=item.source_url,
+                location=(_position(store, region_id, item.location) if item.location else None),
+                location_quality=item.location_quality,
+                limitations=list(item.limitations),
+            )
+            for item in catalog.photos
+            if objective_id is None or item.objective_id == objective_id
+        ]
+    )
+
+
+def _science_catalog(region: LoadedRegion) -> ScienceCatalog | None:
+    try:
+        catalog = load_science_catalog(region.region_id)
+        if catalog is not None:
+            catalog.check_within_extent(region.metadata)
+    except ScienceDataError as exc:
+        raise HTTPException(
+            status_code=503, detail=f"Catálogo científico no disponible: {exc}"
+        ) from exc
+    return catalog
+
+
+def _position(store: CatalogStore, region_id: str, position: LocalPosition) -> PositionSchema:
+    sample = store.terrain_repository.sample_elevation(region_id, position.x_m, position.y_m)
+    return PositionSchema(
+        x_m=position.x_m, y_m=position.y_m, frame_id=position.frame_id, z_m=sample.elevation_m
+    )
+
+
 @catalog_router.get(
     "/assets/{region_id}/{filename}",
     response_class=FileResponse,
@@ -110,6 +198,18 @@ def build_region_manifest(region: LoadedRegion) -> RegionManifestResponse:
         )
         for source in sources
     ]
+    # Evidencias de objetivos y fotos, para que todo evidence_id referenciado exista en el manifest.
+    try:
+        science = load_science_catalog(region.region_id)
+    except ScienceDataError:
+        science = None
+    if science is not None:
+        known = {item.evidence_id for item in evidence}
+        evidence += [
+            EvidenceSchema(**item.model_dump())
+            for item in science.evidence
+            if item.evidence_id not in known
+        ]
 
     layers = []
     texture_block = document.get("texture") or {}

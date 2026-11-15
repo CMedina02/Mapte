@@ -280,6 +280,52 @@ class LayerSchema(BaseModel):
     nodata_policy: Literal["unknown"] = "unknown"
 
 
+class ObjectiveSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    objective_id: str = Field(min_length=1)
+    region_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    description: str = ""
+    position: PositionSchema
+    science_question: str = Field(min_length=1)
+    priority_weight: float = Field(
+        ge=0, description="Parámetro del escenario de misión; no es una puntuación de NASA."
+    )
+    activities: list[str]
+    possible_findings: list[str]
+    evidence_ids: list[str]
+
+
+class ObjectivesResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    objectives: list[ObjectiveSchema]
+
+
+class PhotoSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    photo_id: str = Field(min_length=1)
+    objective_id: str = Field(min_length=1)
+    image_url: str = Field(min_length=1)
+    camera: str
+    sol: int | None
+    captured_at: str | None
+    credit: str
+    source_url: str
+    location: PositionSchema | None
+    location_quality: Literal["verified", "approximate", "unknown"]
+    limitations: list[str]
+
+
+class PhotosResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    photos: list[PhotoSchema]
+    sample_only: bool = False
+
+
 class RegionManifestResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
