@@ -13,6 +13,7 @@ from app.modules.missions.routing.models import (
 )
 from app.modules.missions.routing.planner import AStarRoutePlanner
 from app.modules.missions.terrain import (
+    EnvironmentalHazardReport,
     LocalPosition,
     MissionHazardOverlay,
     TraversalStatus,
@@ -40,8 +41,13 @@ class RouteComputation:
 
 
 class RouteApplicationService:
-    def __init__(self, terrain_repository: TerrainRepository) -> None:
+    def __init__(
+        self,
+        terrain_repository: TerrainRepository,
+        reports: tuple[EnvironmentalHazardReport, ...] = (),
+    ) -> None:
         self._repository = terrain_repository
+        self._reports = reports
 
     def compute(
         self,
@@ -51,7 +57,7 @@ class RouteApplicationService:
         constraints: RoutePlanningConstraints,
     ) -> RouteComputation:
         metadata = self._repository.get_metadata(region_id)
-        terrain = MissionHazardOverlay(self._repository, region_id)
+        terrain = MissionHazardOverlay(self._repository, region_id, self._reports)
         planner = AStarRoutePlanner(terrain)
 
         route: PlannedRoute | None = None

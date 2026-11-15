@@ -40,12 +40,11 @@ class MissionPlanningRequest:
     constraints: RoutePlanningConstraints
     resources: SupportResources
     activity_durations_min: tuple[tuple[str, float], ...] = ()
+    return_position: LocalPosition | None = None
 
     def __post_init__(self) -> None:
         if not self.region_id.strip():
             raise ValueError("region_id no puede estar vacío")
-        if not self.objective_ids:
-            raise ValueError("Se requiere al menos un objetivo")
         if len(self.objective_ids) != len(set(self.objective_ids)):
             raise ValueError("objective_ids no puede contener duplicados")
         duration_ids = [objective_id for objective_id, _ in self.activity_durations_min]
@@ -57,6 +56,8 @@ class MissionPlanningRequest:
         for objective_id, duration_min in self.activity_durations_min:
             if not objective_id.strip() or not isfinite(duration_min) or duration_min < 0:
                 raise ValueError("Las duraciones requieren ID válido y minutos no negativos")
+        if self.return_position and self.return_position.frame_id != self.base_position.frame_id:
+            raise ValueError("return_position debe usar el mismo frame_id que base_position")
 
     def activity_duration_for(self, objective_id: str) -> float | None:
         return dict(self.activity_durations_min).get(objective_id)
@@ -83,6 +84,8 @@ class MissionPlan:
     mission_id: str
     region_id: str
     version: int
+    start_position: LocalPosition
+    return_position: LocalPosition
     objective_ids: tuple[str, ...]
     next_objective_id: str | None
     legs: tuple[MissionLeg, ...]

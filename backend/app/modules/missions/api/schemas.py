@@ -72,7 +72,10 @@ class MissionPlanResponseSchema(BaseModel):
     terrain_version: str
     lifecycle_status: Literal["draft", "active", "completed", "aborted"]
     viability_status: Literal["viable", "not_viable", "unknown"]
+    start_position: PositionSchema
+    return_position: PositionSchema
     objective_ids: list[str]
+    completed_objective_ids: list[str] = Field(default_factory=list)
     next_objective_id: str | None
     legs: list[dict]
     resources: dict
@@ -80,3 +83,26 @@ class MissionPlanResponseSchema(BaseModel):
     alerts: list[str]
     decision_log: list[dict]
     evidence_ids: list[str]
+    hazard_reports: list[dict] = Field(default_factory=list)
+
+
+class HazardReportSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    hazard_code: str = Field(min_length=1)
+    position: PositionSchema
+    effect: Literal["blocked", "unknown", "high_cost"]
+    affected_radius_m: float = Field(ge=0)
+    cost_multiplier: float = Field(default=1, ge=1)
+
+
+class MissionReplanRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    current_position: PositionSchema
+    completed_objective_ids: list[str] = Field(default_factory=list)
+    report: HazardReportSchema
+    constraints: RouteConstraintsSchema
+    resources: MissionResourcesSchema
+    activity_durations_min: dict[str, float] = Field(default_factory=dict)

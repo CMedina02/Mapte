@@ -9,8 +9,8 @@ from app.modules.catalog.domain import (
     VerticalReferenceSpec,
     build_synthetic_terrain,
 )
-from app.modules.missions.api.router import get_mission, plan_mission
-from app.modules.missions.api.schemas import MissionPlanRequestSchema
+from app.modules.missions.api.router import get_mission, plan_mission, report_hazard_and_replan
+from app.modules.missions.api.schemas import MissionPlanRequestSchema, MissionReplanRequestSchema
 from app.modules.missions.persistence import SQLiteMissionRepository, StoredRouteKind
 from app.modules.missions.planning import (
     InMemoryObjectiveRepository,
@@ -190,3 +190,70 @@ def test_plan_and_get_api_functions_share_persisted_mission(tmp_path) -> None:
     assert created.mission_version == 1
     assert restored == created
     assert restored.viability_status == "viable"
+
+    replanned = report_hazard_and_replan(
+        created.mission_id,
+        MissionReplanRequestSchema.model_validate(
+            {
+                "expected_version": 1,
+                "current_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+                "completed_objective_ids": [],
+                "report": {
+                    "hazard_code": "LOOSE_ROCKS",
+                    "position": {"x_m": 15, "y_m": 15, "frame_id": FRAME_ID},
+                    "effect": "blocked",
+                    "affected_radius_m": 0,
+                },
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+                "resources": {"oxygen_available_min": 180, "return_reserve_min": 30},
+                "activity_durations_min": {"obj-a": 10, "obj-b": 20},
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+
+    assert replanned.mission_version == 2
+    assert replanned.hazard_reports[0]["hazard_code"] == "LOOSE_ROCKS"
+    original = repository.get(created.mission_id, version=1)
+    assert original is not None
+    assert original.snapshot["hazard_reports"] == []
+
+    second_replan = report_hazard_and_replan(
+        created.mission_id,
+        MissionReplanRequestSchema.model_validate(
+            {
+                "expected_version": 2,
+                "current_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                "completed_objective_ids": ["obj-a"],
+                "report": {
+                    "hazard_code": "SOFT_SOIL",
+                    "position": {"x_m": 15, "y_m": 5, "frame_id": FRAME_ID},
+                    "effect": "high_cost",
+                    "affected_radius_m": 0,
+                    "cost_multiplier": 3,
+                },
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+                "resources": {"oxygen_available_min": 150, "return_reserve_min": 30},
+                "activity_durations_min": {"obj-b": 20},
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+
+    assert second_replan.mission_version == 3
+    assert [item["hazard_code"] for item in second_replan.hazard_reports] == [
+        "LOOSE_ROCKS",
+        "SOFT_SOIL",
+    ]

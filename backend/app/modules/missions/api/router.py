@@ -1,6 +1,7 @@
 """HTTP route-computation endpoint for Backend 2."""
 
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -8,10 +9,17 @@ from app.modules.catalog.domain import TerrainRepository
 from app.modules.missions.api.schemas import (
     MissionPlanRequestSchema,
     MissionPlanResponseSchema,
+    MissionReplanRequestSchema,
     RouteRequestSchema,
     RouteResultSchema,
 )
-from app.modules.missions.persistence import MissionRepository, StoredMission
+from app.modules.missions.persistence import (
+    MissionEventDraft,
+    MissionRepository,
+    MissionUpdate,
+    MissionVersionConflictError,
+    StoredMission,
+)
 from app.modules.missions.planning import (
     MissionPlanner,
     MissionPlanningRequest,
@@ -24,7 +32,12 @@ from app.modules.missions.routing import (
     RoutePlanningConstraints,
 )
 from app.modules.missions.routing.service import RouteApplicationService
-from app.modules.missions.terrain import FrameMismatchError, LocalPosition
+from app.modules.missions.terrain import (
+    EnvironmentalHazardReport,
+    FrameMismatchError,
+    HazardEffect,
+    LocalPosition,
+)
 
 missions_router = APIRouter(tags=["Missions"])
 
@@ -151,6 +164,97 @@ def get_mission(mission_id: str, missions: MissionDep) -> MissionPlanResponseSch
     return _mission_response(stored)
 
 
+@missions_router.post(
+    "/missions/{mission_id}/hazard-reports",
+    response_model=MissionPlanResponseSchema,
+)
+def report_hazard_and_replan(
+    mission_id: str,
+    payload: MissionReplanRequestSchema,
+    terrain: TerrainDep,
+    objectives: ObjectiveDep,
+    missions: MissionDep,
+) -> MissionPlanResponseSchema:
+    stored = missions.get(mission_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail=f"Misión no encontrada: {mission_id!r}.")
+    if payload.expected_version != stored.current_version:
+        raise HTTPException(status_code=409, detail="La misión fue actualizada por otro cliente.")
+    original_ids = tuple(stored.snapshot["objective_ids"])
+    completed = tuple(dict.fromkeys(payload.completed_objective_ids))
+    if not set(completed).issubset(original_ids):
+        raise HTTPException(status_code=400, detail="Hay objetivos completados ajenos a la misión.")
+    remaining = tuple(item for item in original_ids if item not in completed)
+    report_id = str(uuid4())
+    report = EnvironmentalHazardReport(
+        report_id=report_id,
+        mission_version=payload.expected_version,
+        position=_local_position(payload.report.position),
+        hazard_code=payload.report.hazard_code,
+        effect=HazardEffect(payload.report.effect),
+        affected_radius_m=payload.report.affected_radius_m,
+        cost_multiplier=payload.report.cost_multiplier,
+    )
+    previous_reports = tuple(
+        _hazard_from_data(item) for item in stored.snapshot.get("hazard_reports", [])
+    )
+    return_position = _local_position_data(stored.snapshot["return_position"])
+    request = MissionPlanningRequest(
+        region_id=stored.region_id,
+        base_position=_local_position(payload.current_position),
+        return_position=return_position,
+        objective_ids=remaining,
+        constraints=RoutePlanningConstraints(
+            max_slope_deg=payload.constraints.max_slope_deg,
+            speed_m_per_min=payload.constraints.speed_m_per_min,
+            avoid_unknown=payload.constraints.avoid_unknown,
+        ),
+        resources=SupportResources(
+            payload.resources.oxygen_available_min,
+            payload.resources.return_reserve_min,
+        ),
+        activity_durations_min=tuple(payload.activity_durations_min.items()),
+    )
+    try:
+        plan = MissionPlanner(terrain, objectives, (*previous_reports, report)).plan(request)
+        draft = mission_create_from_plan(plan)
+    except (ValueError, FrameMismatchError, InvalidRouteEndpointError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    report_data = {
+        "report_id": report_id,
+        "mission_version": payload.expected_version,
+        "position": _position_data(report.position),
+        "hazard_code": report.hazard_code,
+        "effect": report.effect.value,
+        "affected_radius_m": report.affected_radius_m,
+        "cost_multiplier": report.cost_multiplier,
+    }
+    snapshot = {
+        **draft.snapshot,
+        "objective_ids": list(original_ids),
+        "completed_objective_ids": list(completed),
+        "hazard_reports": [*stored.snapshot.get("hazard_reports", []), report_data],
+    }
+    try:
+        updated = missions.update(
+            mission_id,
+            MissionUpdate(
+                expected_version=payload.expected_version,
+                lifecycle_status=stored.lifecycle_status,
+                viability_status=draft.viability_status,
+                snapshot=snapshot,
+                routes=draft.routes,
+                events=(
+                    *draft.events,
+                    MissionEventDraft(str(uuid4()), "hazard_reported", report_data),
+                ),
+            ),
+        )
+    except MissionVersionConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _mission_response(updated)
+
+
 def _mission_response(stored: StoredMission) -> MissionPlanResponseSchema:
     return MissionPlanResponseSchema.model_validate(
         {
@@ -163,4 +267,28 @@ def _mission_response(stored: StoredMission) -> MissionPlanResponseSchema:
             "viability_status": stored.viability_status.value,
             **stored.snapshot,
         }
+    )
+
+
+def _local_position(position) -> LocalPosition:
+    return LocalPosition(position.x_m, position.y_m, position.frame_id)
+
+
+def _local_position_data(position: dict) -> LocalPosition:
+    return LocalPosition(position["x_m"], position["y_m"], position["frame_id"])
+
+
+def _position_data(position: LocalPosition) -> dict:
+    return {"x_m": position.x_m, "y_m": position.y_m, "frame_id": position.frame_id}
+
+
+def _hazard_from_data(data: dict) -> EnvironmentalHazardReport:
+    return EnvironmentalHazardReport(
+        report_id=data["report_id"],
+        mission_version=data["mission_version"],
+        position=_local_position_data(data["position"]),
+        hazard_code=data["hazard_code"],
+        effect=HazardEffect(data["effect"]),
+        affected_radius_m=data["affected_radius_m"],
+        cost_multiplier=data["cost_multiplier"],
     )
