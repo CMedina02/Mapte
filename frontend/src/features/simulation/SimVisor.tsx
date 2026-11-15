@@ -17,6 +17,7 @@ const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
 const STEP_MS = 500; // un paso del backend cada medio segundo real (avisos y recálculos no se pisan)
 const TICK_MS = 50; // refresco de la posición interpolada
 const ALERT_MS = 5000; // cuánto queda visible un aviso de recálculo o llegada
+const SPEEDS = [60, 120, 240] as const; // velocidades del botón (× tiempo real)
 
 function requestFromUrl(): SimCreate {
   const q = new URLSearchParams(location.search);
@@ -67,6 +68,10 @@ export default function SimVisor() {
   const [start, setStart] = useState<Position | null>(null);
   const [use3d, setUse3d] = useState(true);
   const [run, setRun] = useState(0); // incrementar = reiniciar la simulación
+  const [speed, setSpeed] = useState<number>(() => {
+    const q = Number(new URLSearchParams(location.search).get('speed'));
+    return (SPEEDS as readonly number[]).includes(q) ? q : 120;
+  });
   // Tramo de interpolación: de la posición mostrada a la última que dio el backend
   const anim = useRef<{ from: Position; to: Position; at: number } | null>(null);
   const inFlight = useRef(false);
@@ -108,13 +113,17 @@ export default function SimVisor() {
   const simId = sim?.sim_id ?? null;
   const finished = sim?.status === 'arrived' || sim?.status === 'stopped';
   const ready = !!region;
+  // El backend fija speed_factor al crear la simulación; para cambiar la velocidad en vivo se
+  // escala el tiempo real de cada paso (tiempo simulado = dt_s × speed_factor).
+  const baseSpeed = sim?.speed_factor ?? speed;
+  const dtS = Math.min((STEP_MS / 1000) * (speed / baseSpeed), 60);
   useEffect(() => {
     if (!simId || !running || finished || !ready) return;
     const id = setInterval(() => {
       if (inFlight.current) return;
       inFlight.current = true;
       simApi
-        .step(simId, STEP_MS / 1000)
+        .step(simId, dtS)
         .then(show)
         .catch((e) => {
           setRunning(false);
@@ -125,7 +134,7 @@ export default function SimVisor() {
         });
     }, STEP_MS);
     return () => clearInterval(id);
-  }, [simId, running, finished, ready, show]);
+  }, [simId, running, finished, ready, show, dtS]);
 
   // Posición mostrada: interpolación lineal entre respuestas (solo visual)
   useEffect(() => {
@@ -210,7 +219,7 @@ export default function SimVisor() {
       {/* Etiqueta fija: nada simulado se presenta como medido */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
         <p className="hud px-4 py-1.5 text-xs text-space-200">
-          Simulación: terreno y rutas reales, caminata acelerada {sim.speed_factor} veces
+          Simulación: terreno y rutas reales, caminata acelerada {speed} veces
         </p>
       </div>
 
@@ -261,19 +270,30 @@ export default function SimVisor() {
         </ol>
       </section>
 
-      <div className="absolute right-3 bottom-3 flex gap-2">
+      <div className="absolute right-3 bottom-3 flex items-end gap-2">
         {!finished && (
           <button type="button" className="btn-go shadow-lg" onClick={() => setRunning((r) => !r)}>
             <Icon name={running ? 'pause' : 'play'} size={18} />
             {running ? 'Pausar' : 'Continuar'}
           </button>
         )}
-        <button type="button" className="btn-primary shadow-lg" onClick={restart}>
-          <Icon name="replay" size={18} />
-          Reiniciar
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            className="btn-primary shadow-lg"
+            onClick={() => setSpeed((v) => SPEEDS[(SPEEDS.indexOf(v as (typeof SPEEDS)[number]) + 1) % SPEEDS.length])}
+            title="Cambiar velocidad de la simulación"
+          >
+            <Icon name="speed" size={18} />
+            x{speed}
+          </button>
+          <button type="button" className="btn-primary shadow-lg" onClick={restart}>
+            <Icon name="replay" size={18} />
+            Reiniciar
+          </button>
+        </div>
       </div>
-      {error && <p className="hud absolute right-3 bottom-16 max-w-xs p-3 text-xs text-alert-200">{error}</p>}
+      {error && <p className="hud absolute right-3 bottom-28 max-w-xs p-3 text-xs text-alert-200">{error}</p>}
     </div>
   );
 }
