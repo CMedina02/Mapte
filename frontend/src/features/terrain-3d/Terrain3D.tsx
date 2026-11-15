@@ -30,6 +30,8 @@ interface Props {
   lookHeading?: number | null; // rumbo impuesto desde fuera (brújula del dispositivo o ratón); null = libre
   lookPitch?: number | null; // inclinación impuesta desde fuera (ratón), radianes desde la vertical; null = libre
   onError: (message: string) => void;
+  // Simulación: la cámara sigue al astronauta con suavizado en vez de recolocar toda la escena
+  follow?: boolean;
 }
 
 type Vec3 = [number, number, number];
@@ -417,7 +419,38 @@ function HeadingDriver({ heading, pitch }: { heading: number | null; pitch: numb
   return null;
 }
 
-function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here, destination, onHeading, lookHeading = null, lookPitch = null, onError }: Props) {
+// Modo seguimiento: desplaza cámara y objetivo de la órbita hacia el astronauta, sin cambiar el ángulo de vista
+function FollowDriver({ me }: { me: Vec3 }) {
+  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
+  const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
+  const ready = useRef(false);
+  useEffect(() => {
+    invalidate();
+  }, [me, invalidate]);
+  useFrame((_, dt) => {
+    if (!controls) return;
+    const goal = new THREE.Vector3(...me);
+    if (!ready.current) {
+      // Primer cuadro: la cámara se creó detrás de esta posición; solo falta fijar el centro de la órbita
+      ready.current = true;
+      controls.target.copy(goal);
+      controls.update();
+      invalidate();
+      return;
+    }
+    const delta = goal.sub(controls.target);
+    if (delta.lengthSq() < 0.01) return;
+    delta.multiplyScalar(1 - Math.exp(-dt * 6));
+    controls.target.add(delta);
+    camera.position.add(delta);
+    controls.update();
+    invalidate();
+  });
+  return null;
+}
+
+function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here, destination, onHeading, lookHeading = null, lookPitch = null, onError, follow = false }: Props) {
   const [dem, setDem] = useState<{ terrain: Terrain; heights: Float32Array } | null>(null);
   // Último bloque terrain recibido: el efecto de carga lo lee sin depender de su identidad
   // (la sincronización en vivo entrega un objeto nuevo aunque el heightmap no cambie)
@@ -475,6 +508,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
       const len = Math.hypot(d[0] - me[0], d[2] - me[2]);
       if (len > 1) [dx, dz, legM] = [(d[0] - me[0]) / len, (d[2] - me[2]) / len, len];
     }
+    if (follow) legM = 800; // distancia de cámara y bruma fijas mientras el astronauta camina
     const span = Math.max(frame.spanX, frame.spanY);
     // Detrás del astronauta, a una distancia proporcional al tramo (más lejos en pantallas verticales)
     const back = Math.min(Math.max(legM * 0.8, 450), span * 0.35) * (window.innerWidth < window.innerHeight ? 1.5 : 1);
@@ -486,7 +520,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
       span,
       back,
     };
-  }, [frame, here, destination]);
+  }, [frame, here, destination, follow]);
 
   // Rumbo inicial (antes de que el usuario gire la cámara)
   useEffect(() => {
@@ -507,7 +541,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
     <div className="relative h-full w-full">
       {/* key: al cambiar de destino se recoloca la cámara detrás del astronauta */}
       <Canvas
-        key={`${view.camera.join(',')}`}
+        key={follow ? 'follow' : `${view.camera.join(',')}`}
         frameloop="demand"
         dpr={[1, 2]}
         camera={{ fov: 50, near: 1, far: span * 10, position: view.camera }}
@@ -547,7 +581,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
 
         <OrbitControls
           makeDefault
-          target={view.target}
+          target={follow ? undefined : view.target}
           enableDamping={false}
           maxPolarAngle={MAX_POLAR}
           minDistance={120}
@@ -563,6 +597,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
           }}
         />
         <HeadingDriver heading={lookHeading} pitch={lookPitch} />
+        {follow && <FollowDriver me={view.me} />}
       </Canvas>
 
     </div>

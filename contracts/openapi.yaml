@@ -755,6 +755,248 @@
           }
         }
       }
+    },
+    "/api/v1/sim": {
+      "post": {
+        "tags": [
+          "Simulation"
+        ],
+        "summary": "Create Simulation",
+        "description": "Crea una caminata simulada; sin cuerpo usa el escenario preestablecido.",
+        "operationId": "create_simulation_api_v1_sim_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SimulationCreateSchema"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationStateSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sim/demo": {
+      "get": {
+        "tags": [
+          "Simulation"
+        ],
+        "summary": "Run Demo",
+        "description": "Corre el escenario preestablecido de principio a fin y devuelve la línea de tiempo.",
+        "operationId": "run_demo_api_v1_sim_demo_get",
+        "parameters": [
+          {
+            "name": "dt_s",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 60,
+              "exclusiveMinimum": 0,
+              "default": 1.0,
+              "title": "Dt S"
+            }
+          },
+          {
+            "name": "speed_factor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 120,
+              "exclusiveMinimum": 0,
+              "default": 30.0,
+              "title": "Speed Factor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationDemoSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sim/{sim_id}": {
+      "get": {
+        "tags": [
+          "Simulation"
+        ],
+        "summary": "Get Simulation",
+        "operationId": "get_simulation_api_v1_sim__sim_id__get",
+        "parameters": [
+          {
+            "name": "sim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sim Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationStateSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Simulation"
+        ],
+        "summary": "Delete Simulation",
+        "operationId": "delete_simulation_api_v1_sim__sim_id__delete",
+        "parameters": [
+          {
+            "name": "sim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sim Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sim/{sim_id}/step": {
+      "post": {
+        "tags": [
+          "Simulation"
+        ],
+        "summary": "Step Simulation",
+        "description": "Avanza la caminata; el backend detecta el desvío y recalcula.",
+        "operationId": "step_simulation_api_v1_sim__sim_id__step_post",
+        "parameters": [
+          {
+            "name": "sim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sim Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SimulationStepSchema"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationStateSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -821,6 +1063,37 @@
           "oxygen_available_min"
         ],
         "title": "ContingencyRequestSchema"
+      },
+      "DeviationSchema": {
+        "properties": {
+          "at_fraction": {
+            "type": "number",
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "At Fraction",
+            "description": "Fracción de la ruta.",
+            "default": 0.4
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "left",
+              "right"
+            ],
+            "title": "Side",
+            "default": "left"
+          },
+          "angle_deg": {
+            "type": "number",
+            "maximum": 90.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Angle Deg",
+            "default": 60.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DeviationSchema"
       },
       "EvidenceSchema": {
         "properties": {
@@ -2732,6 +3005,354 @@
         ],
         "title": "SectorExtentSchema",
         "description": "Sector extent in local frame meters."
+      },
+      "SimulationCreateSchema": {
+        "properties": {
+          "region_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region Id"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constraints": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteConstraintsSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "speed_factor": {
+            "type": "number",
+            "maximum": 120.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Speed Factor",
+            "default": 30.0
+          },
+          "deviation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeviationSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Desvío automático; null para caminar sin desviarse."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SimulationCreateSchema"
+      },
+      "SimulationDemoSchema": {
+        "properties": {
+          "simulated": {
+            "type": "boolean",
+            "const": true,
+            "title": "Simulated",
+            "default": true
+          },
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/SimulationFrameSchema"
+            },
+            "type": "array",
+            "title": "Frames"
+          },
+          "final": {
+            "$ref": "#/components/schemas/SimulationStateSchema"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frames",
+          "final"
+        ],
+        "title": "SimulationDemoSchema"
+      },
+      "SimulationEventSchema": {
+        "properties": {
+          "t_s": {
+            "type": "number",
+            "title": "T S"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "x_m": {
+            "type": "number",
+            "title": "X M"
+          },
+          "y_m": {
+            "type": "number",
+            "title": "Y M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_s",
+          "event_type",
+          "message",
+          "x_m",
+          "y_m"
+        ],
+        "title": "SimulationEventSchema"
+      },
+      "SimulationFrameSchema": {
+        "properties": {
+          "t_s": {
+            "type": "number",
+            "title": "T S"
+          },
+          "x_m": {
+            "type": "number",
+            "title": "X M"
+          },
+          "y_m": {
+            "type": "number",
+            "title": "Y M"
+          },
+          "z_m": {
+            "type": "number",
+            "title": "Z M"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "deviation_m": {
+            "type": "number",
+            "title": "Deviation M"
+          },
+          "route_version": {
+            "type": "integer",
+            "title": "Route Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_s",
+          "x_m",
+          "y_m",
+          "z_m",
+          "status",
+          "action",
+          "deviation_m",
+          "route_version"
+        ],
+        "title": "SimulationFrameSchema"
+      },
+      "SimulationStateSchema": {
+        "properties": {
+          "sim_id": {
+            "type": "string",
+            "title": "Sim Id"
+          },
+          "simulated": {
+            "type": "boolean",
+            "const": true,
+            "title": "Simulated",
+            "default": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "following",
+              "drifting",
+              "arrived",
+              "stopped"
+            ],
+            "title": "Status"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "none",
+              "warn",
+              "rerouted",
+              "arrived",
+              "stop"
+            ],
+            "title": "Action"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "t_s": {
+            "type": "number",
+            "title": "T S",
+            "description": "Tiempo simulado transcurrido (s)."
+          },
+          "speed_factor": {
+            "type": "number",
+            "title": "Speed Factor"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "heading_deg": {
+            "type": "number",
+            "title": "Heading Deg"
+          },
+          "progress_m": {
+            "type": "number",
+            "title": "Progress M"
+          },
+          "remaining_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining M"
+          },
+          "eta_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Min"
+          },
+          "on_route": {
+            "type": "boolean",
+            "title": "On Route"
+          },
+          "deviation_m": {
+            "type": "number",
+            "title": "Deviation M"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/SimulationThresholdsSchema"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "route": {
+            "$ref": "#/components/schemas/RouteResultSchema"
+          },
+          "original_route_id": {
+            "type": "string",
+            "title": "Original Route Id"
+          },
+          "route_version": {
+            "type": "integer",
+            "title": "Route Version"
+          },
+          "reroute_count": {
+            "type": "integer",
+            "title": "Reroute Count"
+          },
+          "log": {
+            "items": {
+              "$ref": "#/components/schemas/SimulationEventSchema"
+            },
+            "type": "array",
+            "title": "Log"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sim_id",
+          "status",
+          "action",
+          "message",
+          "t_s",
+          "speed_factor",
+          "position",
+          "heading_deg",
+          "progress_m",
+          "remaining_m",
+          "eta_min",
+          "on_route",
+          "deviation_m",
+          "thresholds",
+          "destination",
+          "route",
+          "original_route_id",
+          "route_version",
+          "reroute_count",
+          "log"
+        ],
+        "title": "SimulationStateSchema"
+      },
+      "SimulationStepSchema": {
+        "properties": {
+          "dt_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Dt S",
+            "description": "Segundos reales a avanzar.",
+            "default": 1.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SimulationStepSchema"
+      },
+      "SimulationThresholdsSchema": {
+        "properties": {
+          "warn_m": {
+            "type": "number",
+            "title": "Warn M"
+          },
+          "reroute_m": {
+            "type": "number",
+            "title": "Reroute M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "warn_m",
+          "reroute_m"
+        ],
+        "title": "SimulationThresholdsSchema"
       },
       "TerrainGridMetadataSchema": {
         "properties": {

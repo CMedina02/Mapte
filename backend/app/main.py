@@ -13,7 +13,7 @@ from app.core.errors import register_error_handlers
 from app.modules.catalog.api.router import catalog_router
 from app.modules.catalog.infrastructure.science_loader import load_science_catalog
 from app.modules.catalog.infrastructure.terrain_loader import CatalogStore, load_catalog
-from app.modules.missions.api import missions_router
+from app.modules.missions.api import missions_router, simulation_router
 from app.modules.missions.persistence import MissionRepository, SQLiteMissionRepository
 from app.modules.missions.planning import (
     InMemoryObjectiveRepository,
@@ -100,6 +100,7 @@ def create_app(
 
     application.include_router(catalog_router, prefix="/api/v1")
     application.include_router(missions_router, prefix="/api/v1")
+    application.include_router(simulation_router, prefix="/api/v1")
     return application
 
 
