@@ -16,8 +16,7 @@ export function relaxedConstraints(reason: string, c: Constraints): Constraints 
   return c;
 }
 
-// Ruta que haría falta para un objetivo excluido: última parada aceptada → objetivo → base, calculada
-// por el backend. Panel y visor la dibujan en rojo. Una sola consulta por misión y objetivo.
+// Pide al backend un trazado alternativo por el primer objetivo excluido.
 export function useExcludedRoute(
   mission: Mission,
   target: { objective_id: string; position: Position; reason: string } | null,

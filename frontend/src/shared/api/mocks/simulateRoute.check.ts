@@ -1,5 +1,5 @@
-// Check rápido del simulador del mock. Ejecutar desde frontend/:
-//   node src/shared/api/mocks/simulateRoute.check.ts
+// Ejecutar desde frontend/.
+// node src/shared/api/mocks/simulateRoute.check.ts
 import { pointInPolygon, simulateRoute } from './simulateRoute.ts';
 import { ELEVATION_RANGE, FRAME_ID, SECTOR, elevationAt } from './monteSharp.ts';
 
@@ -8,7 +8,6 @@ function check(cond: boolean, msg: string) {
   console.log(`ok - ${msg}`);
 }
 
-// Coordenadas relativas al sector de caminata (como en el escenario)
 const P = (x: number, y: number) => ({ x_m: x + SECTOR.min_x, y_m: y + SECTOR.min_y, frame_id: FRAME_ID });
 const c = { max_slope_deg: 15, speed_m_per_min: 20, avoid_unknown: true };
 const plenty = { oxygen_available_min: 480, return_reserve_min: 60 };

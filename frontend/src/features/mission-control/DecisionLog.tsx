@@ -1,7 +1,7 @@
 import type { Mission, Objective } from '../../shared/types/contracts';
 import { eventText } from '../../shared/format';
 
-// Plan creado y objetivos excluidos ya se ven en Tramos: la bitácora solo muestra lo que pasa en la EVA
+// La bitácora omite la creación y las exclusiones que ya aparecen en Tramos.
 const SHOWN_ELSEWHERE = new Set(['plan_created', 'objective_excluded']);
 
 export default function DecisionLog({ mission }: { mission: Mission; objectives?: Objective[] }) {

@@ -8,14 +8,13 @@ interface Props {
   regionId: string;
   objectives: Objective[];
   base: Position | null;
-  replan?: boolean; // hay una base nueva sobre una misión ya planificada
+  replan?: boolean;
   selectedIds: string[];
   onSelectedIds: (ids: string[]) => void;
-  onPlanned: (m: Mission, req: MissionPlanRequest) => void; // req: para explicar exclusiones
+  onPlanned: (m: Mission, req: MissionPlanRequest) => void;
 }
 
-// Valores de referencia NASA: ~8 h de traje, reserva de retorno, paradas de geología de 30–60 min,
-// pendiente segura a pie ≤ 15° y ~1.2 km/h en terreno irregular
+// Valores iniciales del escenario EVA.
 const DEFAULTS = { slope: 15, speed: 20, avoidUnknown: true, oxygen: 480, reserve: 60, activity: 45 };
 
 const hours = (min: number) => (min % 60 === 0 ? `${min / 60} h` : `${Math.floor(min / 60)} h ${min % 60} min`);

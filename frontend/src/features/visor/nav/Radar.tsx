@@ -1,5 +1,3 @@
-// Radar del visor: norte arriba, centrado en la posición actual (inicio de la ruta restante).
-// Solo dibuja geometría del backend: ruta, base, destino y zonas de riesgo.
 import type { Bounds, Hazard, Position, QualityZone } from '../../../shared/types/contracts';
 
 interface Props {
@@ -9,17 +7,16 @@ interface Props {
   path: Position[];
   hazards: Hazard[];
   heading: number | null; // hacia dónde mira el astronauta (null = desconocido)
-  imagery?: { url: string; bounds: Bounds } | null; // ortofoto de fondo (minimapa)
-  unknownZones?: QualityZone[]; // DEM de calidad desconocida (gris)
-  failedPaths?: Position[][]; // ruta que haría falta para un objetivo fuera del plan (rojo)
+  imagery?: { url: string; bounds: Bounds } | null;
+  unknownZones?: QualityZone[];
+  failedPaths?: Position[][];
 }
 
 const R = 92; // radio útil en unidades del viewBox (200 × 200)
 const RANGES = [250, 500, 1000, 2000, 3000, 5000, 10000];
 
 export default function Radar({ center, target, base, path, hazards, heading, imagery, unknownZones = [], failedPaths = [] }: Props) {
-  // Alcance: el menor anillo "redondo" que contiene el siguiente destino con margen (o toda la ruta si no hay destino).
-  // Lo que queda fuera del alcance se recorta en el borde del radar.
+  // El alcance incluye el destino con margen, o toda la ruta si no hay destino.
   const dist = (p: Position) => Math.hypot(p.x_m - center.x_m, p.y_m - center.y_m);
   const far = target ? dist(target) * 1.4 : Math.max(1, ...path.map(dist));
   const range = RANGES.find((r) => r >= far) ?? RANGES[RANGES.length - 1];
@@ -48,7 +45,6 @@ export default function Radar({ center, target, base, path, hazards, heading, im
       <circle cx="100" cy="100" r={R} fill="url(#radar-bg)" stroke="#9aa0a6" strokeOpacity="0.7" />
 
       <g clipPath="url(#radar-clip)">
-        {/* Minimapa: ortofoto real, oscurecida para que la geometría resalte */}
         {imagery &&
           (() => {
             const x0 = sx({ x_m: imagery.bounds.min_x });
@@ -57,8 +53,7 @@ export default function Radar({ center, target, base, path, hazards, heading, im
             const h = ((imagery.bounds.max_y - imagery.bounds.min_y) / range) * R;
             return (
               <>
-                {/* Minimapa: ortofoto real al centro; alrededor, copias reflejadas y tenues (no son datos)
-                    para que el borde de la zona no corte el radar en seco, igual que el terreno 3D */}
+                {/* Las copias reflejadas rellenan el borde fuera de la cobertura de la ortofoto. */}
                 {[-1, 0, 1].flatMap((i) =>
                   [-1, 0, 1].map((j) => (
                     <g
@@ -71,12 +66,10 @@ export default function Radar({ center, target, base, path, hazards, heading, im
                   )),
                 )}
                 <circle cx="100" cy="100" r={R} fill="#131314" fillOpacity="0.35" />
-                {/* Límite de los datos */}
                 <rect x={x0} y={y0} width={w} height={h} fill="none" stroke="#e8eaed" strokeOpacity="0.5" strokeDasharray="3 3" />
               </>
             );
           })()}
-        {/* Anillos a 1/3 y 2/3 del alcance y ejes */}
         {[1 / 3, 2 / 3].map((f) => (
           <circle key={f} cx="100" cy="100" r={R * f} fill="none" stroke="#9aa0a6" strokeOpacity="0.35" />
         ))}
@@ -122,7 +115,6 @@ export default function Radar({ center, target, base, path, hazards, heading, im
           </g>
         )}
 
-        {/* Cono de visión estilo GPS: hacia dónde mira el astronauta (45° de apertura) */}
         {heading !== null && (
           <path
             d={`M100 100 L${100 + R * Math.sin(-Math.PI / 8)} ${100 - R * Math.cos(Math.PI / 8)} A${R} ${R} 0 0 1 ${100 + R * Math.sin(Math.PI / 8)} ${100 - R * Math.cos(Math.PI / 8)} Z`}
@@ -132,7 +124,6 @@ export default function Radar({ center, target, base, path, hazards, heading, im
         )}
       </g>
 
-      {/* Posición actual: punto GPS con pulso (el pulso se detiene con "reducir movimiento") */}
       <circle cx="100" cy="100" r="9" fill="#1a73e8" fillOpacity="0.35" className="motion-safe:animate-ping" style={{ transformOrigin: '100px 100px' }} />
       <circle cx="100" cy="100" r="6" fill="#1a73e8" stroke="#ffffff" strokeWidth="2.5" />
       {heading !== null && (
@@ -140,7 +131,6 @@ export default function Radar({ center, target, base, path, hazards, heading, im
       )}
 
       <text x="100" y="20" textAnchor="middle" className="fill-alert-400 text-[13px] font-bold">N</text>
-      {/* Escala: radio del anillo exterior (la distancia de ruta la da el backend en el panel) */}
       <text x="100" y="197" textAnchor="middle" className="fill-primary-200 text-[10px]">{km(range)}</text>
     </svg>
   );

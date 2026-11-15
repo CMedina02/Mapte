@@ -127,7 +127,6 @@ class TerrainManifestSchema(BaseModel):
     texture_layer_id: str = Field(min_length=1)
     evidence_ids: list[str] = Field(min_length=1)
 
-    # Terrain contract metadata.
     frame_id: str = Field(min_length=1)
     terrain_version: str = Field(min_length=1)
     vertical_datum: str = Field(min_length=1)
@@ -140,17 +139,15 @@ class TerrainManifestSchema(BaseModel):
     texture_aligned: bool = True
     grid: TerrainGridMetadataSchema
 
-    # Optional assets and texture geometry.
     texture_url: str | None = None
     texture_grid: TextureGridMetadataSchema | None = None
     blocked_mask_url: str | None = None
     dataset_checksum_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
-    # Sector covered by the terrain.
     sector_id: str = Field(min_length=1)
     extent_m: SectorExtentSchema
 
-    # Zones with non-nominal data quality (e.g. DEM artifacts -> "unknown").
+    # Sectores donde la calidad del DEM es incierta.
     quality_zones: list[QualityZoneSchema] = Field(default_factory=list)
 
     @field_validator("heightmap_url")
@@ -213,7 +210,6 @@ class TerrainManifestSchema(BaseModel):
         )
 
 
-# --- HTTP responses of catalog_router (aligned with frontend/src/shared/types/contracts.ts) ---
 
 
 class RegionSchema(BaseModel):

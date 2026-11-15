@@ -1,7 +1,4 @@
-// Escenario de SIMULACIÓN: Monte Sharp (Aeolis Mons), Cráter Gale, MC-23.
-// Terreno y ortofoto REALES del backend (USGS MSL Gale, reducidos para el navegador con
-// scripts/import_backend_terrain.py). Objetivos, zonas de riesgo y capa mineral siguen siendo
-// SINTÉTICOS (sample_only) hasta que el backend los entregue.
+// Escenario de Monte Sharp con DEM, ortofoto y catálogo de Curiosity. Los riesgos y la capa mineral son sintéticos.
 import type {
   Evidence, Frame, Hazard, Layer, Objective, Photo, Position, Region,
 } from '../../types/contracts';
@@ -11,13 +8,11 @@ import realCatalog from './realCatalog.json' with { type: 'json' };
 export const REAL_TERRAIN = realTerrain;
 
 export const REGION_ID = 'mc23-gale-mount-sharp';
-export const FRAME_ID = realTerrain.frame_id; // marco del backend (MARS_GALE_MS_LOCAL_V1)
-// Zona real que descarga el backend: 10 × 10 km, esquinas −4.66564°/−4.83435° N-S y 137.31535°/137.48465° E.
+export const FRAME_ID = realTerrain.frame_id;
 // Origen (0,0) en la esquina suroeste; X hacia el este, Y hacia el norte.
-// ponytail: conversión grados→metros solo para el mock (1° lat ≈ 59,275 m); el marco oficial lo define el pipeline.
+// Conversión aproximada de grados a metros, exclusiva del simulador.
 export const BOUNDS = { min_x: 0, min_y: 0, max_x: 10000, max_y: 10000 };
 
-// Sector de caminata (EVA) de 2 × 2 km en el centro de la zona (≈ −4.75°, 137.40°E)
 export const SECTOR = { min_x: 4000, min_y: 4000, max_x: 6000, max_y: 6000 };
 
 // Las posiciones del escenario se escriben relativas al sector y se trasladan al marco de la zona
@@ -33,8 +28,7 @@ export const FRAME: Frame = {
   latitude_type: 'planetocentric',
 };
 
-// Elevación: si el mock ya cargó el DEM real, se usa ese; si no (p. ej. el check en Node),
-// un terreno SINTÉTICO: ladera hacia el sur (~6°), un escarpe de 70 m (>15°) y ondulaciones.
+// Si no se cargó el DEM, usa una ladera y un escarpe sintéticos.
 let sampler: ((x: number, y: number) => number | null) | null = null;
 export function setElevationSampler(fn: (x: number, y: number) => number | null) {
   sampler = fn;
@@ -103,7 +97,6 @@ export const EVIDENCE: Evidence[] = [
   ...(realCatalog.evidence as Evidence[]),
 ];
 
-// La ortofoto es real (reducida a 2048 px); la capa mineral la dibuja el mock en el navegador
 export const LAYERS: Layer[] = [
   {
     layer_id: 'imagery',
@@ -148,8 +141,7 @@ export const HAZARDS: Hazard[] = [
   },
 ];
 
-// Objetivos y fotos REALES del catálogo del backend: sitios de perforación de Curiosity (waypoints
-// localizados de NASA/JPL) e imágenes raw de esos soles. z_m llega vacío: el mock lo toma del DEM.
+// El simulador toma del DEM la altura ausente de los objetivos.
 // Se actualizan con: python scripts/import_backend_terrain.py
 export const OBJECTIVES = realCatalog.objectives as Objective[];
 export const PHOTOS = realCatalog.photos as Photo[];

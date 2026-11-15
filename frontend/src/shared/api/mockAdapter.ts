@@ -10,7 +10,6 @@ import {
 } from './mocks/monteSharp';
 import { simulateRoute } from './mocks/simulateRoute';
 
-// ---------- Terreno real (DEM USGS reducido a 20 m) ----------
 
 const RT = REAL_TERRAIN;
 
@@ -30,7 +29,7 @@ function makeSampler(data: Float32Array) {
   };
 }
 
-// Se descarga una sola vez antes de la primera llamada al mock; si falla, el mock usa el terreno sintético
+// Si falla la descarga del DEM, se usa el terreno sintético.
 let terrainReady: Promise<void> | null = null;
 function ready(): Promise<void> {
   terrainReady ??= fetch(RT.heightmap_url)
@@ -48,7 +47,6 @@ function ready(): Promise<void> {
   return terrainReady;
 }
 
-// ---------- Capa mineral sintética (se dibuja en el navegador) ----------
 
 type Rgba = [number, number, number, number];
 
@@ -71,8 +69,6 @@ function renderLayer(color: (x: number, y: number) => Rgba): string {
   return canvas.toDataURL('image/png');
 }
 
-// Contacto mineral SINTÉTICO: la curva de nivel que pasa por el objetivo de arcillas–sulfatos.
-// Debajo arcillas (azul, lago antiguo), encima sulfatos (amarillo, clima árido), contacto en blanco.
 function spectralColor(contactZ: number) {
   return (x: number, y: number): Rgba => {
     const dz = elevationAt(x, y) - contactZ;
@@ -81,7 +77,6 @@ function spectralColor(contactZ: number) {
   };
 }
 
-// Bloque terrain del contrato apuntando al DEM real reducido
 function terrain(): Terrain {
   return {
     heightmap_url: RT.heightmap_url,
@@ -126,10 +121,8 @@ function manifest(): RegionManifest {
   return structuredClone(manifestCache);
 }
 
-// ---------- "Servidor" mock ----------
 
-// Guarda misión y restricciones en localStorage para que el panel (/) y el visor (/visor),
-// en pestañas distintas, vean la misma misión como con el backend real.
+// localStorage comparte la misión simulada entre panel y visor.
 const STORE_KEY = 'mars.mock.state.v5'; // v5: contrato versionado de misión alineado con el backend
 
 interface MockState {
@@ -142,7 +135,6 @@ function loadState(): MockState {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) return JSON.parse(raw) as MockState;
   } catch {
-    // sin almacenamiento
   }
   return { mission: null, constraints: { max_slope_deg: 15, speed_m_per_min: 20, avoid_unknown: true } };
 }
@@ -156,8 +148,13 @@ function save(state: MockState): Mission {
   return structuredClone(state.mission!);
 }
 
+<<<<<<< HEAD
 const notFound = () => new MarsApiError(404, 'MISSION_NOT_FOUND', 'No mission planned.');
 // Como el backend: z_m de cada objetivo muestreado del DEM (null si cae sin dato)
+=======
+const notFound = () => new MarsApiError(404, 'MISSION_NOT_FOUND', 'No hay misión planificada.');
+// Muestrea la altura de cada objetivo en el DEM.
+>>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 const withZ = (p: Position): Position => ({ ...p, z_m: Math.round(elevationAt(p.x_m, p.y_m) * 10) / 10 });
 const objectivesWithZ = () => OBJECTIVES.map((o) => ({ ...structuredClone(o), position: withZ(o.position) }));
 const positionOf = (id: string): Position | undefined => OBJECTIVES.find((o) => o.objective_id === id)?.position;
@@ -236,10 +233,9 @@ function supportEvaluation(routes: RouteResult[], interventionMin: number | null
   };
 }
 
-// Pruebas FE-06: VITE_MOCK_FAIL=409 o 503 en .env.local hace fallar la PRIMERA mutación (se reinicia al recargar).
+// VITE_MOCK_FAIL=409 o 503 fuerza un fallo en la primera mutación.
 let pendingFail = import.meta.env.VITE_MOCK_FAIL as string | undefined;
 
-// Simula el control de concurrencia del backend: versión vieja => 409.
 function advance(update: (m: Mission, c: Constraints) => Mission, clientVersion: number): Mission {
   const state = loadState();
   if (!state.mission) throw notFound();
@@ -249,7 +245,7 @@ function advance(update: (m: Mission, c: Constraints) => Mission, clientVersion:
   }
   if (pendingFail === '409') {
     pendingFail = undefined;
-    state.mission.mission_version += 1; // otro dispositivo modificó la misión
+    state.mission.mission_version += 1;
     save(state);
   }
   if (clientVersion !== state.mission.mission_version) {
@@ -268,7 +264,6 @@ export const mockApi = {
   photos: (objectiveId?: string) =>
     structuredClone(objectiveId ? PHOTOS.filter((p) => p.objective_id === objectiveId) : PHOTOS),
 
-  // Vista previa: sin recursos, no evalúa O₂
   route: (req: RouteRequest) => simulateRoute([req.start, req.end], req.constraints),
 
   // Paradas del plan: base → objetivos → base (el cliente híbrido pide cada tramo al A* real)
@@ -278,7 +273,7 @@ export const mockApi = {
     req.base_position,
   ],
 
-  // legs: tramos ya calculados por el backend (modo híbrido); sin ellos, simulación en línea recta
+  // Si no recibe tramos del backend, simula recorridos rectos.
   plan: (req: MissionPlanRequest, computedRoutes?: RouteResult[]) => {
     const stops = req.objective_ids.flatMap((id) => positionOf(id) ?? []);
     const points = [req.base_position, ...stops, req.base_position];
@@ -307,7 +302,7 @@ export const mockApi = {
     return save({
       constraints: req.constraints,
       mission: {
-        mission_id: `mission-sharp-${Date.now().toString(36)}`, // cada plan es una misión nueva (como en el backend)
+        mission_id: `mission-sharp-${Date.now().toString(36)}`,
         mission_version: 1,
         region_id: req.region_id,
         frame_id: req.base_position.frame_id,
@@ -339,7 +334,6 @@ export const mockApi = {
     });
   },
 
-  // Cierre de la EVA al volver a la base con todo completado
   complete: (version: number) =>
     advance((m) => ({ ...m, lifecycle_status: 'completed', current_position: m.return_position, next_objective_id: null }), version),
 
@@ -458,7 +452,6 @@ export const mockApi = {
     };
   },
 
-  // mission: la del backend en modo híbrido; si no, la del estado del mock
   package: (override?: Mission): MissionPackage => {
     const mission = override ?? loadState().mission;
     if (!mission) throw notFound();

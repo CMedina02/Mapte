@@ -39,20 +39,15 @@ _NEIGHBOR_OFFSETS = (
     (1, 1),
 )
 
-# Tope de celdas expandidas: una ruta de 7 km expande ~10^5; sin tope, una búsqueda imposible
-# recorre toda la zona alcanzable (millones de celdas, minutos). Al alcanzarlo, el resultado
-# queda "sin confirmar" (ROUTE_SEARCH_LIMIT_REACHED), nunca "no viable".
-# ponytail: tope fijo; hacerlo configurable si cambia el tamaño de la rejilla
+# Agotar el límite deja la ruta sin confirmar.
 MAX_EXPANDED_NODES = 1_500_000
-# Margen relativo para decidir la pendiente sin trigonometría; dentro del margen se usa atan2 exacto
+# Cerca del umbral de pendiente, usa atan2.
 _SLOPE_EPS = 1e-9
 # Búsqueda en dos niveles: solo para rutas de al menos esta longitud en línea recta
 TWO_LEVEL_MIN_M = 600.0
 # Semiancho del pasillo fino alrededor del trazo grueso
 CORRIDOR_RADIUS_M = 200.0
-# Peso de la heurística en el pasillo (A* ponderado). Medido en Monte Sharp, rutas de 4–7 km:
-# 1.0 → 1.4× más rápido que la búsqueda exacta; 1.05 → ~4× con rutas como mucho ~2.5% más costosas.
-# Las restricciones (pendiente, bloqueos, zonas) no se relajan: solo se elige entre rutas válidas.
+# El A* ponderado puede aumentar el costo de la ruta dentro del corredor.
 CORRIDOR_WEIGHT = 1.05
 
 
@@ -131,7 +126,7 @@ def _astar(
     ]
     costs: dict[int, float] = {start: 0.0}
     came_from: dict[int, int] = {}
-    # closed: celdas que no se exploran (1). Para buscar en un pasillo, todo lo de fuera viene en 1.
+    # Las celdas fuera del corredor empiezan marcadas como cerradas.
     if closed is None:
         closed = bytearray(width * height)
     expanded_nodes = 0
@@ -171,8 +166,8 @@ def _astar(
             if too_steep(dz, max_dz, distance):
                 continue
             if is_diagonal:
-                side_h = current + dc  # misma fila, columna vecina
-                side_v = current + dr * width  # misma columna, fila vecina
+                side_h = current + dc
+                side_v = current + dr * width
                 if blocked(side_h) or blocked(side_v):
                     continue
                 if too_steep(elevations[side_h] - z, max_dz_x, px):
@@ -272,7 +267,6 @@ class AStarRoutePlanner:
         cw, ch = level.width, level.height
         c_start = (start_cell.row // k) * cw + start_cell.column // k
         c_goal = (end_cell.row // k) * cw + end_cell.column // k
-        # Los bloques de los extremos siempre se pueden usar (el extremo fino ya se validó)
         status = bytearray(level.status)
         status[c_start] = status[c_goal] = GRID_TRAVERSABLE
         level = replace(level, status=status)
@@ -286,7 +280,6 @@ class AStarRoutePlanner:
             coarse_constraints,
         )
 
-        # Bloques gruesos dentro del radio del trazo
         radius = max(1, ceil(CORRIDOR_RADIUS_M / (self._terrain.pixel_size_x_m * k)))
         open_blocks = bytearray(cw * ch)
         one_row = b"\x01" * (2 * radius + 1)
@@ -296,7 +289,6 @@ class AStarRoutePlanner:
             for r in range(max(row - radius, 0), min(row + radius, ch - 1) + 1):
                 open_blocks[r * cw + c0 : r * cw + c1 + 1] = one_row[: c1 - c0 + 1]
 
-        # Abrir en la rejilla fina las celdas de esos bloques (tramos contiguos por fila)
         width, height = grid.width, grid.height
         closed = bytearray(b"\x01") * (width * height)
         for crow in range(ch):

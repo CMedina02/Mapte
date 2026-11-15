@@ -4,8 +4,7 @@ import { fmtDuration } from '../../shared/format';
 import { reasonKind, type ExcludedObjective } from '../../shared/mission';
 import { excludedPaths, relaxedConstraints, useExcludedRoute } from '../../shared/useExcludedRoute';
 
-// Qué haría falta para incluir el objetivo excluido. El backend calcula la ruta que falta (última parada →
-// objetivo → base) aflojando solo el parámetro que falló; se devuelve para dibujarla en rojo en el mapa.
+// Consulta una alternativa al relajar la restricción que excluyó el objetivo.
 export default function ExclusionHint({
   mission,
   excluded,
@@ -62,7 +61,6 @@ export default function ExclusionHint({
   }
   if (unknownFailed) return box(<><p>It would require allowing terrain with no data.</p>{legend}</>);
 
-  // Recursos: lo ya planificado + la ruta que falta + actividad, contra el O₂ disponible
   const walked = mission.legs.filter((l) => l.end_label !== 'base').map((l) => l.metrics.duration_min);
   const act = [...mission.objective_ids, excluded.objective_id].map((id) => request.activity_durations_min?.[id] ?? 0);
   const parts = [...walked, legs.out.duration_min, legs.back.duration_min];

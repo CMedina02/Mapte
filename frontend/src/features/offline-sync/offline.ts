@@ -33,13 +33,17 @@ export function updatePackageMission(m: Mission) {
   }
 }
 
-// ¿b reemplaza a a? Otra misión, o la misma con versión mayor (las versiones solo suben)
 export const isNewerMission = (a: Mission | null, b: Mission) =>
   !a || a.mission_id !== b.mission_id || b.mission_version > a.mission_version;
 
+<<<<<<< HEAD
 // Otra pestaña (panel ↔ visor) guardó el paquete: el evento 'storage' llega al instante en el mismo navegador.
 // ponytail: entre dispositivos distintos lo cubre el sondeo de GET /missions/{id}; WebSocket/SSE si hace falta < 1 s.
 export function usePackageUpdates(onPkg: (pkg: MissionPackage | null) => void) {
+=======
+// storage sincroniza el paquete entre pestañas del mismo navegador.
+export function usePackageUpdates(onPkg: (pkg: MissionPackage) => void) {
+>>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   const ref = useRef(onPkg);
   useEffect(() => {
     ref.current = onPkg;
@@ -95,10 +99,8 @@ function subscribe(cb: () => void) {
 }
 
 export const useOnline = () => useSyncExternalStore(subscribe, () => navigator.onLine);
-// ---------- Envío de la cola al reconectar ----------
 
-// Envía las observaciones en orden con la versión vigente. Se detiene en el primer error
-// (409 recarga la misión vía mutateMission) y devuelve el mensaje a mostrar.
+// La cola usa la versión vigente y se detiene en el primer error.
 export async function sendQueue(
   mission: Mission,
   queue: PendingObservation[],
@@ -121,7 +123,6 @@ export async function sendQueue(
   return 'Changes sent';
 }
 
-// Última posición conocida del astronauta: el visor la muestra aunque no haya misión asignada
 const POS_KEY = 'mars.lastpos.v1';
 export function loadLastPosition(): Position | null {
   try {

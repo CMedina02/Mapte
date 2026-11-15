@@ -1,7 +1,6 @@
 import type { Frame, Position } from '../../shared/types/contracts';
 import { approxLatLon } from './nav/geo';
 
-// Posición del astronauta en una línea: lugar · lat/lon aprox. · elevación (X/Y locales en el tooltip)
 export default function PositionCard({ frame, here, label, online }: { frame: Frame; here: Position; label: string; online: boolean }) {
   const { lat, lon } = approxLatLon(frame, here);
   return (
@@ -9,7 +8,6 @@ export default function PositionCard({ frame, here, label, online }: { frame: Fr
       className="hud pointer-events-auto flex min-h-10 w-fit items-center gap-2.5 px-4 py-1.5 text-xs whitespace-nowrap"
       title={`Local coordinates: X ${Math.round(here.x_m)} m, Y ${Math.round(here.y_m)} m · ${online ? 'Online' : 'Offline'}`}
     >
-      {/* Conexión con el centro de control: verde conectado, ámbar sin conexión */}
       <span
         className={`size-2 rounded-full ${online ? 'bg-green-400' : 'bg-amber-300'}`}
         role="img"

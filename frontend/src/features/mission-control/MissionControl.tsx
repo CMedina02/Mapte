@@ -32,9 +32,7 @@ export default function MissionControl({ mission, onMission }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('plan');
-  // Solicitud del último plan hecho aquí: con ella se explica qué parámetro faltó a un objetivo excluido
   const [planReq, setPlanReq] = useState<{ id: string; req: MissionPlanRequest } | null>(null);
-  // Ruta que haría falta para el objetivo excluido (en rojo), de la misión que la calculó
   const [failed, setFailed] = useState<{ id: string; paths: Position[][] } | null>(null);
 
   useEffect(() => {
@@ -60,15 +58,14 @@ export default function MissionControl({ mission, onMission }: Props) {
       .catch((e) => setError(String(e)));
   }, [regionId]);
 
-  // Con misión planificada, un clic en el mapa propone otra base (punteada) hasta recalcular
+  // Con un plan activo, el clic propone una base para el siguiente cálculo.
   const newBase = mission && base ? base : null;
 
   if (error) return <p className="p-6 text-alert-500">{error}</p>;
 
   return (
-    // Móvil y tableta vertical: mapa arriba, pestañas y panel debajo. Desde lg: opciones a la izquierda, mapa al centro, información a la derecha.
+    // En móvil, el mapa queda encima de los controles.
     <div className="flex flex-col lg:h-full lg:flex-row">
-      {/* Riel de navegación (Material 3): el ícono activo va dentro de una píldora */}
       <nav className="order-2 flex shrink-0 justify-center gap-2 border-b border-space-800 bg-space-900 py-2 lg:order-1 lg:w-20 lg:flex-col lg:justify-start lg:gap-4 lg:border-r lg:border-b-0 lg:py-4">
         {TABS.map(({ id, label, icon }) => {
           const on = tab === id;
@@ -127,7 +124,7 @@ export default function MissionControl({ mission, onMission }: Props) {
                 onPlanned={(m, req) => {
                   onMission(m);
                   setPlanReq({ id: m.mission_id, req });
-                  setBase(null); // la base ya es la de la misión: se quita el círculo punteado
+                  setBase(null);
                 }}
               />
             )}
@@ -181,7 +178,6 @@ export default function MissionControl({ mission, onMission }: Props) {
         )}
       </main>
 
-      {/* Derecha: información de la misión planificada (ruta + bitácora) */}
       {mission && (
         <aside className="order-4 w-full space-y-6 border-t border-space-800 p-4 sm:p-5 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-96">
           <RouteDetails mission={mission} hazards={manifest?.hazards} />

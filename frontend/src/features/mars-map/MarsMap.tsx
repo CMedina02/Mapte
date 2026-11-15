@@ -28,25 +28,21 @@ interface Props {
   layerState: Record<string, LayerState>;
   onMapClick?: (p: Position) => void;
   route: RouteResult | null;
-  // Puntos a encuadrar al abrir el mapa (p. ej. objetivos o ruta); sin ellos, toda la zona
+  // Sin puntos de encuadre, se muestra todo el sector.
   focus?: Position[];
-  // Posición actual del astronauta: se dibuja siempre que se conozca, haya ruta o no
   here?: Position | null;
-  // Base nueva elegida con una misión ya planificada: círculo punteado hasta recalcular
+  // La base propuesta se dibuja con un contorno punteado hasta recalcular.
   pendingBase?: Position | null;
-  // Tramos de una multirruta (A→B, B→C, C→A): cada uno con su color. Si se dan, sustituyen a `route`.
+  // Si hay tramos, sustituyen a la ruta única.
   legs?: { path: Position[]; status: RouteStatus }[];
-  // Caminos que no se pueden recorrer con los parámetros actuales: se dibujan en rojo como referencia
+  // Los trazados de objetivos excluidos se muestran como referencia.
   failedPaths?: Position[][];
-  // Letra de cada parada ('base' u objective_id) para identificar los tramos
   stopLetters?: Record<string, string>;
-  // Globo de información anclado a un punto del mapa
   pin?: { position: Position; content: ReactNode } | null;
 }
 
 const FAILED_COLOR = '#d93025';
 const failedStyle = new Style({ stroke: new Stroke({ color: FAILED_COLOR, width: 3, lineDash: [10, 6] }) });
-// Un tramo no viable se dibuja en rojo, sea cual sea su color de tramo
 const legStyle = (color: string, status: RouteStatus) =>
   new Style({
     stroke: new Stroke({
@@ -55,7 +51,6 @@ const legStyle = (color: string, status: RouteStatus) =>
       lineDash: status === 'viable' ? undefined : status === 'not_viable' ? [2, 6] : [8, 6],
     }),
   });
-// Etiquetas del mapa: Google Sans, texto claro con halo oscuro (legible sobre la ortofoto)
 const LABEL_FONT = "500 12px 'Google Sans Flex', 'Google Sans', Roboto, sans-serif";
 const HALO = new Stroke({ color: 'rgba(0,0,0,0.75)', width: 3 });
 
@@ -70,11 +65,16 @@ const pendingBaseStyle = new Style({
   }),
 });
 const hereStyle = new Style({
-  zIndex: 10, // siempre encima de base y objetivos (OL pinta en orden de creación)
+  zIndex: 10, // Sobre los marcadores de base y objetivos.
   image: new Circle({ radius: 9, fill: new Fill({ color: '#1a73e8' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
   text: new Text({
+<<<<<<< HEAD
     text: 'You',
     offsetY: 20, // debajo del punto: arriba van las etiquetas de base y objetivos
+=======
+    text: 'Tú',
+    offsetY: 20,
+>>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
     font: LABEL_FONT,
     fill: new Fill({ color: '#fff' }),
     stroke: HALO,
@@ -85,7 +85,6 @@ const boundsStyle = new Style({
   stroke: new Stroke({ color: 'rgba(255,255,255,0.55)', width: 1, lineDash: [6, 6] }),
 });
 
-// exclusión = rojo (no se cruza); precaución = ámbar punteado. Texto además de color.
 const hazardStyle = (kind: Hazard['kind'], label: string) => {
   const color = kind === 'exclusion' ? '217,48,37' : '249,171,0';
   return new Style({
@@ -101,7 +100,6 @@ const hazardStyle = (kind: Hazard['kind'], label: string) => {
   });
 };
 
-// Calidad 'unknown' del DEM: gris, nunca verde ni sin marcar (desconocido no es seguro)
 const unknownZoneStyle = new Style({
   fill: new Fill({ color: 'rgba(148,163,184,0.18)' }),
   stroke: new Stroke({ color: '#94a3b8', width: 1.5, lineDash: [2, 6] }),
@@ -170,7 +168,7 @@ export default function MarsMap({
   const clickRef = useRef(onMapClick);
   const focusRef = useRef(focus);
 
-  // Mantiene handler y encuadre actualizados sin recrear el mapa
+  // Actualiza los callbacks sin recrear el mapa.
   useEffect(() => {
     clickRef.current = onMapClick;
     focusRef.current = focus;
@@ -196,7 +194,6 @@ export default function MarsMap({
       style: boundsStyle,
     });
 
-    // Zonas de riesgo del manifiesto (mismo frame que el mapa)
     const hazards = new VectorLayer({
       source: new VectorSource({
         features: (manifest.hazards ?? [])
@@ -239,7 +236,7 @@ export default function MarsMap({
         new MousePosition({ coordinateFormat: createStringXY(0), projection, placeholder: '' }),
       ]),
     });
-    // Encuadre inicial cuando el contenedor ya mide algo: si el mapa nace oculto (0×0), se espera al primer tamaño real
+    // Espera un tamaño válido si el mapa se monta oculto.
     const fitInitial = () => {
       const size = map.getSize();
       if (!size || !size[0] || !size[1]) return;

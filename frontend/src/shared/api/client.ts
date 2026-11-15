@@ -10,11 +10,9 @@ import { mockApi } from './mockAdapter';
 export { MarsApiError };
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-// Modo híbrido: endpoints que el backend YA publica, usados aunque el resto siga en mock.
-// VITE_REAL_API=routes → rutas con el A* real (POST /routes/compute); misiones siguen simuladas.
 const REAL_API = new Set(String(import.meta.env.VITE_REAL_API ?? '').split(',').map((s) => s.trim()));
 const realRoutes = !USE_MOCK || REAL_API.has('routes');
-// VITE_REAL_API=routes,missions → misiones persistidas en el backend (plan, consulta, progreso)
+// VITE_REAL_API activa rutas o misiones del backend dentro del modo simulado.
 const realMissions = !USE_MOCK || REAL_API.has('missions');
 const BASE_URL = '/api/v1';
 const enc = encodeURIComponent;
@@ -51,19 +49,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const post = <T>(path: string, body: unknown) =>
   request<T>(path, { method: 'POST', body: JSON.stringify(body) });
 
-// ---------- Misiones del backend ----------
 
 const backendMission = (id: string) => request<Mission>(`/missions/${enc(id)}`);
 
 const objectivePosition = (mission: Mission, objectiveId: string): Position | null =>
   mission.legs.find((leg) => leg.end_label === objectiveId)?.path.at(-1) ?? null;
 
-// Minutos de trabajo por objetivo con los que se recalcula (los mismos valores por defecto del panel y el visor)
 const DEFAULT_ACTIVITY_MIN = 45;
 
-// Registrar un hallazgo y seguir al siguiente objetivo:
-// (1) iniciar la misión si sigue en borrador, (2) POST /observations valida el código y completa el objetivo,
-// (3) POST /replan recalcula los pendientes desde ese objetivo. Si el hallazgo falla, nada cambia.
+// Registra el hallazgo antes de recalcular los objetivos pendientes.
 async function observeInBackend(missionId: string, req: ObservationRequest): Promise<Mission> {
   let b = await backendMission(missionId);
   if (b.mission_version !== req.mission_version) {
@@ -81,10 +75,15 @@ async function observeInBackend(missionId: string, req: ObservationRequest): Pro
     notes: req.notes ?? null,
   });
 
+<<<<<<< HEAD
   // ponytail: lectura de O₂ ESTIMADA (O₂ previo − tramo caminado − trabajo en el objetivo) porque el traje
   // aún no envía telemetría; cuando la haya, se manda la lectura real.
   const arrival = objectivePosition(before, req.objective_id);
   const walked = arrival ? await walkedMinutes(before, arrival) : null;
+=======
+  // Estima el O₂ al llegar restando marcha y actividad al soporte anterior.
+  const walked = before.legs.find((leg) => leg.end_label === req.objective_id)?.metrics.duration_min;
+>>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   const oxygenNow =
     walked == null
       ? before.resources.oxygen_available_min
@@ -99,10 +98,11 @@ async function observeInBackend(missionId: string, req: ObservationRequest): Pro
       activity_durations_min: Object.fromEntries(remaining.map((id) => [id, DEFAULT_ACTIVITY_MIN])),
     });
   } catch {
-    return observed; // el hallazgo quedó registrado aunque el recálculo falle (p. ej. sin backend nuevo)
+    return observed; // Conserva el hallazgo si falla el recálculo.
   }
 }
 
+<<<<<<< HEAD
 // Dónde está el astronauta según la misión: último recálculo o, si aún no hay, la base de salida
 const missionHere = (m: Mission): Position => m.current_position ?? m.start_position;
 const near = (a: Position, b: Position) => Math.hypot(a.x_m - b.x_m, a.y_m - b.y_m) < 5;
@@ -145,13 +145,14 @@ async function moveInBackend(missionId: string, version: number, at: Position): 
 }
 
 // Paquete para el visor: misión del backend + catálogo (real si no hay mock, del mock en modo híbrido)
+=======
+>>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
 async function packageFromBackend(missionId: string): Promise<MissionPackage> {
   const mission = await backendMission(missionId);
   if (USE_MOCK) return mocked(() => ({ ...mockApi.package(mission), sample_only: false }));
   return request<MissionPackage>(`/missions/${enc(missionId)}/package`);
 }
 
-// Contingencia de O₂: el backend recalcula el regreso a base desde la posición dada (solo misiones activas)
 async function contingencyInBackend(missionId: string, req: ContingencyRequest): Promise<Mission> {
   let b = await backendMission(missionId);
   if (b.lifecycle_status === 'draft' && b.mission_version === req.mission_version) {
@@ -160,7 +161,7 @@ async function contingencyInBackend(missionId: string, req: ContingencyRequest):
   return post<Mission>(`/missions/${enc(missionId)}/contingencies`, { ...req, mission_version: b.mission_version });
 }
 
-// Backend apagado o caído (el proxy de Vite responde 5xx): en modo híbrido se vuelve al mock con aviso
+// El modo híbrido puede usar el simulador ante un fallo del backend.
 const backendDown = (e: unknown) => e instanceof MarsApiError && (e.status === 0 || e.status >= 500) && e.code !== 'OFFLINE';
 const BACKEND_DOWN = 'Backend unavailable: straight-line route simulated by the mock.';
 function withMockFallback<T extends RouteResult | Mission>(real: Promise<T>, mock: () => Promise<T>, note: (r: T) => T) {
@@ -171,7 +172,7 @@ function withMockFallback<T extends RouteResult | Mission>(real: Promise<T>, moc
 }
 const noteRoute = (r: RouteResult): RouteResult => ({ ...r, warnings: [BACKEND_DOWN, ...r.warnings] });
 
-// Plan del mock con tramos del A* real: base → objetivos → base, un POST por tramo (en paralelo)
+// El modo híbrido pide cada tramo al backend en paralelo.
 async function planWithRealRoutes(req: MissionPlanRequest): Promise<Mission> {
   assertOnline();
   await mockApi.ready();
@@ -186,7 +187,7 @@ async function planWithRealRoutes(req: MissionPlanRequest): Promise<Mission> {
 
 async function mocked<T>(fn: () => T): Promise<T> {
   assertOnline();
-  await mockApi.ready(); // el mock carga una vez el DEM real para sus simulaciones
+  await mockApi.ready();
   await new Promise((r) => setTimeout(r, 250));
   return fn();
 }
@@ -233,6 +234,7 @@ export const marsApi = {
   triggerContingency: (missionId: string, req: ContingencyRequest): Promise<Mission> =>
     realMissions ? contingencyInBackend(missionId, req) : mocked(() => mockApi.contingency(req)),
 
+<<<<<<< HEAD
   // Llegada a un punto libre (no objetivo): mueve la posición y recalcula los tramos desde ahí
   moveTo: (mission: Mission, at: Position): Promise<Mission> =>
     realMissions
@@ -240,6 +242,8 @@ export const marsApi = {
       : mocked(() => ({ ...mission, mission_version: mission.mission_version + 1, current_position: at })),
 
   // De vuelta en la base con todos los objetivos: cierra la misión (backend: POST /status action=complete)
+=======
+>>>>>>> aa7575928a95d914c6953b8baa9765203b624df1
   completeMission: (missionId: string, version: number, at: Position): Promise<Mission> =>
     realMissions
       ? post<Mission>(`/missions/${enc(missionId)}/status`, {

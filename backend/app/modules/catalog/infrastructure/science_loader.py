@@ -84,8 +84,7 @@ class ObjectiveRecord(_Strict):
     activities: list[str]
     possible_findings: list[str]
     evidence_ids: list[str] = Field(min_length=1)
-    # ``active: false`` "comenta" el objetivo: se conserva en los datos y se sigue validando,
-    # pero los endpoints no lo publican ni publican sus fotos.
+    # Valida los objetivos inactivos, pero omite su publicación y la de sus fotos.
     active: bool = True
     inactive_reason: str | None = None
 

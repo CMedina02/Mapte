@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
-# D02 — Pipeline repetible del terreno de Monte Sharp (cráter Gale, MC-23).
-#
-# Genera en data/regions/mc23-gale-mount-sharp/derived/ los activos que sí se commitean:
-#   heightmap_4m.f32  DEM 4 m, float32 LE, row-major norte->sur, NoData = NaN (contrato C02)
-#   ortho_2m.png      Ortofoto gris 8 bit a 2 m, alineada al mismo AOI
-#   terrain.json      Metadata del contrato + transformaciones + procedencia + checksums
-#   SHA256SUMS
-#
-# raw/ y work/ quedan fuera de git (ver backend/.gitignore).
-#
-# Uso (desde backend/):  bash scripts/terrain/build_gale_mount_sharp.sh
-# Requiere: GDAL >= 3.6 (gdalwarp, gdal_translate, gdaltransform), curl, python3 + pydantic.
+# Genera el DEM, la ortofoto, los metadatos y las sumas SHA-256 de Monte Sharp.
+# Desde backend/: bash scripts/terrain/build_gale_mount_sharp.sh
+# Requiere GDAL 3.6+, curl y Python con Pydantic.
 set -euo pipefail
 
 REGION_ID="mc23-gale-mount-sharp"
@@ -23,24 +14,23 @@ QUALITY_ZONES=(
 BACKEND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 R="$BACKEND_DIR/data/regions/$REGION_ID"
 
-# Marco local: Transversa de Mercator sobre la esfera Mars 2000 (R = 3 396 190 m),
-# centrada en el AOI (-4.75, 137.40 E). El AOI ocupa [0, SIZE_M] x [0, SIZE_M].
+# Proyección transversa de Mercator sobre la esfera Mars 2000.
+# Sector local de [0, SIZE_M] × [0, SIZE_M], centrado en 4.75° S y 137.40° E.
 CENTER_LAT=-4.75
 CENTER_LON=137.4
 SIZE_M=10000
 LOCAL="+proj=tmerc +lat_0=${CENTER_LAT} +lon_0=${CENTER_LON} +k=1 +x_0=$((SIZE_M / 2)) +y_0=$((SIZE_M / 2)) +R=3396190 +units=m +no_defs"
-DEM_RES_M=4      # 2500 x 2500 -> 25 MB (.f32 sin compresión; < 50 MB para GitHub)
-TEX_RES_M=2      # 5000 x 5000 PNG
-MARGIN_M=100     # margen del recorte nativo para que el warp no deje bordes vacíos
+DEM_RES_M=4      # 2500 × 2500 muestras Float32, 25 MB.
+TEX_RES_M=2
+MARGIN_M=100     # Margen de recorte para evitar huecos al reproyectar.
 
 DEM_URL="https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_DEM_Mosaic_1m_v3.tif"
 DEM_BYTES=3868256546
 ORTHO_URL="https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_Orthophoto_Mosaic_25cm_v3.tif"
 
-# Lectura remota eficiente: agrupa rangos HTTP contiguos y los pide en paralelo.
 export GDAL_HTTP_MULTIRANGE=PARALLEL GDAL_HTTP_MERGE_CONSECUTIVE_RANGES=YES
 export GDAL_HTTP_MULTIPLEX=YES GDAL_HTTP_VERSION=2
-# Solo para /vsicurl/: evita listar el bucket. En local rompe el driver ENVI (no halla el .hdr).
+# Limita la opción a /vsicurl/ para que ENVI encuentre su cabecera local.
 REMOTE_ENV=(env GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR)
 export CPL_VSIL_CURL_CHUNK_SIZE=10485760 GDAL_CACHEMAX=2048
 export GDAL_HTTP_MAX_RETRY=5 GDAL_HTTP_RETRY_DELAY=2
@@ -50,16 +40,15 @@ cd "$R"
 
 step() { printf '\n==> %s\n' "$*"; }
 
-# 1. DEM completo (1 m, LZW en tiras de 1 fila: recortar en remoto es ineficiente).
+# Descarga el DEM completo: las tiras LZW de una fila encarecen el recorte remoto.
 DEM_RAW="raw/MSL_Gale_DEM_Mosaic_1m_v3.tif"
 if [[ "$(stat -c %s "$DEM_RAW" 2>/dev/null || echo 0)" != "$DEM_BYTES" ]]; then
   step "Descargando DEM 1 m (3.9 GB, reanudable)"
   curl -L --fail --retry 5 -C - -o "$DEM_RAW" "$DEM_URL"
 fi
 
-# 2-3. Ortofoto (24 GB remota, teselas de 128 px): VRT gris + recorte nativo 0.25 m local.
-#    NO usar gdalwarp directo sobre /vsicurl/: pide teselas sueltas y se queda en 0 % horas.
-#    Solo toca la red si el recorte local no existe o está corrupto.
+# Recorta la ortofoto a 25 cm antes de reproyectar.
+# gdalwarp sobre /vsicurl/ solicita teselas individuales.
 ORTHO_CROP="work/ortho_025m_crop.tif"
 if [[ ! -s "$ORTHO_CROP" ]] || ! gdalinfo "$ORTHO_CROP" >/dev/null 2>&1; then
   step "VRT gris de la ortofoto remota"
@@ -83,28 +72,27 @@ if [[ ! -s "$ORTHO_CROP" ]] || ! gdalinfo "$ORTHO_CROP" >/dev/null 2>&1; then
   mv "$ORTHO_CROP.part" "$ORTHO_CROP"
 fi
 
-# 4. Heightmap: DEM -> marco local, promedio a DEM_RES_M, NoData -32767 -> NaN.
+# Reproyecta el DEM y convierte NoData (-32767) a NaN.
 step "DEM -> heightmap ${DEM_RES_M} m"
 gdalwarp -q -overwrite "$DEM_RAW" "work/dem_${DEM_RES_M}m.tif" \
   -t_srs "$LOCAL" -te 0 0 "$SIZE_M" "$SIZE_M" -tr "$DEM_RES_M" "$DEM_RES_M" \
   -r average -srcnodata -32767 -dstnodata nan -ot Float32 \
   -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=3
-# ENVI = binario crudo sin cabecera, orden de bytes nativo (little endian en x86/ARM).
+# ENVI escribe el binario en el orden de bytes nativo.
 gdal_translate -q -of ENVI -ot Float32 "work/dem_${DEM_RES_M}m.tif" "work/heightmap.envi"
 mv "work/heightmap.envi" "derived/heightmap_${DEM_RES_M}m.f32"
 rm -f work/heightmap.hdr work/heightmap.envi.aux.xml
 
-# 5. Textura: recorte local -> marco local a TEX_RES_M -> PNG.
+# Reproyecta el recorte local y exporta la ortofoto como PNG.
 step "Ortofoto -> textura ${TEX_RES_M} m"
 gdalwarp -q -overwrite "$ORTHO_CROP" "work/ortho_${TEX_RES_M}m.tif" \
   -t_srs "$LOCAL" -te 0 0 "$SIZE_M" "$SIZE_M" -tr "$TEX_RES_M" "$TEX_RES_M" \
   -r average -srcnodata 0 -dstnodata 0 \
   -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=DEFLATE
-# 0 = sin cobertura HiRISE en el mosaico USGS (huecos reales del producto, no de descarga).
+# Un píxel 0 indica falta de cobertura HiRISE en el mosaico.
 gdal_translate -q -of PNG -co ZLEVEL=9 "work/ortho_${TEX_RES_M}m.tif" "derived/ortho_${TEX_RES_M}m.png"
 rm -f "derived/ortho_${TEX_RES_M}m.png.aux.xml"
 
-# 6. Metadata validada contra el contrato del dominio + checksums.
 step "terrain.json y SHA256SUMS"
 cd "$BACKEND_DIR"
 PYTHONPATH="$BACKEND_DIR" python3 scripts/terrain/write_terrain_metadata.py \

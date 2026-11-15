@@ -14,7 +14,6 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
   const s = ROUTE_STATUS[r.status] ?? ROUTE_STATUS.unknown;
   const blocked = r.status === 'not_viable';
 
-  // ponytail: cuando el backend agregue radiación/energía/agua al contrato, se suman aquí como filas
   const rows: [string, string][] = [
     ['Distance', fmt(r.distance_m, 'm')],
     ['Time', fmt(r.duration_min, 'min')],

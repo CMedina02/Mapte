@@ -19,7 +19,7 @@ export default defineConfig({
         icons: [{ src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' }],
       },
       workbox: {
-        // Assets de misión (imágenes, heightmap .f32): se sirven desde caché sin red
+        // Caché para los recursos bajo /assets/.
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/assets/'),
@@ -27,7 +27,7 @@ export default defineConfig({
             options: { cacheName: 'mission-assets' },
           },
           {
-            // Tipografías de Google: el visor las conserva sin red
+            // Conserva las tipografías de Google en caché.
             urlPattern: ({ url }) => /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname),
             handler: 'CacheFirst',
             options: { cacheName: 'google-fonts', expiration: { maxEntries: 20 } },

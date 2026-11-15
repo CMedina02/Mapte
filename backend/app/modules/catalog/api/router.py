@@ -208,7 +208,7 @@ def build_region_manifest(region: LoadedRegion) -> RegionManifestResponse:
         )
         for source in sources
     ]
-    # Evidencias de objetivos y fotos, para que todo evidence_id referenciado exista en el manifest.
+    # Incluye las evidencias referenciadas por objetivos y fotos.
     try:
         science = load_science_catalog(region.region_id)
     except ScienceDataError:

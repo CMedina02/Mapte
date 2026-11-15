@@ -1,5 +1,4 @@
-// Perfil de elevación de la ruta restante con los z_m que entrega el backend.
-// Eje X = orden de los puntos de la ruta (no se recalculan distancias).
+// Eje X: índice del punto en la ruta.
 import type { Position } from '../../../shared/types/contracts';
 
 export default function ElevationProfile({ path, datum }: { path: Position[]; datum?: string }) {

@@ -1,5 +1,4 @@
-// Cliente de la caminata simulada del backend (/api/v1/sim). Solo demo: siempre va al backend real,
-// sin mock, porque el desvío y el recálculo los decide el backend.
+// /api/v1/sim siempre usa el backend, que controla el desvío y el recálculo.
 import type { Position, RouteResult } from '../types/contracts';
 
 export type SimStatus = 'following' | 'drifting' | 'arrived' | 'stopped';

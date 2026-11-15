@@ -1,13 +1,6 @@
 @import "tailwindcss";
 
-/* ---------- Sistema visual (estilo Google / Material 3) ----------
-   Tipografía: Google Sans Flex (texto) y Google Sans Code (cifras de instrumentos).
-   Los nombres de color se conservan para no tocar cada componente:
-     space   = neutros (fondos, superficies, bordes, texto secundario)
-     primary = azul Google (acciones, selección)
-     alert   = rojo (peligro, bloqueos)
-     green / amber = viable / precaución
-   Toda la app usa tema oscuro (panel, visor y simulador). */
+/* Colores compartidos por el panel, el visor y el simulador. */
 @theme {
   --font-sans: 'Google Sans Flex', 'Google Sans', Roboto, system-ui, sans-serif;
   --font-mono: 'Google Sans Code', 'Roboto Mono', ui-monospace, monospace;
@@ -51,7 +44,6 @@
   --radius-card: 1.25rem;
 }
 
-/* ---------- Base ---------- */
 
 :root {
   color-scheme: dark;
@@ -90,9 +82,8 @@ summary {
   }
 }
 
-/* ---------- Componentes ---------- */
+/* Componentes */
 
-/* Título de sección (title-small de Material) */
 @utility eyebrow {
   @apply text-sm font-medium text-space-300;
 }
@@ -125,12 +116,10 @@ summary {
   @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap;
 }
 
-/* Tarjeta flotante del visor (sobre el terreno): vidrio oscuro, esquinas redondeadas */
 @utility hud {
   @apply relative rounded-2xl border border-white/10 bg-space-900/85 shadow-lg shadow-black/30 backdrop-blur-md;
 }
 
-/* Barra deslizante estilo volumen (Material slider) */
 @utility slider {
   @apply h-1.5 w-full cursor-pointer appearance-none rounded-full;
   background: linear-gradient(
@@ -159,7 +148,7 @@ summary {
   }
 }
 
-/* ---------- OpenLayers ---------- */
+/* OpenLayers */
 
 .ol-control {
   background: transparent !important;

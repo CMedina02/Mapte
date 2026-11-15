@@ -75,8 +75,7 @@ export interface Layer {
   nodata_policy: 'unknown';
 }
 
-// PROPUESTA (pendiente de contrato): zonas de riesgo del sector.
-// exclusion = la ruta no puede cruzarla; caution = se cruza con alerta.
+// Una zona de exclusión bloquea el paso. Una de precaución aumenta el costo.
 export interface Hazard {
   hazard_id: string;
   kind: 'exclusion' | 'caution';
@@ -95,7 +94,7 @@ export interface RegionManifest {
   evidence: Evidence[];
   sample_only?: boolean;
   terrain?: Terrain;
-  hazards?: Hazard[]; // PROPUESTA: pendiente de acordar con backend (hoy solo la usa el mock)
+  hazards?: Hazard[];
 }
 
 export interface TerrainGrid {
@@ -106,7 +105,7 @@ export interface TerrainGrid {
   row_order: 'north_to_south';
 }
 
-// Zona del DEM con calidad no nominal (p. ej. artefactos): 'unknown' nunca se presenta como segura
+// Sector donde la calidad del DEM es incierta.
 export interface QualityZone {
   zone_id: string;
   quality: 'nominal' | 'unknown';
@@ -132,11 +131,9 @@ export interface Terrain {
   memory_order: 'row_major';
   nodata_policy: 'f32_nan';
   texture_aligned: boolean;
-  // PROPUESTA (pendiente con backend): normal map RGB en espacio tangente (R=este, G=norte, B=arriba)
-  // con el relieve fino que el heightmap no representa; cubre la misma extensión que el heightmap.
+  // Mapa de normales tangente del DEM: R este, G norte y B arriba.
   normal_map_url?: string | null;
   grid: TerrainGrid;
-  // Opcionales que ya publica el backend (schemas.py → TerrainManifestSchema)
   texture_url?: string | null;
   blocked_mask_url?: string | null;
   dataset_checksum_sha256?: string | null;
@@ -148,7 +145,7 @@ export interface Objective {
   objective_id: string;
   region_id: string;
   title: string;
-  description?: string; // contexto del sitio (el backend lo envía; puede venir vacío)
+  description?: string;
   position: Position;
   science_question: string;
   priority_weight: number;
@@ -216,7 +213,7 @@ export interface MissionPlanRequest {
   objective_ids: string[];
   constraints: Constraints;
   resources: Resources;
-  // Minutos de actividad en cada objetivo: sin ellos el backend no puede asegurar el O₂ (viabilidad 'unknown')
+  // Sin tiempo de actividad, el backend puede devolver viabilidad desconocida.
   activity_durations_min?: Record<string, number>;
 }
 

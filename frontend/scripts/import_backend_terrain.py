@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-Image.MAX_IMAGE_PIXELS = None  # la ortofoto (25 MP) es de confianza: viene del repo
+Image.MAX_IMAGE_PIXELS = None  # Permite abrir la ortofoto de alta resolución del repositorio.
 
 FACTOR = 5  # 4 m -> 20 m
 TEXTURE_PX = 2048
@@ -32,37 +32,35 @@ meta = json.loads((src / 'terrain.json').read_text(encoding='utf-8'))
 tm = meta['terrain_manifest']
 w, h = tm['width_px'], tm['height_px']
 
-# Verifica contra las sumas publicadas por el backend
 sums = dict(line.split()[::-1] for line in (src / 'SHA256SUMS').read_text().splitlines() if line.strip()) if (src / 'SHA256SUMS').exists() else {}
 for name in ('heightmap_4m.f32', 'ortho_2m.png'):
     expected = sums.get(name) or sums.get('*' + name)
     if expected and hashlib.sha256((src / name).read_bytes()).hexdigest() != expected:
         sys.exit(f'Checksum distinto en {name}: el archivo no es el publicado por el backend.')
 
-# --- Heightmap: promedio por bloques ignorando NaN (como el 'average' del backend) ---
+# Reduce el DEM con un promedio por bloques que omite NaN.
 z = np.fromfile(src / 'heightmap_4m.f32', dtype='<f4')
 assert z.size == w * h, f'tamaño inesperado: {z.size} valores'
 z = z.reshape(h, w)
 assert h % FACTOR == 0 and w % FACTOR == 0
 blocks = z.reshape(h // FACTOR, FACTOR, w // FACTOR, FACTOR)
 with np.errstate(invalid='ignore'):
-    small = np.nanmean(blocks, axis=(1, 3)).astype('<f4')  # bloque todo NaN -> NaN (sin dato)
+    small = np.nanmean(blocks, axis=(1, 3)).astype('<f4')
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 small.tofile(OUT_DIR / 'height_20m.f32')
 
 px = tm['grid']['pixel_size_x_m'] * FACTOR
 py = tm['grid']['pixel_size_y_m'] * FACTOR
-# centro de la primera celda gruesa = esquina del área + medio píxel grueso
+# Ajusta el origen al centro de la primera celda reducida.
 x0 = tm['grid']['origin_center_x_m'] - tm['grid']['pixel_size_x_m'] / 2 + px / 2
 y0 = tm['grid']['origin_center_y_m'] + tm['grid']['pixel_size_y_m'] / 2 - py / 2
 
-# --- Textura: gris, 2048 px, JPEG (el 0 de la ortofoto = sin cobertura HiRISE, se conserva) ---
+# Exporta la ortofoto en gris y conserva el valor 0 de NoData.
 ortho = Image.open(src / 'ortho_2m.png').convert('L')
 ortho.resize((TEXTURE_PX, TEXTURE_PX), Image.Resampling.BOX).save(OUT_DIR / 'ortho_2048.jpg', quality=82)
 
-# --- Normal map de detalle: DEM 4 m menos la malla de 20 m interpolada (lo que la malla ya dibuja) ---
-# Así la luz muestra crestas y rocas finas sin duplicar las pendientes grandes que ya tiene la geometría.
+# Calcula las normales a partir del relieve que la malla de 20 m no representa.
 mesh = np.asarray(Image.fromarray(np.nan_to_num(small, nan=float(np.nanmean(small)))).resize((w, h), Image.Resampling.BILINEAR))
 detail = np.nan_to_num(z - mesh)  # sin dato -> plano
 g = tm['grid']['pixel_size_x_m']
@@ -90,16 +88,14 @@ out = {
     'sector': meta['sector'],
     'sources': meta['sources'],
     'limitations': meta['limitations'],
-    # Zonas del DEM con calidad 'unknown' (p. ej. artefactos de rejilla): el mock no las da por seguras
     'quality_zones': tm.get('quality_zones', []),
 }
 META_OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print(f"{small.shape[1]}x{small.shape[0]} @ {px} m, z {out['elevation_min_m']:.1f}..{out['elevation_max_m']:.1f} m, "
       f"NaN {out['nodata_cells']}; textura y normal map {TEXTURE_PX}px")
 
-# --- Catálogo científico (objetivos y fotos reales de Curiosity) para el mock ---
-# Mismo formato que GET /objectives y /photos: sin el bloque 'source' de la posición (el backend lo omite)
-# y con z_m vacío (el mock lo muestrea del DEM, como hace el backend).
+# Copia los objetivos y las fotos de Curiosity para el modo simulado.
+# Usa el formato de la API. El simulador toma z_m del DEM.
 CATALOG_OUT = Path('src/shared/api/mocks/realCatalog.json')
 catalog_dir = Path('../backend/app/modules/catalog/data') / meta['region']['region_id']
 if (catalog_dir / 'objectives.json').exists():
@@ -108,7 +104,6 @@ if (catalog_dir / 'objectives.json').exists():
     photos = json.loads((catalog_dir / 'photos.json').read_text(encoding='utf-8'))
     photo_keys = ('photo_id', 'objective_id', 'image_url', 'camera', 'sol', 'captured_at', 'credit',
                   'source_url', 'location_quality', 'limitations')
-    # 'active: false' = objetivo retirado del catálogo (el backend no lo publica ni sus fotos)
     active = {o['objective_id'] for o in objs['objectives'] if o.get('active', True)}
     catalog = {
         'generated_from': objs.get('generated_from', []),

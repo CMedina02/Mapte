@@ -123,16 +123,15 @@ class TerrainContractTests(unittest.TestCase):
         self.assertIsNotNone(center_sample.elevation_m)
         self.assertAlmostEqual(center_sample.elevation_m or 0.0, 115.0)
 
-        # Ahora ponemos NaN en la celda inferior derecha (fila 1, col 1).
         dataset_with_hole = _make_sample_dataset([100.0, 120.0, 110.0, float("nan")])
         repo_hole = InMemoryTerrainRepository([dataset_with_hole])
 
-        # Exactamente en (row=0, col=0) -> x=10, y=110 -> el peso de la celda NaN es 0.
+        # En el centro de la celda superior izquierda, la celda NaN tiene peso cero.
         corner_ok = repo_hole.sample_elevation("MC-09", 10.0, 110.0, method="bilinear")
         self.assertTrue(corner_ok.is_valid)
         self.assertAlmostEqual(corner_ok.elevation_m or 0.0, 100.0)
 
-        # En el centro (20, 100), la celda NaN contribuye -> debe invalidarse y bloquearse.
+        # En (20, 100), la interpolación incluye la celda NaN.
         hole_sample = repo_hole.sample_elevation("MC-09", 20.0, 100.0, method="bilinear")
         self.assertTrue(hole_sample.in_bounds)
         self.assertFalse(hole_sample.is_valid)

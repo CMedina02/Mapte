@@ -6,20 +6,19 @@ export interface Destination {
   id: string;
   title: string;
   position: Position;
-  recommended: boolean; // el plan lo marca como siguiente
-  reach?: 'ok' | 'no'; // ok: el plan garantiza regreso seguro; no: el backend lo dejó fuera
-  note?: string; // motivo cuando no se puede llegar
+  recommended: boolean;
+  reach?: 'ok' | 'no'; // ok: incluido en el plan. no: excluido.
+  note?: string;
 }
 
 interface Props {
   destinations: Destination[];
   selectedId: string;
   here: Position;
-  letters?: Record<string, string>; // letra de cada parada del plan (A = base)
+  letters?: Record<string, string>;
   onSelect: (id: string) => void;
 }
 
-// Lista de destinos con el mismo diseño que el panel de control: letra de parada, nombre y estado
 export default function DestinationPicker({ destinations, selectedId, here, letters = {}, onSelect }: Props) {
   return (
     <ul role="radiogroup" aria-label="Destination" className="overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-space-900/70">

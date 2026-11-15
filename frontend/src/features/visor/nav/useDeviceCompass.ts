@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { norm360 } from './geo';
 
-// Rumbo del dispositivo (brújula + giroscopio) para orientar la vista 3D hacia donde mira el astronauta.
-// ponytail: en Marte no hay campo magnético global; el casco real usaría IMU + seguidor estelar.
-// Aquí la brújula del teléfono/tableta simula ese sensor para el prototipo.
+// La brújula del dispositivo simula el sensor de rumbo para el visor.
 type OrientationEvt = DeviceOrientationEvent & { webkitCompassHeading?: number };
 
 export const compassAvailable = () =>

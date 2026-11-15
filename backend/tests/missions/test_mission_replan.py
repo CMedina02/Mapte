@@ -73,7 +73,7 @@ def test_replan_after_finding_continues_from_the_completed_objective(tmp_path) -
         repository,
     )
 
-    # Sale de A (no de la base) hacia B y vuelve; base y objetivos originales se conservan
+    # El nuevo tramo sale de A. La base y los objetivos originales se conservan.
     assert [(leg.start_label, leg.end_label) for leg in replanned.legs] == [
         ("obj-a", "obj-b"),
         ("obj-b", "base"),
@@ -125,7 +125,7 @@ def test_finding_can_be_recorded_at_any_pending_objective(tmp_path) -> None:
     repository = SQLiteMissionRepository(tmp_path / "order.sqlite3")
     created = _planned_and_started(repository)
 
-    # El plan va a obj-a primero, pero el astronauta fue directo a obj-b
+    # Registra un hallazgo en B antes de visitar A.
     observed = submit_observation(
         created.mission_id,
         ObservationRequestSchema(
