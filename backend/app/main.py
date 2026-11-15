@@ -11,9 +11,15 @@ from pydantic import BaseModel
 
 from app.core.errors import register_error_handlers
 from app.modules.catalog.api.router import catalog_router
+from app.modules.catalog.infrastructure.science_loader import load_science_catalog
 from app.modules.catalog.infrastructure.terrain_loader import CatalogStore, load_catalog
 from app.modules.missions.api import missions_router
-from app.modules.missions.persistence import SQLiteMissionRepository
+from app.modules.missions.persistence import MissionRepository, SQLiteMissionRepository
+from app.modules.missions.planning import (
+    InMemoryObjectiveRepository,
+    ObjectiveRepository,
+    objective_repository_from_catalogs,
+)
 
 DATA_ROOT_ENV = "MAPTE_DATA_ROOT"
 ACTIVE_REGION_ENV = "MAPTE_ACTIVE_REGION"
@@ -54,13 +60,34 @@ def _mission_database_path() -> Path:
     return Path(os.environ.get(DATABASE_PATH_ENV, default)).resolve()
 
 
-def create_app(catalog_store: CatalogStore | None = None) -> FastAPI:
+def create_app(
+    catalog_store: CatalogStore | None = None,
+    objective_repository: ObjectiveRepository | None = None,
+    mission_repository: MissionRepository | None = None,
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         store = catalog_store or _load_configured_catalog()
         application.state.catalog_store = store
         application.state.terrain_repository = store.terrain_repository
-        application.state.mission_repository = SQLiteMissionRepository(_mission_database_path())
+        loaded_objectives = objective_repository
+        if loaded_objectives is None and catalog_store is None:
+            science_catalogs = [
+                catalog
+                for region_id in store.region_ids()
+                if (catalog := load_science_catalog(region_id)) is not None
+            ]
+            for catalog in science_catalogs:
+                region = store.get(catalog.region_id)
+                if region is not None:
+                    catalog.check_within_extent(region.metadata)
+            loaded_objectives = objective_repository_from_catalogs(science_catalogs)
+        application.state.objective_repository = loaded_objectives or InMemoryObjectiveRepository(
+            ()
+        )
+        application.state.mission_repository = mission_repository or SQLiteMissionRepository(
+            _mission_database_path()
+        )
         yield
 
     application = FastAPI(title="Mapte API", version="0.1.0", lifespan=lifespan)

@@ -1,5 +1,6 @@
 """Mission planning over routing, objectives and simulated resources."""
 
+from app.modules.missions.planning.catalog_objectives import objective_repository_from_catalogs
 from app.modules.missions.planning.models import (
     MissionDecision,
     MissionLeg,
@@ -25,4 +26,5 @@ __all__ = [
     "MissionPlanViability",
     "ObjectiveRepository",
     "UnknownObjectiveError",
+    "objective_repository_from_catalogs",
 ]

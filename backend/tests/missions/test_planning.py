@@ -9,6 +9,9 @@ from app.modules.catalog.domain import (
     VerticalReferenceSpec,
     build_synthetic_terrain,
 )
+from app.modules.missions.api.router import get_mission, plan_mission
+from app.modules.missions.api.schemas import MissionPlanRequestSchema
+from app.modules.missions.persistence import SQLiteMissionRepository, StoredRouteKind
 from app.modules.missions.planning import (
     InMemoryObjectiveRepository,
     MissionObjective,
@@ -17,6 +20,7 @@ from app.modules.missions.planning import (
     MissionPlanViability,
     UnknownObjectiveError,
 )
+from app.modules.missions.planning.persistence import mission_create_from_plan
 from app.modules.missions.resources import SupportResources
 from app.modules.missions.routing import RoutePlanningConstraints
 from app.modules.missions.terrain import GridCell, LocalPosition
@@ -148,3 +152,41 @@ def test_unknown_objective_and_invalid_request_are_rejected() -> None:
         replace(request(), objective_ids=("obj-a", "obj-a"))
     with pytest.raises(ValueError, match="no solicitados"):
         replace(request(), activity_durations_min=(("other", 10),))
+
+
+def test_computed_plan_is_ready_for_versioned_persistence(tmp_path) -> None:
+    plan = planner().plan(request())
+    repository = SQLiteMissionRepository(tmp_path / "mapte.sqlite3")
+
+    stored = repository.create(mission_create_from_plan(plan))
+
+    assert stored.mission_id == plan.mission_id
+    assert stored.snapshot["next_objective_id"] == "obj-a"
+    assert len(stored.snapshot["legs"]) == 3
+    return_route = next(route for route in stored.routes if route.kind is StoredRouteKind.RETURN)
+    assert return_route.terrain_version == "planning-test-v1"
+
+
+def test_plan_and_get_api_functions_share_persisted_mission(tmp_path) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "mapte.sqlite3")
+    payload = MissionPlanRequestSchema.model_validate(
+        {
+            "region_id": REGION_ID,
+            "base_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+            "objective_ids": ["obj-a", "obj-b"],
+            "constraints": {
+                "max_slope_deg": 15,
+                "speed_m_per_min": 10,
+                "avoid_unknown": True,
+            },
+            "resources": {"oxygen_available_min": 200, "return_reserve_min": 30},
+            "activity_durations_min": {"obj-a": 10, "obj-b": 20},
+        }
+    )
+
+    created = plan_mission(payload, terrain_repository(), objectives(), repository)
+    restored = get_mission(created.mission_id, repository)
+
+    assert created.mission_version == 1
+    assert restored == created
+    assert restored.viability_status == "viable"

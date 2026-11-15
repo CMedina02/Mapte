@@ -42,3 +42,41 @@ class RouteResultSchema(BaseModel):
     evidence_ids: list[str]
     assumptions: list[str]
     sample_only: bool = False
+
+
+class MissionResourcesSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    oxygen_available_min: float = Field(ge=0)
+    return_reserve_min: float = Field(ge=0)
+
+
+class MissionPlanRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    region_id: str = Field(min_length=1)
+    base_position: PositionSchema
+    objective_ids: list[str] = Field(min_length=1)
+    constraints: RouteConstraintsSchema
+    resources: MissionResourcesSchema
+    activity_durations_min: dict[str, float] = Field(default_factory=dict)
+
+
+class MissionPlanResponseSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mission_id: str
+    mission_version: int = Field(ge=1)
+    region_id: str
+    frame_id: str
+    terrain_version: str
+    lifecycle_status: Literal["draft", "active", "completed", "aborted"]
+    viability_status: Literal["viable", "not_viable", "unknown"]
+    objective_ids: list[str]
+    next_objective_id: str | None
+    legs: list[dict]
+    resources: dict
+    resource_evaluation: dict
+    alerts: list[str]
+    decision_log: list[dict]
+    evidence_ids: list[str]
