@@ -783,10 +783,12 @@ def submit_observation(
     stored = _current_mission(missions, mission_id, payload.mission_version)
     if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
         raise HTTPException(status_code=409, detail="Solo una misión activa admite observaciones.")
-    if payload.objective_id != stored.snapshot.get("next_objective_id"):
+    # El astronauta puede elegir cualquier objetivo pendiente (el visor lo permite); después el
+    # cliente pide /replan desde ese objetivo. Solo se rechaza repetir uno ya completado.
+    if payload.objective_id in stored.snapshot.get("completed_objective_ids", []):
         raise HTTPException(
             status_code=409,
-            detail="Solo puede observarse el siguiente objetivo activo de la misión.",
+            detail="Ese objetivo ya tiene un hallazgo registrado.",
         )
     objective = objectives.get_objective(stored.region_id, payload.objective_id)
     if objective is None or payload.objective_id not in stored.snapshot["objective_ids"]:

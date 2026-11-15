@@ -15,13 +15,9 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Con varios clientes a la vez (panel de control y visores), usar varios procesos para que una ruta
-larga no bloquee las demás peticiones (`--workers` no admite `--reload`). Cada proceso precalcula al
-arrancar la rejilla del buscador de rutas (~1 s y ~32 MB por región):
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 3
-```
+Usar **un solo proceso** (sin `--workers`): el simulador (`/api/v1/sim`) guarda sus caminatas en
+memoria, y con varios procesos cada paso puede caer en otro proceso que no la conoce (404, "se
+perdió el enlace"). El buscador de rutas responde en menos de 0.5 s, así que un proceso basta.
 
 Para medir el buscador de rutas con el terreno real: `.\.venv\Scripts\python.exe scripts/bench_routes.py`
 (`--all` agrega una ruta imposible).

@@ -119,3 +119,31 @@ def test_replan_requires_active_mission_and_current_version(tmp_path) -> None:
             repository,
         )
     assert draft.value.status_code == 409
+
+
+def test_finding_can_be_recorded_at_any_pending_objective(tmp_path) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "order.sqlite3")
+    created = _planned_and_started(repository)
+
+    # El plan va a obj-a primero, pero el astronauta fue directo a obj-b
+    observed = submit_observation(
+        created.mission_id,
+        ObservationRequestSchema(
+            mission_version=2, objective_id="obj-b", finding_code="CLAY_MINERALS_DETECTED"
+        ),
+        objectives(),
+        repository,
+    )
+    assert observed.completed_objective_ids == ["obj-b"]
+    assert observed.next_objective_id == "obj-a"
+
+    with pytest.raises(HTTPException) as repeated:
+        submit_observation(
+            created.mission_id,
+            ObservationRequestSchema(
+                mission_version=3, objective_id="obj-b", finding_code="CLAY_MINERALS_DETECTED"
+            ),
+            objectives(),
+            repository,
+        )
+    assert repeated.value.status_code == 409
