@@ -10,6 +10,7 @@ import { simApi, type SimAction, type SimCreate, type SimState } from '../../sha
 import MarsMap from '../mars-map/MarsMap';
 import { initialLayerState } from '../mars-map/mapUtils';
 import ErrorBoundary from '../../shared/ui/ErrorBoundary';
+import Icon from '../../shared/ui/Icon';
 
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
 
@@ -45,10 +46,10 @@ const STATUS_LABEL: Record<SimState['status'], string> = {
 };
 
 const ALERT_STYLE: Record<Exclude<SimAction, 'none'>, string> = {
-  warn: 'border-amber-500 bg-amber-950/90 text-amber-200',
-  rerouted: 'border-alert-500 bg-alert-950/90 text-alert-200',
-  stop: 'border-alert-500 bg-alert-950/90 text-alert-200',
-  arrived: 'border-green-500 bg-green-950/90 text-green-200',
+  warn: 'bg-amber-500 text-space-950',
+  rerouted: 'bg-alert-600 text-white',
+  stop: 'bg-alert-600 text-white',
+  arrived: 'bg-green-600 text-white',
 };
 
 const clock = (s: number) => {
@@ -208,22 +209,22 @@ export default function SimVisor() {
 
       {/* Etiqueta fija: nada simulado se presenta como medido */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
-        <p className="rounded-full border border-amber-500 bg-space-950/85 px-4 py-1 text-xs font-bold tracking-widest text-amber-300 uppercase">
-          Simulación · terreno y rutas reales, caminata simulada ×{sim.speed_factor}
+        <p className="hud px-4 py-1.5 text-xs text-space-200">
+          Simulación: terreno y rutas reales, caminata acelerada {sim.speed_factor} veces
         </p>
       </div>
 
       {alert && (
         <div className="pointer-events-none absolute inset-x-0 top-14 flex justify-center px-3">
-          <p role="alert" className={`rounded-lg border-2 px-5 py-3 text-base font-bold shadow-lg sm:text-lg ${ALERT_STYLE[alert.action]}`}>
+          <p role="alert" className={`rounded-full px-6 py-3 text-base font-medium shadow-lg ${ALERT_STYLE[alert.action]}`}>
             {alert.message}
           </p>
         </div>
       )}
 
       {/* Estado de la caminata (lo que devuelve el backend) */}
-      <section className="absolute top-14 left-3 w-64 rounded-lg border border-space-700 bg-space-950/85 p-3 text-sm backdrop-blur max-sm:hidden">
-        <p className={`text-xs font-bold tracking-widest uppercase ${sim.on_route ? 'text-green-400' : 'text-amber-300'}`}>
+      <section className="hud absolute top-14 left-3 w-64 p-4 text-sm max-sm:hidden">
+        <p className={`text-sm font-medium ${sim.on_route ? 'text-green-400' : 'text-amber-300'}`}>
           {STATUS_LABEL[sim.status]}
         </p>
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
@@ -231,7 +232,7 @@ export default function SimVisor() {
           <dd className="truncate">{target?.title ?? 'Punto marcado'}</dd>
           <dt className="text-space-300">Restante</dt>
           <dd>{sim.remaining_m == null ? 'Recalculando…' : `${Math.round(sim.remaining_m)} m`}</dd>
-          <dt className="text-space-300">ETA</dt>
+          <dt className="text-space-300">Llegada en</dt>
           <dd>{sim.eta_min == null ? '—' : `${Math.round(sim.eta_min)} min`}</dd>
           <dt className="text-space-300">Desvío</dt>
           <dd className={sim.deviation_m >= sim.thresholds.warn_m ? 'font-bold text-amber-300' : ''}>{Math.round(sim.deviation_m)} m</dd>
@@ -239,7 +240,7 @@ export default function SimVisor() {
           <dd>{Math.round(sim.heading_deg)}°</dd>
           <dt className="text-space-300">Recálculos</dt>
           <dd>{rerouted}</dd>
-          <dt className="text-space-300">Tiempo EVA</dt>
+          <dt className="text-space-300">Tiempo fuera</dt>
           <dd>{clock(sim.t_s)}</dd>
         </dl>
         <p className="mt-2 text-xs text-space-400">
@@ -248,8 +249,8 @@ export default function SimVisor() {
       </section>
 
       {/* Bitácora del backend */}
-      <section className="absolute bottom-3 left-3 max-h-56 w-80 overflow-y-auto rounded-lg border border-space-700 bg-space-950/85 p-3 text-xs backdrop-blur max-sm:inset-x-3 max-sm:w-auto">
-        <p className="mb-1 font-bold tracking-widest text-space-300 uppercase">Bitácora</p>
+      <section className="hud absolute bottom-3 left-3 max-h-56 w-80 overflow-y-auto p-4 text-xs max-sm:inset-x-3 max-sm:w-auto">
+        <p className="mb-2 text-sm font-medium text-space-200">Bitácora</p>
         <ol className="space-y-1">
           {sim.log.map((e, i) => (
             <li key={i} className="flex gap-2">
@@ -262,15 +263,17 @@ export default function SimVisor() {
 
       <div className="absolute right-3 bottom-3 flex gap-2">
         {!finished && (
-          <button type="button" className="btn-go" onClick={() => setRunning((r) => !r)}>
-            {running ? '⏸ Pausa' : '▶ Continuar'}
+          <button type="button" className="btn-go shadow-lg" onClick={() => setRunning((r) => !r)}>
+            <Icon name={running ? 'pause' : 'play'} size={18} />
+            {running ? 'Pausar' : 'Continuar'}
           </button>
         )}
-        <button type="button" className="btn-primary" onClick={restart}>
-          ↺ Reiniciar
+        <button type="button" className="btn-primary shadow-lg" onClick={restart}>
+          <Icon name="replay" size={18} />
+          Reiniciar
         </button>
       </div>
-      {error && <p className="absolute right-3 bottom-16 max-w-xs rounded bg-alert-950/90 p-2 text-xs text-alert-200">{error}</p>}
+      {error && <p className="hud absolute right-3 bottom-16 max-w-xs p-3 text-xs text-alert-200">{error}</p>}
     </div>
   );
 }

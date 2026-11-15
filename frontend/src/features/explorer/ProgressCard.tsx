@@ -1,6 +1,7 @@
 import type { Mission, Objective } from '../../shared/types/contracts';
-import { fmt, warningText } from '../../shared/format';
+import { fmtDistance, fmtDuration, notices, ROUTE_STATUS } from '../../shared/format';
 import { missionRoute } from '../../shared/mission';
+import Icon from '../../shared/ui/Icon';
 
 export default function ProgressCard({ mission, current }: { mission: Mission; current: Objective | null }) {
   const route = missionRoute(mission);
@@ -13,40 +14,40 @@ export default function ProgressCard({ mission, current }: { mission: Mission; c
   return (
     <section className="card">
       <p className="eyebrow">
-        Objetivo actual · {done}/{total} completados
+        Objetivo actual · {done} de {total} completados
       </p>
       {current ? (
         <>
-          <p className="text-lg font-bold">{current.title}</p>
+          <p className="text-xl font-medium text-space-50">{current.title}</p>
           <p className="text-sm text-space-300">{current.science_question}</p>
           <p className="text-xs text-space-400">Actividades: {current.activities.join(', ')}</p>
         </>
       ) : (
-        <p className="text-lg">Sin objetivo pendiente</p>
+        <p className="text-xl text-space-50">{total ? 'Todos los objetivos completados' : 'Sin objetivos en el plan'}</p>
       )}
 
-      <dl className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded bg-space-900 p-2">
-          <dt className="text-xs text-space-400">O₂ disponible</dt>
-          <dd className="text-lg sm:text-xl">{fmt(o2, 'min')}</dd>
+      <dl className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-space-950 p-3">
+          <dt className="text-xs text-space-400">Oxígeno</dt>
+          <dd className="text-lg font-medium text-space-50">{fmtDuration(o2)}</dd>
         </div>
-        <div className="rounded bg-space-900 p-2">
+        <div className="rounded-2xl bg-space-950 p-3">
           <dt className="text-xs text-space-400">Reserva</dt>
-          <dd className="text-lg sm:text-xl">{fmt(reserve, 'min')}</dd>
+          <dd className="text-lg font-medium text-space-50">{fmtDuration(reserve)}</dd>
         </div>
-        <div className={`rounded p-2 ${margin !== null && margin <= 0 ? 'bg-alert-950 text-alert-300' : 'bg-space-900'}`}>
+        <div className={`rounded-2xl p-3 ${margin !== null && margin <= 0 ? 'bg-alert-950 text-alert-300' : 'bg-space-950'}`}>
           <dt className="text-xs text-space-400">Margen</dt>
-          <dd className="text-lg sm:text-xl">{fmt(margin, 'min')}</dd>
+          <dd className="text-lg font-medium">{fmtDuration(margin)}</dd>
         </div>
       </dl>
 
       <p className="text-xs text-space-400">
-        Ruta: {route.status} · {fmt(route.distance_m, 'm')} · pendiente máx.{' '}
-        {fmt(route.max_slope_deg, '°')}
+        Ruta {(ROUTE_STATUS[route.status] ?? ROUTE_STATUS.unknown).label.toLowerCase()} · {fmtDistance(route.distance_m)}
       </p>
-      {route.warnings.map((w) => (
-        <p key={w} className="text-xs text-amber-300">
-          ⚠ {warningText(w)}
+      {notices(route.warnings).map((w) => (
+        <p key={w} className="flex gap-1.5 text-xs text-amber-300">
+          <Icon name="warning" size={16} />
+          {w}
         </p>
       ))}
     </section>

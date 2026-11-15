@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { Constraints, Mission, MissionPackage, Position, RouteResult } from '../../shared/types/contracts';
-import { fmt, notices, ROUTE_STATUS, warningText } from '../../shared/format';
+import { fmtDistance, fmtDuration, notices, ROUTE_STATUS, warningText } from '../../shared/format';
 import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
 import MarsMap from '../mars-map/MarsMap';
@@ -21,6 +21,7 @@ import { bearingDeg, norm360, samePlace } from './nav/geo';
 import { compassAvailable, useDeviceCompass } from './nav/useDeviceCompass';
 import { activeMissionLeg, excludedObjectives, exclusionsCrossed, missionRoute, shortReason } from '../../shared/mission';
 import { excludedPaths, useExcludedRoute } from '../../shared/useExcludedRoute';
+import Icon from '../../shared/ui/Icon';
 
 // three.js pesa: se descarga solo al abrir la vista 3D
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
@@ -169,8 +170,8 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       ? 'Calculando ruta…'
       : preview === 'error'
         ? isPlanNext
-          ? 'Sin enlace · ruta del plan'
-          : 'Sin enlace · sin ruta'
+          ? 'Sin conexión: se muestra la ruta del plan'
+          : 'Sin conexión para calcular esta ruta'
         : null;
   const shownRoute = legRoute ?? plannedRoute;
   const bearing = bearingDeg(here, dest.position);
@@ -215,10 +216,10 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const status = legRoute ? (ROUTE_STATUS[legRoute.status] ?? ROUTE_STATUS.unknown) : null;
   const legSummary = (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-      {status && <span className={`chip border ${status.cls}`}>{status.label}</span>}
+      {status && <span className={`chip ${status.cls}`}>{status.label}</span>}
       {legRoute && (
-        <span className="font-mono">
-          {fmt(legRoute.distance_m, 'm')} · {fmt(legRoute.duration_min, 'min')}
+        <span className="text-space-200">
+          {fmtDuration(legRoute.duration_min)} · {fmtDistance(legRoute.distance_m)}
         </span>
       )}
       {routeNote && <span className="text-xs text-space-300">{routeNote}</span>}
@@ -230,22 +231,26 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const pin = {
     position: dest.position,
     content: (
-      <div className="hud w-56 space-y-1.5 p-2 text-xs shadow-lg shadow-black/50">
-        <p className="truncate font-bold">{dest.title}</p>
-        {status && <span className={`chip border ${status.cls}`}>{status.label}</span>}
+      <div className="hud w-60 space-y-2 p-4 text-sm">
+        <div className="flex items-start justify-between gap-2">
+          <p className="min-w-0 font-medium text-space-50">{dest.title.split(' — ')[0]}</p>
+          {status && <span className={`chip shrink-0 ${status.cls}`}>{status.label}</span>}
+        </div>
         {legRoute ? (
-          <dl className="grid grid-cols-[1fr_auto] gap-x-2 font-mono">
-            <dt className="text-space-300">Distancia</dt>
-            <dd>{fmt(legRoute.distance_m, 'm')}</dd>
-            <dt className="text-space-300">O₂ a gastar</dt>
-            <dd>{fmt(legRoute.duration_min, 'min')}</dd>
-            <dt className="text-space-300">O₂ al llegar</dt>
-            <dd className={o2Left !== null && o2Left < reserve ? 'text-alert-400' : 'text-green-400'}>{fmt(o2Left, 'min')}</dd>
+          <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs">
+            <dt className="text-space-300">Camino</dt>
+            <dd className="text-right text-space-50">
+              {fmtDuration(legRoute.duration_min)} · {fmtDistance(legRoute.distance_m)}
+            </dd>
+            <dt className="text-space-300">Oxígeno al llegar</dt>
+            <dd className={`text-right font-medium ${o2Left !== null && o2Left < reserve ? 'text-alert-400' : 'text-green-400'}`}>
+              {fmtDuration(o2Left)}
+            </dd>
             <dt className="text-space-300">Reserva</dt>
-            <dd>{fmt(reserve, 'min')}</dd>
+            <dd className="text-right text-space-50">{fmtDuration(reserve)}</dd>
           </dl>
         ) : (
-          <p className="text-space-300">{routeNote}</p>
+          <p className="text-xs text-space-300">{routeNote}</p>
         )}
       </div>
     ),
@@ -324,11 +329,11 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
           )}
           {/* Controles solo cuando hacen falta: brújula del dispositivo y cola sin enviar */}
           {((hasCompass && view3d) || queue.length > 0) && (
-            <div className="hud pointer-events-auto col-start-2 row-start-1 flex min-h-9 items-center gap-2 justify-self-end px-2 py-1 text-[11px] tracking-widest uppercase md:col-start-3">
+            <div className="hud pointer-events-auto col-start-2 row-start-1 flex min-h-10 items-center gap-2 justify-self-end px-2 py-1 text-xs md:col-start-3">
               {hasCompass && view3d && (
                 <button
                   type="button"
-                  className={`btn min-h-7 border px-2 py-0.5 text-[11px] ${compass.enabled ? 'border-green-500 text-green-300' : 'border-primary-400 text-primary-200'}`}
+                  className={`flex size-8 items-center justify-center rounded-full transition-colors ${compass.enabled ? 'bg-primary-600 text-white' : 'text-space-200 hover:bg-white/10'}`}
                   aria-pressed={compass.enabled}
                   aria-label="Orientar la vista con la brújula del dispositivo"
                   onClick={async () => {
@@ -336,14 +341,14 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                     else if (!(await compass.enable())) setNotice('Sin permiso de brújula.');
                   }}
                 >
-                  🧭{compass.enabled && compass.heading === null ? '…' : ''}
+                  <Icon name="compass" size={20} className={compass.enabled && compass.heading === null ? 'animate-pulse' : ''} />
                 </button>
               )}
-              {queue.length > 0 && <span>{queue.length} pend.</span>}
+              {queue.length > 0 && <span className="px-1 text-space-300">{queue.length} sin enviar</span>}
               {online && queue.length > 0 && (
                 <button
                   type="button"
-                  className="btn min-h-7 border border-primary-500 px-2 py-0.5 text-[11px] text-primary-300"
+                  className="rounded-full px-3 py-1 font-medium text-primary-200 hover:bg-white/10"
                   onClick={async () => setNotice(await sendQueue(mission, queue, setMission, setQueue))}
                 >
                   Enviar
@@ -354,9 +359,10 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
         </div>
 
         {alerts.length > 0 && (
-          <div role="alert" className="mx-auto max-w-md rounded border border-alert-500 bg-alert-950/85 px-2 py-0.5 text-[11px] font-semibold text-alert-100">
+          <div role="alert" className="mx-auto flex max-w-md items-center gap-2 rounded-full bg-alert-600/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur">
             {/* Al astronauta solo la primera alerta; el detalle completo está en el panel de control */}
-            ⚠ {alerts[0]}
+            <Icon name="warning" size={16} />
+            {alerts[0]}
             {alerts.length > 1 && <span className="font-normal opacity-80"> (+{alerts.length - 1})</span>}
           </div>
         )}
@@ -387,32 +393,31 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
             />
             <span
               aria-hidden="true"
-              className="absolute top-0 right-0 flex size-7 items-center justify-center rounded-full border border-primary-400 bg-primary-700 text-sm text-white group-hover:bg-primary-600"
+              className="absolute top-0 right-0 flex size-8 items-center justify-center rounded-full bg-primary-600 text-white shadow-md group-hover:bg-primary-500"
             >
-              ⤢
+              <Icon name="expand" size={16} />
             </span>
           </button>
 
-          <section className="hud pointer-events-auto ml-auto w-full min-w-0 space-y-2 p-3 backdrop-blur-sm sm:max-w-md">
-            <div className="flex items-center gap-2 text-[11px]" title="Rojo: reserva de retorno">
-              <span className="font-mono">O₂ {fmt(o2, 'min')}</span>
+          <section className="hud pointer-events-auto ml-auto w-full min-w-0 space-y-3 p-4 sm:max-w-md">
+            <div className="flex items-center gap-3 text-xs" title="En rojo, la reserva para volver">
+              <span className="text-space-300">Oxígeno</span>
+              <span className="font-medium text-space-50">{fmtDuration(o2)}</span>
               <div
-                className="flex h-2 flex-1 overflow-hidden rounded bg-primary-950"
+                className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-primary-950"
                 role="img"
                 aria-label={`Reserva de retorno ${reserve} de ${o2} minutos de O₂`}
               >
                 <div className="bg-alert-600" style={{ width: `${reservePct}%` }} />
                 <div className="flex-1 bg-primary-500" />
               </div>
-              <span className="font-mono text-alert-300">Res. {fmt(reserve, 'min')}</span>
+              <span className="text-alert-300">Reserva {fmtDuration(reserve)}</span>
             </div>
 
             {phase === 'select' && (
               <div className="space-y-1">
-                <p className="truncate font-bold">
-                  <span className="eyebrow mr-2">Destino</span>
-                  {dest.title}
-                </p>
+                <p className="text-xs text-space-400">Destino</p>
+                <p className="truncate text-lg font-medium text-space-50">{dest.title.split(' — ')[0]}</p>
                 {legSummary}
               </div>
             )}
@@ -420,13 +425,18 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
             {phase === 'navigate' && legRoute && (
               <div className="flex items-end gap-3">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="eyebrow">Navegando a</p>
-                  <p className="truncate font-bold">{dest.title}</p>
+                  <p className="text-xs text-space-400">Rumbo a</p>
+                  <p className="truncate text-lg font-medium text-space-50">{dest.title.split(' — ')[0]}</p>
                   {legSummary}
                   <details className="text-xs">
                     <summary className="cursor-pointer text-primary-200">
-                      Perfil
-                      {legRoute.warnings.length > 0 && <span className="text-amber-300"> · ⚠ {legRoute.warnings.length} aviso(s)</span>}
+                      Perfil del camino
+                      {legRoute.warnings.length > 0 && (
+                        <span className="text-amber-300">
+                          {' '}
+                          · {legRoute.warnings.length === 1 ? '1 aviso' : `${legRoute.warnings.length} avisos`}
+                        </span>
+                      )}
                     </summary>
                     <div className="mt-2">
                       <ElevationProfile path={legRoute.path} datum={manifest.terrain?.vertical_datum} />
@@ -487,7 +497,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                         );
                         if (err) return setNotice(err);
                       }
-                      backToSelect(pending.length === 0 ? 'EVA completada ✓' : undefined);
+                      backToSelect(pending.length === 0 ? 'Caminata completada' : undefined);
                     }}
                   >
                     Listo
@@ -510,9 +520,14 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
           <div className="relative min-h-0 flex-1">{map2d(true)}</div>
           <aside className="hud m-2 space-y-3 p-3 sm:p-4 lg:w-96 lg:self-end">
             <div className="flex items-center justify-between gap-2">
-              <p className="eyebrow">Destino</p>
-              <button type="button" className="btn min-h-9 px-3 text-lg" aria-label="Cerrar mapa" onClick={() => setPicking(false)}>
-                ✕
+              <p className="text-base font-medium text-space-50">¿A dónde vas?</p>
+              <button
+                type="button"
+                className="flex size-10 items-center justify-center rounded-full text-space-200 hover:bg-white/10"
+                aria-label="Cerrar mapa"
+                onClick={() => setPicking(false)}
+              >
+                <Icon name="close" />
               </button>
             </div>
             <DestinationPicker

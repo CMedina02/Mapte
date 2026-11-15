@@ -6,7 +6,8 @@ import { loadPackage, type PendingObservation } from '../offline-sync/offline';
 import ProgressCard from './ProgressCard';
 import PhotoViewer from './PhotoViewer';
 import ObservationForm from './ObservationForm';
-import { warningText } from '../../shared/format';
+import { notices } from '../../shared/format';
+import Icon from '../../shared/ui/Icon';
 
 interface Props {
   mission: Mission;
@@ -43,24 +44,29 @@ export default function Explorer({ mission, onMission, onQueue }: Props) {
   }
 
   if (error) return <p className="p-6 text-alert-500">{error}</p>;
+  // Mismo filtro que el panel: sin códigos internos ni avisos que ya dice el estado de la ruta
+  const alerts = notices([], mission.alerts);
 
   return (
     <div className="mx-auto grid max-w-7xl items-start gap-4 p-3 sm:p-4 lg:h-full lg:grid-cols-2 lg:overflow-y-auto">
       <div className="space-y-4">
-        {mission.alerts.length > 0 && (
-          <div role="alert" className="space-y-1 rounded-lg border border-alert-600 bg-alert-950 p-3 text-alert-200">
-            <p className="font-bold">⚠ {mission.alerts.includes('OXYGEN_REDUCED') ? 'CONTINGENCIA ACTIVA' : 'ALERTAS'}</p>
-            {mission.alerts.map((a) => (
+        {alerts.length > 0 && (
+          <div role="alert" className="space-y-1 rounded-[var(--radius-card)] bg-alert-950 p-4 text-alert-200">
+            <p className="flex items-center gap-2 font-medium">
+              <Icon name="warning" size={18} />
+              {mission.alerts.includes('OXYGEN_REDUCED') ? 'Oxígeno reducido' : 'Avisos'}
+            </p>
+            {alerts.map((a) => (
               <p key={a} className="text-sm">
-                {warningText(a)}
+                {a}
               </p>
             ))}
           </div>
         )}
         <ProgressCard mission={mission} current={current} />
         {change && (
-          <p role="status" className="rounded-lg border border-primary-700 bg-primary-950 p-3 text-sm">
-            Plan actualizado · próximo objetivo: {title(change.before)} → {title(change.after)}
+          <p role="status" className="rounded-[var(--radius-card)] bg-primary-950 p-4 text-sm text-primary-100">
+            Plan actualizado: el siguiente objetivo pasa de {title(change.before)} a {title(change.after)}.
           </p>
         )}
         <ObservationForm mission={mission} objectives={objectives} onUpdated={handleUpdated} onQueue={onQueue} />

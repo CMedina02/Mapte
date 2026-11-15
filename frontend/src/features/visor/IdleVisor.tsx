@@ -8,6 +8,7 @@ import PositionCard from './PositionCard';
 import Radar from './nav/Radar';
 import { bearingDeg, cardinal } from './nav/geo';
 import ErrorBoundary from '../../shared/ui/ErrorBoundary';
+import Icon from '../../shared/ui/Icon';
 
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
 
@@ -157,9 +158,9 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
           />
           <span
             aria-hidden="true"
-            className="absolute top-0 right-0 flex size-7 items-center justify-center rounded-full border border-primary-400 bg-primary-700 text-sm text-white group-hover:bg-primary-600"
+            className="absolute top-0 right-0 flex size-8 items-center justify-center rounded-full bg-primary-600 text-white shadow-md group-hover:bg-primary-500"
           >
-            ⤢
+            <Icon name="expand" size={16} />
           </span>
         </button>
       )}
@@ -169,9 +170,14 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
           <div className="relative min-h-0 flex-1">{map2d}</div>
           <aside className="hud m-2 max-h-[55dvh] space-y-3 overflow-y-auto p-3 sm:p-4 lg:max-h-none lg:w-96 lg:self-end">
             <div className="flex items-center justify-between gap-2">
-              <p className="eyebrow">Objetivos</p>
-              <button type="button" className="btn min-h-9 px-3 text-lg" aria-label="Cerrar" onClick={() => setPicking(false)}>
-                ✕
+              <p className="text-base font-medium text-space-50">Elige tus objetivos</p>
+              <button
+                type="button"
+                className="flex size-10 items-center justify-center rounded-full text-space-200 hover:bg-white/10"
+                aria-label="Cerrar"
+                onClick={() => setPicking(false)}
+              >
+                <Icon name="close" />
               </button>
             </div>
             <ul className="space-y-1.5">

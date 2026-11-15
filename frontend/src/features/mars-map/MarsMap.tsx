@@ -44,7 +44,7 @@ interface Props {
   pin?: { position: Position; content: ReactNode } | null;
 }
 
-const FAILED_COLOR = '#fc3d21';
+const FAILED_COLOR = '#d93025';
 const failedStyle = new Style({ stroke: new Stroke({ color: FAILED_COLOR, width: 3, lineDash: [10, 6] }) });
 // Un tramo no viable se dibuja en rojo, sea cual sea su color de tramo
 const legStyle = (color: string, status: RouteStatus) =>
@@ -55,43 +55,47 @@ const legStyle = (color: string, status: RouteStatus) =>
       lineDash: status === 'viable' ? undefined : status === 'not_viable' ? [2, 6] : [8, 6],
     }),
   });
+// Etiquetas del mapa: Google Sans, texto claro con halo oscuro (legible sobre la ortofoto)
+const LABEL_FONT = "500 12px 'Google Sans Flex', 'Google Sans', Roboto, sans-serif";
+const HALO = new Stroke({ color: 'rgba(0,0,0,0.75)', width: 3 });
+
 const pendingBaseStyle = new Style({
   image: new Circle({ radius: 10, fill: new Fill({ color: 'rgba(255,255,255,0.15)' }), stroke: new Stroke({ color: '#fff', width: 2, lineDash: [4, 3] }) }),
   text: new Text({
-    text: 'NUEVA BASE',
+    text: 'Nueva base',
     offsetY: -18,
-    font: 'bold 11px monospace',
+    font: LABEL_FONT,
     fill: new Fill({ color: '#fff' }),
-    stroke: new Stroke({ color: '#000', width: 3 }),
+    stroke: HALO,
   }),
 });
 const hereStyle = new Style({
   zIndex: 10, // siempre encima de base y objetivos (OL pinta en orden de creación)
-  image: new Circle({ radius: 9, fill: new Fill({ color: '#06b6d4' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
+  image: new Circle({ radius: 9, fill: new Fill({ color: '#1a73e8' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
   text: new Text({
-    text: 'TÚ',
+    text: 'Tú',
     offsetY: 20, // debajo del punto: arriba van las etiquetas de base y objetivos
-    font: 'bold 12px monospace',
-    fill: new Fill({ color: '#67e8f9' }),
-    stroke: new Stroke({ color: '#000', width: 3 }),
+    font: LABEL_FONT,
+    fill: new Fill({ color: '#fff' }),
+    stroke: HALO,
   }),
 });
 
 const boundsStyle = new Style({
-  stroke: new Stroke({ color: '#5182d8', width: 1, lineDash: [6, 6] }),
+  stroke: new Stroke({ color: 'rgba(255,255,255,0.55)', width: 1, lineDash: [6, 6] }),
 });
 
 // exclusión = rojo (no se cruza); precaución = ámbar punteado. Texto además de color.
 const hazardStyle = (kind: Hazard['kind'], label: string) => {
-  const color = kind === 'exclusion' ? '252,61,33' : '245,158,11';
+  const color = kind === 'exclusion' ? '217,48,37' : '249,171,0';
   return new Style({
     fill: new Fill({ color: `rgba(${color},0.22)` }),
     stroke: new Stroke({ color: `rgb(${color})`, width: 2, lineDash: kind === 'exclusion' ? undefined : [6, 4] }),
     text: new Text({
-      text: kind === 'exclusion' ? `⛔ ${label}` : `⚠ ${label}`,
-      font: 'bold 11px monospace',
-      fill: new Fill({ color: `rgb(${color})` }),
-      stroke: new Stroke({ color: '#000', width: 3 }),
+      text: label,
+      font: LABEL_FONT,
+      fill: new Fill({ color: '#fff' }),
+      stroke: new Stroke({ color: `rgba(${color},0.95)`, width: 4 }),
       overflow: true,
     }),
   });
@@ -102,18 +106,18 @@ const unknownZoneStyle = new Style({
   fill: new Fill({ color: 'rgba(148,163,184,0.18)' }),
   stroke: new Stroke({ color: '#94a3b8', width: 1.5, lineDash: [2, 6] }),
   text: new Text({
-    text: '? Terreno de calidad desconocida',
-    font: 'bold 11px monospace',
-    fill: new Fill({ color: '#cbd5e1' }),
-    stroke: new Stroke({ color: '#000', width: 3 }),
+    text: 'Terreno sin datos',
+    font: LABEL_FONT,
+    fill: new Fill({ color: '#fff' }),
+    stroke: HALO,
     overflow: true,
   }),
 });
 
 const ROUTE_COLOR: Record<RouteStatus, string> = {
-  viable: '#22c55e',
-  not_viable: '#fc3d21',
-  unknown: '#f59e0b',
+  viable: '#1e8e3e',
+  not_viable: '#d93025',
+  unknown: '#f9ab00',
 };
 
 const routeStyle = (status: RouteStatus) =>
@@ -130,14 +134,14 @@ const pointStyle = (label: string, color: string) =>
     image: new Circle({
       radius: 7,
       fill: new Fill({ color }),
-      stroke: new Stroke({ color: '#000', width: 2 }),
+      stroke: new Stroke({ color: '#fff', width: 2 }),
     }),
     text: new Text({
       text: label,
       offsetY: -16,
-      font: '12px monospace',
+      font: LABEL_FONT,
       fill: new Fill({ color: '#fff' }),
-      stroke: new Stroke({ color: '#000', width: 3 }),
+      stroke: HALO,
     }),
   });
 
@@ -291,9 +295,9 @@ export default function MarsMap({
 
     markers.current?.clear();
     markers.current?.addFeatures([
-      ...(basePosition ? point(basePosition, lettered('base', 'BASE'), '#ffffff') : []),
+      ...(basePosition ? point(basePosition, lettered('base', 'Base'), '#ffffff') : []),
       ...objectives.flatMap((o) =>
-        point(o.position, lettered(o.objective_id, o.title), selectedObjectiveIds.includes(o.objective_id) ? '#22c55e' : '#9aabcb'),
+        point(o.position, lettered(o.objective_id, o.title.split(' — ')[0]), selectedObjectiveIds.includes(o.objective_id) ? '#1a73e8' : '#9aa0a6'),
       ),
       ...me,
       ...next,

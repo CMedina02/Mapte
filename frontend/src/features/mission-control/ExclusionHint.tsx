@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { Mission, MissionPlanRequest, Objective, Position } from '../../shared/types/contracts';
+import { fmtDuration } from '../../shared/format';
 import type { ExcludedObjective } from '../../shared/mission';
 import { excludedPaths, relaxedConstraints, useExcludedRoute } from '../../shared/useExcludedRoute';
 
@@ -34,36 +35,37 @@ export default function ExclusionHint({
   }, [legs]);
 
   const box = (children: React.ReactNode) => (
-    <div className="mt-1.5 space-y-0.5 border-t border-alert-800 pt-1.5 text-alert-200">{children}</div>
+    <div className="mt-3 space-y-1 border-t border-alert-800 pt-3 text-alert-200">{children}</div>
   );
 
-  if (reason.includes('consumo')) return box(<p>Indica el tiempo de actividad de cada objetivo.</p>);
+  if (reason.includes('consumo')) return box(<p>Indica cuánto tiempo se trabajará en cada objetivo.</p>);
   if (!needsRoutes) return null;
-  if (legs === null) return box(<p className="opacity-80">Calculando…</p>);
-  if (legs === 'error') return box(<p className="opacity-80">Sin enlace.</p>);
+  if (legs === null) return box(<p className="opacity-80">Calculando qué haría falta…</p>);
+  if (legs === 'error') return box(<p className="opacity-80">Sin conexión para calcularlo.</p>);
   if (legs.out.status === 'not_viable' || legs.back.status === 'not_viable') {
-    return box(<p>Sin ruta posible{slopeFailed ? ` ni con pendiente ${constraints.max_slope_deg}°` : ''}.</p>);
+    return box(<p>No hay camino posible{slopeFailed ? `, ni con pendientes de ${constraints.max_slope_deg}°` : ''}.</p>);
   }
 
-  const legend = <p className="opacity-80">En rojo en el mapa: la ruta que haría falta.</p>;
+  const legend = <p className="opacity-80">En el mapa, en rojo, el camino que tomaría.</p>;
   if (slopeFailed) {
     const slope = Math.max(legs.out.max_slope_deg ?? 0, legs.back.max_slope_deg ?? 0);
     return box(
       <>
         <p>
-          Pendiente máx. ≥ <span className="font-mono">{Math.ceil(slope)}°</span> (ahora {request.constraints.max_slope_deg}°)
+          Haría falta permitir pendientes de <span className="font-medium">{Math.ceil(slope)}°</span> (ahora{' '}
+          {request.constraints.max_slope_deg}°).
         </p>
         {legend}
       </>,
     );
   }
-  if (unknownFailed) return box(<><p>Desactiva «Evitar zonas sin datos».</p>{legend}</>);
+  if (unknownFailed) return box(<><p>Haría falta permitir terreno sin datos.</p>{legend}</>);
 
   // Recursos: lo ya planificado + la ruta que falta + actividad, contra el O₂ disponible
   const walked = mission.legs.filter((l) => l.end_label !== 'base').map((l) => l.metrics.duration_min);
   const act = [...mission.objective_ids, excluded.objective_id].map((id) => request.activity_durations_min?.[id] ?? 0);
   const parts = [...walked, legs.out.duration_min, legs.back.duration_min];
-  if (parts.some((d) => d === null)) return box(<p className="opacity-80">Duración desconocida.</p>);
+  if (parts.some((d) => d === null)) return box(<p className="opacity-80">No se conoce la duración del camino.</p>);
   const actTotal = act.reduce((a, x) => a + x, 0);
   const need = (parts as number[]).reduce((a, x) => a + x, 0) + actTotal; // caminata + actividad, sin reserva
   const { oxygen_available_min: o2, return_reserve_min: reserve } = request.resources;
@@ -72,21 +74,13 @@ export default function ExclusionHint({
 
   return box(
     <>
-      <p className="font-bold">Para incluirlo:</p>
-      <ul className="list-disc pl-4">
+      <p className="font-medium">Para incluirlo haría falta:</p>
+      <ul className="list-disc space-y-0.5 pl-5">
         <li>
-          O₂ ≥ <span className="font-mono">{Math.ceil(need + reserve)} min</span> (hay {o2})
+          {fmtDuration(Math.ceil(need + reserve))} de oxígeno (hay {fmtDuration(o2)})
         </li>
-        {o2 - need > 0 && (
-          <li>
-            o reserva ≤ <span className="font-mono">{Math.floor(o2 - need)} min</span> (ahora {reserve})
-          </li>
-        )}
-        {perObj >= 0 && (
-          <li>
-            o actividad ≤ <span className="font-mono">{perObj} min</span>/objetivo
-          </li>
-        )}
+        {o2 - need > 0 && <li>o una reserva de {Math.floor(o2 - need)} min como máximo (ahora {reserve} min)</li>}
+        {perObj >= 0 && <li>o {perObj} min de trabajo por objetivo como máximo</li>}
       </ul>
       {legend}
     </>,

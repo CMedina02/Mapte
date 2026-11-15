@@ -110,7 +110,7 @@ export async function sendQueue(
     if (err) return err;
     setQueue((q) => q.slice(1));
   }
-  return 'Cambios sincronizados ✓';
+  return 'Cambios enviados';
 }
 
 // Última posición conocida del astronauta: el visor la muestra aunque no haya misión asignada

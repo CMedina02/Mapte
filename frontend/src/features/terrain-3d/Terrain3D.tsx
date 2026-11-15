@@ -260,10 +260,10 @@ function Marker({ position, label, color, emphasis = false }: { position: Vec3; 
       </mesh>
       <Html position={[0, height + 22, 0]} center zIndexRange={[15, 0]} style={{ pointerEvents: 'none' }}>
         <span
-          className="block rounded px-2 py-0.5 text-xs font-bold whitespace-nowrap text-white"
-          style={{ background: 'rgba(5,10,26,.85)', border: `1px solid ${color}` }}
+          className="flex items-center gap-1.5 rounded-full bg-[#1f1f1f]/90 px-3 py-1 text-xs font-medium whitespace-nowrap text-white shadow-md"
         >
-          {label}
+          <span className="size-2 rounded-full" style={{ background: color }} />
+          {label === 'BASE' ? 'Base' : label.split(' — ')[0]}
         </span>
       </Html>
     </group>
@@ -273,15 +273,18 @@ function Marker({ position, label, color, emphasis = false }: { position: Vec3; 
 function HazardOutline({ hazard, frame }: { hazard: Hazard; frame: Frame }) {
   const points = [...hazard.polygon, hazard.polygon[0]].map((p) => frame.placePoint({ ...p, z_m: undefined }));
   const exclusion = hazard.kind === 'exclusion';
-  const color = exclusion ? '#fc3d21' : '#f59e0b';
+  const color = exclusion ? '#d93025' : '#f9ab00';
   const c = points.slice(0, -1).reduce<Vec3>((a, p) => [a[0] + p[0], a[1] + p[1], a[2] + p[2]], [0, 0, 0]);
   const n = points.length - 1;
   return (
     <>
       <Line points={points} color={color} lineWidth={2.5} dashed={!exclusion} dashSize={30} gapSize={18} />
       <Html position={[c[0] / n, c[1] / n + 25, c[2] / n]} center zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
-        <span className="text-[11px] font-bold whitespace-nowrap" style={{ color, textShadow: '0 0 4px #000, 0 0 2px #000' }}>
-          {exclusion ? '⛔' : '⚠'} {hazard.risk_factor}
+        <span
+          className="rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-white shadow"
+          style={{ background: color }}
+        >
+          {hazard.risk_factor}
         </span>
       </Html>
     </>
@@ -351,20 +354,20 @@ function AstronautMarker({ position }: { position: Vec3 }) {
     <group position={position}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[16, 22, 48]} />
-        <meshBasicMaterial color="#5182d8" transparent opacity={0.9} side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#4285f4" transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>
       <Html center zIndexRange={[16, 0]} style={{ pointerEvents: 'none' }}>
         <svg width="56" height="64" viewBox="0 0 56 64" aria-label="Tu posición">
           <defs>
             <linearGradient id="gps-beam" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="#82a5e5" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#82a5e5" stopOpacity="0" />
+              <stop offset="0%" stopColor="#8ab4f8" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#8ab4f8" stopOpacity="0" />
             </linearGradient>
           </defs>
           <path d="M28 40 L10 4 Q28 -4 46 4 Z" fill="url(#gps-beam)" />
-          <circle cx="28" cy="40" r="13" fill="#2c63c4" fillOpacity="0.35" className="motion-safe:animate-ping" style={{ transformOrigin: '28px 40px' }} />
-          <circle cx="28" cy="40" r="8" fill="#2c63c4" stroke="#ffffff" strokeWidth="3" />
-          <text x="28" y="62" textAnchor="middle" className="fill-white text-[10px] font-bold">TÚ</text>
+          <circle cx="28" cy="40" r="13" fill="#1a73e8" fillOpacity="0.35" className="motion-safe:animate-ping" style={{ transformOrigin: '28px 40px' }} />
+          <circle cx="28" cy="40" r="8" fill="#1a73e8" stroke="#ffffff" strokeWidth="3" />
+          <text x="28" y="62" textAnchor="middle" className="fill-white text-[11px] font-medium">Tú</text>
         </svg>
       </Html>
     </group>

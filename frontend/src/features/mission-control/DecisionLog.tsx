@@ -10,11 +10,11 @@ export default function DecisionLog({ mission }: { mission: Mission; objectives?
   return (
     <section className="space-y-2 text-sm">
       <h2 className="eyebrow">Bitácora</h2>
-      <ol className="space-y-2">
+      <ol className="card space-y-0 p-0">
         {entries.map((d, i) => (
-          <li key={i} className="border-l-2 border-primary-600 pl-2">
-            <span className="text-[11px] text-space-400">{eventText(d.event_type)}</span>
-            <p className="text-xs">{d.message}</p>
+          <li key={i} className={`px-4 py-3 ${i ? 'border-t border-space-800' : ''}`}>
+            <span className="text-xs font-medium text-primary-600">{eventText(d.event_type)}</span>
+            <p className="text-space-200">{d.message}</p>
           </li>
         ))}
       </ol>

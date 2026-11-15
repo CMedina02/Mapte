@@ -20,28 +20,32 @@ export default function App() {
   // Cambios hechos desde el visor (hallazgos, avance) llegan al panel sin recargar
   usePackageUpdates((pkg) => setMission((m) => (m?.mission_id === pkg.mission.mission_id && isNewerMission(m, pkg.mission) ? pkg.mission : m)));
 
-  // Pestaña activa: subrayado rojo NASA, como la navegación de un sitio de misión
+  // Pestañas estilo Material: texto azul y barra inferior redondeada en la activa
   const tab = (v: View, label: string, disabled = false) => (
     <button
       type="button"
       disabled={disabled}
       aria-current={view === v ? 'page' : undefined}
       onClick={() => setView(v)}
-      className={`min-h-11 border-b-2 px-3 text-sm font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-        view === v ? 'border-alert-500 text-white' : 'border-transparent text-space-300 enabled:hover:text-white'
+      className={`relative flex min-h-14 items-center px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        view === v ? 'text-primary-600' : 'text-space-400 enabled:hover:text-space-100'
       }`}
     >
       {label}
+      {view === v && <span className="absolute inset-x-3 bottom-0 h-[3px] rounded-t-full bg-primary-600" />}
     </button>
   );
 
   return (
-    <div className="flex h-dvh flex-col border-t-4 border-alert-500">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-space-800 bg-space-950/80 px-3 backdrop-blur sm:px-4">
-        <p className="py-3 text-sm font-bold tracking-[0.2em] text-white uppercase">Mapte</p>
-        <nav className="flex gap-1 self-stretch" aria-label="Vistas">
-          {tab('control', 'Mission Control')}
-          {tab('explorer', 'Explorer', !mission)}
+    <div className="flex h-dvh flex-col bg-space-950 text-space-100">
+      <header className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-space-800 bg-space-900 px-4 sm:px-6">
+        <p className="flex items-center gap-2 text-[22px] font-medium tracking-tight text-space-50">
+          <span className="size-3 rounded-full bg-primary-600" aria-hidden />
+          Mapte
+        </p>
+        <nav className="flex self-stretch" aria-label="Vistas">
+          {tab('control', 'Control de misión')}
+          {tab('explorer', 'Explorador', !mission)}
         </nav>
         <div className="ml-auto py-2">
           <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
