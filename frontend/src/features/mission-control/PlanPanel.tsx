@@ -118,7 +118,7 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
           <Icon name="expandMore" className="text-space-400 transition-transform group-open:rotate-180" />
         </summary>
         <div className="space-y-5 border-t border-space-800 px-4 pt-4 pb-5">
-          <Slider label="Oxígeno disponible" value={oxygen} min={120} max={600} step={15} display={hours(oxygen)} onChange={setOxygen} />
+          <Slider label="Oxígeno disponible" value={oxygen} min={120} max={1200} step={15} display={hours(oxygen)} onChange={setOxygen} />
           <Slider label="Reserva para volver" value={reserve} min={0} max={120} step={5} display={`${reserve} min`} onChange={setReserve} />
           <Slider label="Tiempo en cada objetivo" value={activityMin} min={0} max={120} step={5} display={`${activityMin} min`} onChange={setActivityMin} />
           <Slider label="Pendiente máxima" value={maxSlope} min={5} max={35} step={1} display={`${maxSlope}°`} onChange={setMaxSlope} />
