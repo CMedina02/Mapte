@@ -3,13 +3,14 @@
 from dataclasses import dataclass
 from heapq import heappop, heappush
 from itertools import count
-from math import atan2, degrees, hypot, inf
+from math import atan2, degrees, hypot, inf, radians, tan
 
 from app.modules.missions.routing.models import (
     InvalidRouteEndpointError,
     PlannedRoute,
     RouteNotFoundError,
     RoutePlanningConstraints,
+    RouteSearchLimitError,
     RouteWaypoint,
 )
 from app.modules.missions.terrain import (
@@ -19,6 +20,7 @@ from app.modules.missions.terrain import (
     RoutingTerrainSample,
     TraversalStatus,
 )
+from app.modules.missions.terrain.hazards import GRID_BLOCKED, GRID_UNKNOWN
 
 _NEIGHBOR_OFFSETS = (
     (-1, 0),
@@ -30,6 +32,14 @@ _NEIGHBOR_OFFSETS = (
     (1, -1),
     (1, 1),
 )
+
+# Tope de celdas expandidas: una ruta de 7 km expande ~10^5; sin tope, una búsqueda imposible
+# recorre toda la zona alcanzable (millones de celdas, minutos). Al alcanzarlo, el resultado
+# queda "sin confirmar" (ROUTE_SEARCH_LIMIT_REACHED), nunca "no viable".
+# ponytail: tope fijo; hacerlo configurable si cambia el tamaño de la rejilla
+MAX_EXPANDED_NODES = 1_500_000
+# Margen relativo para decidir la pendiente sin trigonometría; dentro del margen se usa atan2 exacto
+_SLOPE_EPS = 1e-9
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,46 +69,144 @@ class AStarRoutePlanner:
         if start_cell == end_cell:
             return self._build_result((start_cell,), 1, constraints)
 
+        indices, expanded_nodes = self._search(start_cell, end_cell, constraints)
+        width = self._terrain.width
+        cells = tuple(GridCell(index // width, index % width) for index in indices)
+        return self._build_result(cells, expanded_nodes, constraints)
+
+    def _search(
+        self,
+        start_cell: GridCell,
+        end_cell: GridCell,
+        constraints: RoutePlanningConstraints,
+    ) -> tuple[list[int], int]:
+        """A* sobre la rejilla precalculada con índices planos (sin objetos por celda).
+
+        Mismo costo, mismas restricciones y mismo desempate (prioridad, orden de llegada) que la
+        evaluación por celda de _evaluate_step, que sigue validando la ruta final en _build_result.
+        La heurística suma al octil el ascenso neto mínimo hasta el destino: es admisible y
+        consistente (todo camino sube al menos el desnivel neto y cada paso cobra su ascenso), así
+        que la ruta sigue siendo la de menor costo, pero se exploran muchas menos celdas.
+        """
+        grid = self._terrain.routing_grid()
+        width, height = grid.width, grid.height
+        elevations = grid.elevations
+        status = grid.status
+        multipliers = grid.multipliers
+        avoid_unknown = constraints.avoid_unknown
+        ascent_factor = constraints.ascent_cost_factor
+        max_slope = constraints.max_slope_deg
+        tan_slope = tan(radians(max_slope))
+        px = self._terrain.pixel_size_x_m
+        py = self._terrain.pixel_size_y_m
+        diagonal = hypot(px, py)
+
+        # (desplazamiento plano, fila, columna, distancia, desnivel máximo, es diagonal)
+        neighbors = []
+        for dr, dc in _NEIGHBOR_OFFSETS:
+            distance = hypot(dc * px, dr * py)
+            neighbors.append(
+                (dr * width + dc, dr, dc, distance, tan_slope * distance, bool(dr and dc))
+            )
+        max_dz_x = tan_slope * px  # lado de una diagonal en la misma fila
+        max_dz_y = tan_slope * py  # lado de una diagonal en la misma columna
+
+        def too_steep(dz: float, max_dz: float, distance: float) -> bool:
+            dz = abs(dz)
+            if dz <= max_dz * (1 - _SLOPE_EPS):
+                return False
+            if dz > max_dz * (1 + _SLOPE_EPS):
+                return True
+            return degrees(atan2(dz, distance)) > max_slope  # caso límite: la regla exacta
+
+        def blocked(index: int) -> bool:
+            value = status[index]
+            return value == GRID_BLOCKED or (avoid_unknown and value == GRID_UNKNOWN)
+
+        start = start_cell.row * width + start_cell.column
+        goal = end_cell.row * width + end_cell.column
+        goal_row, goal_col = end_cell.row, end_cell.column
+        goal_z = elevations[goal]
+
+        def heuristic(index: int, row: int, col: int) -> float:
+            rows = abs(goal_row - row)
+            cols = abs(goal_col - col)
+            diagonal_steps = rows if rows < cols else cols
+            straight = abs(rows - cols) * (py if rows > cols else px)
+            climb = goal_z - elevations[index]
+            return (
+                diagonal_steps * diagonal + straight + (climb * ascent_factor if climb > 0 else 0.0)
+            )
+
         sequence = count()
-        frontier: list[tuple[float, int, GridCell]] = []
-        heappush(frontier, (self._heuristic(start_cell, end_cell), next(sequence), start_cell))
-        came_from: dict[GridCell, GridCell] = {}
-        costs: dict[GridCell, float] = {start_cell: 0.0}
-        closed: set[GridCell] = set()
+        frontier: list[tuple[float, int, int]] = [
+            (heuristic(start, start_cell.row, start_cell.column), next(sequence), start)
+        ]
+        costs: dict[int, float] = {start: 0.0}
+        came_from: dict[int, int] = {}
+        closed = bytearray(width * height)
         expanded_nodes = 0
+        push, pop = heappush, heappop
 
         while frontier:
-            _, _, current = heappop(frontier)
-            if current in closed:
+            _, _, current = pop(frontier)
+            if closed[current]:
                 continue
-            closed.add(current)
+            closed[current] = 1
             expanded_nodes += 1
-            if current == end_cell:
-                cells = self._reconstruct(came_from, start_cell, end_cell)
-                return self._build_result(cells, expanded_nodes, constraints)
-
-            current_sample = self._terrain.sample_cell(current)
-            for neighbor in self._neighbors(current):
-                if neighbor in closed:
-                    continue
-                neighbor_sample = self._terrain.sample_cell(neighbor)
-                step = self._evaluate_step(
-                    current,
-                    current_sample,
-                    neighbor,
-                    neighbor_sample,
-                    constraints,
+            if current == goal:
+                path = [goal]
+                while path[-1] != start:
+                    path.append(came_from[path[-1]])
+                path.reverse()
+                return path, expanded_nodes
+            if expanded_nodes >= MAX_EXPANDED_NODES:
+                raise RouteSearchLimitError(
+                    "Se alcanzó el límite de búsqueda antes de confirmar el resultado",
+                    expanded_nodes=expanded_nodes,
                 )
-                if step is None:
-                    continue
 
-                new_cost = costs[current] + step.operational_cost
+            row, col = divmod(current, width)
+            z = elevations[current]
+            base_cost = costs[current]
+            current_multiplier = multipliers[current]
+            for offset, dr, dc, distance, max_dz, is_diagonal in neighbors:
+                nrow = row + dr
+                ncol = col + dc
+                if nrow < 0 or nrow >= height or ncol < 0 or ncol >= width:
+                    continue
+                neighbor = current + offset
+                if closed[neighbor] or blocked(neighbor):
+                    continue
+                dz = elevations[neighbor] - z
+                if too_steep(dz, max_dz, distance):
+                    continue
+                if is_diagonal:
+                    side_h = current + dc  # misma fila, columna vecina
+                    side_v = current + dr * width  # misma columna, fila vecina
+                    if blocked(side_h) or blocked(side_v):
+                        continue
+                    if too_steep(elevations[side_h] - z, max_dz_x, px):
+                        continue
+                    if too_steep(elevations[side_v] - z, max_dz_y, py):
+                        continue
+                neighbor_multiplier = multipliers[neighbor]
+                multiplier = (
+                    neighbor_multiplier
+                    if neighbor_multiplier > current_multiplier
+                    else current_multiplier
+                )
+                new_cost = (
+                    base_cost + distance * multiplier + (dz * ascent_factor if dz > 0 else 0.0)
+                )
                 if new_cost >= costs.get(neighbor, inf):
                     continue
                 costs[neighbor] = new_cost
                 came_from[neighbor] = current
-                priority = new_cost + self._heuristic(neighbor, end_cell)
-                heappush(frontier, (priority, next(sequence), neighbor))
+                push(
+                    frontier,
+                    (new_cost + heuristic(neighbor, nrow, ncol), next(sequence), neighbor),
+                )
 
         raise RouteNotFoundError("No existe una ruta que cumpla las restricciones solicitadas")
 
@@ -116,13 +224,6 @@ class AStarRoutePlanner:
             reason = ", ".join(sample.restriction_codes) or sample.traversal_status
             raise InvalidRouteEndpointError(f"El {label} no es transitable: {reason}")
         return cell
-
-    def _neighbors(self, cell: GridCell):
-        for row_offset, column_offset in _NEIGHBOR_OFFSETS:
-            row = cell.row + row_offset
-            column = cell.column + column_offset
-            if 0 <= row < self._terrain.height and 0 <= column < self._terrain.width:
-                yield GridCell(row, column)
 
     def _evaluate_step(
         self,
@@ -201,33 +302,6 @@ class AStarRoutePlanner:
         return not (
             constraints.avoid_unknown and sample.traversal_status is TraversalStatus.UNKNOWN
         )
-
-    def _heuristic(self, current: GridCell, goal: GridCell) -> float:
-        row_steps = abs(goal.row - current.row)
-        column_steps = abs(goal.column - current.column)
-        diagonal_steps = min(row_steps, column_steps)
-        straight_distance = abs(row_steps - column_steps) * (
-            self._terrain.pixel_size_y_m
-            if row_steps > column_steps
-            else self._terrain.pixel_size_x_m
-        )
-        diagonal_distance = diagonal_steps * hypot(
-            self._terrain.pixel_size_x_m,
-            self._terrain.pixel_size_y_m,
-        )
-        return diagonal_distance + straight_distance
-
-    @staticmethod
-    def _reconstruct(
-        came_from: dict[GridCell, GridCell], start: GridCell, end: GridCell
-    ) -> tuple[GridCell, ...]:
-        path = [end]
-        current = end
-        while current != start:
-            current = came_from[current]
-            path.append(current)
-        path.reverse()
-        return tuple(path)
 
     def _build_result(
         self,

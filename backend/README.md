@@ -15,6 +15,17 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
+Con varios clientes a la vez (panel de control y visores), usar varios procesos para que una ruta
+larga no bloquee las demás peticiones (`--workers` no admite `--reload`). Cada proceso precalcula al
+arrancar la rejilla del buscador de rutas (~1 s y ~32 MB por región):
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 3
+```
+
+Para medir el buscador de rutas con el terreno real: `.\.venv\Scripts\python.exe scripts/bench_routes.py`
+(`--all` agrega una ruta imposible).
+
 El arranque carga una sola vez el terreno de `MAPTE_ACTIVE_REGION`. Si la variable no
 está definida y existe exactamente una región publicada en `data/regions`, se utiliza
 esa región. `MAPTE_DATA_ROOT` permite indicar otra carpeta de regiones.
