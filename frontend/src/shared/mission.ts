@@ -128,7 +128,9 @@ export const shortReason = (r: string) =>
           ? 'cruza terreno sin datos'
           : r.includes('consumo')
             ? 'consumo sin confirmar'
-            : r;
+            : r.includes('límite')
+              ? 'cálculo sin terminar'
+              : r;
 
 // Punto dentro de polígono (ray casting) en el marco local
 function insidePolygon(p: Position, poly: Position[]): boolean {

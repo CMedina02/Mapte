@@ -15,6 +15,7 @@ const WARNING_TEXT: Record<string, string> = {
   STATIC_HAZARDS_NOT_AVAILABLE: 'Las zonas de riesgo del catálogo aún no se usan en el cálculo de esta ruta.',
   ENDPOINTS_SNAPPED_TO_TERRAIN_CELL_CENTERS: 'Inicio y destino ajustados al centro de la celda del terreno (≤ 2 m).',
   NO_ROUTE_WITHIN_CONSTRAINTS: 'Sin ruta dentro de las restricciones.',
+  ROUTE_SEARCH_LIMIT_REACHED: 'Búsqueda sin terminar: ruta sin confirmar.',
   ROUTE_CROSSES_UNKNOWN_TERRAIN: 'Cruza terreno sin datos.',
   SEGMENT_NOT_VIABLE: 'Un tramo no es viable.',
   SEGMENT_STATUS_UNKNOWN: 'Tramos sin confirmar.',

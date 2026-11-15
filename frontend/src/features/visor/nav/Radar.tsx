@@ -11,12 +11,13 @@ interface Props {
   heading: number | null; // hacia dónde mira el astronauta (null = desconocido)
   imagery?: { url: string; bounds: Bounds } | null; // ortofoto de fondo (minimapa)
   unknownZones?: QualityZone[]; // DEM de calidad desconocida (gris)
+  failedPaths?: Position[][]; // ruta que haría falta para un objetivo fuera del plan (rojo)
 }
 
 const R = 92; // radio útil en unidades del viewBox (200 × 200)
 const RANGES = [250, 500, 1000, 2000, 3000, 5000, 10000];
 
-export default function Radar({ center, target, base, path, hazards, heading, imagery, unknownZones = [] }: Props) {
+export default function Radar({ center, target, base, path, hazards, heading, imagery, unknownZones = [], failedPaths = [] }: Props) {
   // Alcance: el menor anillo "redondo" que contiene el siguiente destino con margen (o toda la ruta si no hay destino).
   // Lo que queda fuera del alcance se recorta en el borde del radar.
   const dist = (p: Position) => Math.hypot(p.x_m - center.x_m, p.y_m - center.y_m);
@@ -106,6 +107,9 @@ export default function Radar({ center, target, base, path, hazards, heading, im
           />
         ))}
 
+        {failedPaths.map((fp, i) => (
+          <polyline key={i} points={pts(fp)} fill="none" stroke="#fc3d21" strokeWidth="2" strokeDasharray="5 3" strokeLinejoin="round" />
+        ))}
         {path.length > 1 && (
           <polyline points={pts(path)} fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinejoin="round" />
         )}

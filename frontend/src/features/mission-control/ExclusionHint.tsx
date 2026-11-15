@@ -1,15 +1,10 @@
-import { useEffect, useState } from 'react';
-import type { Constraints, Mission, MissionPlanRequest, Objective, Position, RouteResult } from '../../shared/types/contracts';
-import { marsApi } from '../../shared/api/client';
+import { useEffect } from 'react';
+import type { Mission, MissionPlanRequest, Objective, Position } from '../../shared/types/contracts';
 import type { ExcludedObjective } from '../../shared/mission';
+import { excludedPaths, relaxedConstraints, useExcludedRoute } from '../../shared/useExcludedRoute';
 
-type Legs = { out: RouteResult; back: RouteResult } | 'error' | null;
-
-// Pendiente máxima con la que se busca la ruta alternativa cuando la del plan no fue viable
-const RELAXED_SLOPE = 35;
-
-// Qué haría falta para incluir el objetivo excluido. Se pide al backend la ruta que falta (última parada →
-// objetivo → base), relajando solo el parámetro que falló, y se devuelve para dibujarla en rojo en el mapa.
+// Qué haría falta para incluir el objetivo excluido. El backend calcula la ruta que falta (última parada →
+// objetivo → base) aflojando solo el parámetro que falló; se devuelve para dibujarla en rojo en el mapa.
 export default function ExclusionHint({
   mission,
   excluded,
@@ -27,34 +22,16 @@ export default function ExclusionHint({
   const slopeFailed = reason.includes('no es viable');
   const unknownFailed = reason.includes('desconocido');
   const needsRoutes = !!objective && !reason.includes('consumo');
-  const [legs, setLegs] = useState<Legs>(null);
-
-  const lastStop = mission.objective_ids.at(-1);
-  const from = (lastStop && mission.legs.find((l) => l.end_label === lastStop)?.path.at(-1)) || mission.start_position;
-  const constraints: Constraints = slopeFailed
-    ? { ...request.constraints, max_slope_deg: Math.max(request.constraints.max_slope_deg, RELAXED_SLOPE), avoid_unknown: false }
-    : unknownFailed
-      ? { ...request.constraints, avoid_unknown: false }
-      : request.constraints;
-
+  const constraints = relaxedConstraints(reason, request.constraints);
+  const legs = useExcludedRoute(
+    mission,
+    objective ? { objective_id: objective.objective_id, position: objective.position, reason } : null,
+    request.constraints,
+  );
   useEffect(() => {
-    if (!needsRoutes || !objective) return;
-    let alive = true;
-    const route = (start: Position, end: Position) =>
-      marsApi.computeRoute({ region_id: mission.region_id, start, end, constraints });
-    Promise.all([route(from, objective.position), route(objective.position, mission.return_position)])
-      .then(([out, back]) => {
-        if (!alive) return;
-        setLegs({ out, back });
-        onPaths([out.path, back.path].filter((p) => p.length > 1));
-      })
-      .catch(() => alive && setLegs('error'));
-    return () => {
-      alive = false;
-    };
-    // una sola consulta por misión y objetivo
+    if (legs) onPaths(excludedPaths(legs));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mission.mission_id, excluded.objective_id, needsRoutes]);
+  }, [legs]);
 
   const box = (children: React.ReactNode) => (
     <div className="mt-1.5 space-y-0.5 border-t border-alert-800 pt-1.5 text-alert-200">{children}</div>
