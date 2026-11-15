@@ -17,14 +17,14 @@ import CompassTape from './nav/CompassTape';
 import ElevationProfile from './nav/ElevationProfile';
 import { bearingDeg, norm360, samePlace } from './nav/geo';
 import { compassAvailable, useDeviceCompass } from './nav/useDeviceCompass';
+import { activeMissionLeg, missionRoute } from '../../shared/mission';
 
 // three.js pesa: se descarga solo al abrir la vista 3D
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
 
 type Phase = 'select' | 'confirm' | 'navigate' | 'arrived';
 
-// ponytail: restricciones estándar de EVA para calcular tramos desde el visor (el plan no viaja en Mission);
-// cuando exista el endpoint de navegación, el backend usará las restricciones de la misión.
+// Respaldo para paquetes históricos sin restricciones; los paquetes actuales llevan las del plan.
 const EVA_CONSTRAINTS: Constraints = { max_slope_deg: 15, speed_m_per_min: 20, avoid_unknown: true };
 
 const bigButton = 'btn min-h-14 px-5 text-base sm:text-lg';
@@ -91,10 +91,10 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const [queue, setQueue] = usePendingQueue();
   const online = useOnline();
 
-  // Dónde está el astronauta: inicio de la ruta restante que entrega el backend.
-  // ponytail: cuando el backend mande mission.current_position, usarla aquí.
-  const here = mission.route.path[0] ?? mission.base_position;
-  const hereLabel = samePlace(here, mission.base_position)
+  const plannedRoute = missionRoute(mission);
+  const activeLeg = activeMissionLeg(mission);
+  const here = mission.current_position ?? activeLeg?.path[0] ?? mission.start_position;
+  const hereLabel = samePlace(here, mission.return_position)
     ? 'Base'
     : (pkg.objectives.find((o) => samePlace(here, o.position))?.title ?? 'En ruta');
 
@@ -111,7 +111,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     })),
     // Regresar a base solo tiene sentido si no estás ya en ella (o si no queda nada pendiente)
     ...(hereLabel !== 'Base' || pending.length === 0
-      ? [{ id: 'base', title: 'Regresar a base', position: mission.base_position, recommended: pending.length === 0 }]
+      ? [{ id: 'base', title: 'Regresar a base', position: mission.return_position, recommended: pending.length === 0 }]
       : []),
   ];
   const defaultId = pending.some((o) => o.objective_id === mission.next_objective_id) ? mission.next_objective_id! : 'base';
@@ -125,7 +125,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     if (preview !== undefined) return;
     let alive = true;
     marsApi
-      .computeRoute({ region_id: mission.region_id, start: here, end: dest.position, constraints: EVA_CONSTRAINTS })
+      .computeRoute({ region_id: mission.region_id, start: here, end: dest.position, constraints: mission.routing_constraints ?? EVA_CONSTRAINTS })
       .then((r) => alive && setPreviews((p) => ({ ...p, [previewKey]: r })))
       .catch(() => alive && setPreviews((p) => ({ ...p, [previewKey]: 'error' })));
     return () => {
@@ -135,7 +135,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
 
   const isPlanNext = dest.id === mission.next_objective_id;
   const legRoute: RouteResult | null =
-    preview && preview !== 'error' ? preview : preview === 'error' && isPlanNext ? mission.route : null;
+    preview && preview !== 'error' ? preview : preview === 'error' && isPlanNext ? plannedRoute : null;
   const routeNote =
     preview === undefined
       ? 'Calculando ruta…'
@@ -144,7 +144,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
           ? 'Sin enlace: se muestra la ruta del plan.'
           : 'Sin enlace: este destino no tiene ruta calculada. Elige el destino del plan o espera al enlace.'
         : null;
-  const shownRoute = legRoute ?? mission.route;
+  const shownRoute = legRoute ?? plannedRoute;
   const bearing = bearingDeg(here, dest.position);
 
   const { oxygen_available_min: o2, return_reserve_min: reserve } = mission.resources;
@@ -195,7 +195,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       manifest={manifest}
       objectives={pkg.objectives}
       selectedObjectiveIds={objective ? [objective.objective_id] : []}
-      basePosition={mission.base_position}
+      basePosition={mission.return_position}
       layerState={layerState}
       route={shownRoute}
       focus={[here, dest.position, ...shownRoute.path]}
@@ -224,7 +224,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                 manifest={manifest}
                 terrain={manifest.terrain}
                 route={shownRoute}
-                base={mission.base_position}
+                base={mission.return_position}
                 objectives={pkg.objectives}
                 targetId={objective?.objective_id ?? null}
                 here={here}
@@ -304,7 +304,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
             <Radar
               center={here}
               target={dest.position}
-              base={mission.base_position}
+              base={mission.return_position}
               path={shownRoute.path}
               hazards={manifest.hazards ?? []}
               heading={view3d ? heading : null}

@@ -14,7 +14,7 @@ export async function mutateMission(
             try {
                 const latest = await marsApi.getMission(missionId);
                 onMission(latest);
-                return `La misión cambió en el servidor (ahora v${latest.version}). Estado recargado: revisa y vuelve a enviar.`;
+                return `La misión cambió en el servidor (ahora v${latest.mission_version}). Estado recargado: revisa y vuelve a enviar.`;
             } catch {
                 return 'Conflicto de versión y no se pudo recargar la misión.';
             }

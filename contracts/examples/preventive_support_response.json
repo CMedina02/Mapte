@@ -1,0 +1,26 @@
+{
+  "mission_id": "mission-gale-demo-001",
+  "mission_version": 1,
+  "terrain_version": "gale-ms-v1",
+  "options": [
+    {
+      "option_id": "direct-return",
+      "kind": "direct_return",
+      "support_position": {"x_m": 5000, "y_m": 5000, "frame_id": "MARS_GALE_MS_LOCAL_V1"},
+      "crew_route": {
+        "route_id": "route-direct", "region_id": "mc23-gale-mount-sharp", "frame_id": "MARS_GALE_MS_LOCAL_V1", "terrain_version": "gale-ms-v1",
+        "path": [{"x_m": 4200, "y_m": 5800, "frame_id": "MARS_GALE_MS_LOCAL_V1"}, {"x_m": 5000, "y_m": 5000, "frame_id": "MARS_GALE_MS_LOCAL_V1"}],
+        "distance_m": 1131.4, "duration_min": 56.6, "ascent_m": 30, "max_slope_deg": 10, "status": "viable", "unknown_segments": 0,
+        "warnings": ["STATIC_HAZARDS_NOT_AVAILABLE"], "evidence_ids": ["ev-usgs-gale-dem"], "assumptions": ["Modelo simulado"]
+      },
+      "vehicle_route": null,
+      "intervention_time_min": 56.6,
+      "total_distance_m": 1131.4,
+      "resource_evaluation": {"status": "viable", "known_consumption_min": 56.6, "projected_consumption_min": 56.6, "oxygen_remaining_min": 83.4, "reserve_margin_min": 23.4, "reason_codes": [], "warnings": [], "assumptions": ["Consumo simulado"]}
+    }
+  ],
+  "recommended_option_id": "direct-return",
+  "warnings": ["SIMULATED_DECISION_SUPPORT_ONLY"],
+  "assumptions": ["No se modelan fallas del vehículo ni transferencia de consumibles"],
+  "generated_at": "2026-11-14T12:00:00Z"
+}

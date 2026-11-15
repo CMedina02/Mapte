@@ -86,6 +86,8 @@ export function simulateRoute(stops: Position[], c: Constraints, res?: Resources
   return {
     route_id: `route-sim-${Date.now()}`,
     region_id: REGION_ID,
+    frame_id: FRAME_ID,
+    terrain_version: REAL_TERRAIN.source_terrain_version,
     path,
     distance_m: Math.round(distance),
     duration_min: r1(duration),

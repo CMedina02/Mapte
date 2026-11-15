@@ -17,12 +17,12 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
   const online = useOnline();
   const [synced, setSynced] = useState(() => {
     const m = loadPackage()?.mission;
-    return m ? { id: m.mission_id, version: m.version } : null;
+    return m ? { id: m.mission_id, version: m.mission_version } : null;
   });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const missionId = mission?.mission_id ?? null;
-  const version = mission?.version ?? null;
+  const version = mission?.mission_version ?? null;
   const hasPkg = !!mission && synced?.id === mission.mission_id;
   const upToDate = hasPkg && synced?.version === version;
 
@@ -52,7 +52,7 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
           return;
         }
         savePackage(pkg);
-        setSynced({ id: pkg.mission.mission_id, version: pkg.mission.version });
+        setSynced({ id: pkg.mission.mission_id, version: pkg.mission.mission_version });
         setMsg(null);
       })
       .catch((e: unknown) => alive && setMsg(`Visor sin actualizar: ${e instanceof Error ? e.message : String(e)}`));

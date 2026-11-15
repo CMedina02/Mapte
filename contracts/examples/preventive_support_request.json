@@ -1,0 +1,8 @@
+{
+  "mission_version": 1,
+  "crew_position": {"x_m": 4200, "y_m": 5800, "frame_id": "MARS_GALE_MS_LOCAL_V1"},
+  "support_vehicle_position": {"x_m": 5000, "y_m": 5000, "frame_id": "MARS_GALE_MS_LOCAL_V1"},
+  "oxygen_available_min": 140,
+  "vehicle_speed_m_per_min": 40,
+  "max_candidates": 7
+}

@@ -27,7 +27,7 @@ export default function FindingPad({ mission, objective, onMission, onQueue, onD
     setBusy(true);
     const err = await mutateMission(
       mission.mission_id,
-      () => marsApi.submitObservation(mission.mission_id, { ...obs, mission_version: mission.version }),
+      () => marsApi.submitObservation(mission.mission_id, { ...obs, mission_version: mission.mission_version }),
       onMission,
     );
     setBusy(false);

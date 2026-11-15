@@ -7,6 +7,7 @@ import { initialLayerState, type LayerState } from '../mars-map/mapUtils';
 import PlanPanel from './PlanPanel';
 import DecisionLog from './DecisionLog';
 import RouteBanner from './RouteBanner';
+import { missionRoute } from '../../shared/mission';
 
 interface Props {
   mission: Mission | null;
@@ -101,15 +102,15 @@ export default function MissionControl({ mission, onMission }: Props) {
             objectives={objectives}
             focus={[...objectives.map((o) => o.position), ...(manifest.hazards ?? []).flatMap((h) => h.polygon)]}
             selectedObjectiveIds={selectedIds}
-            basePosition={mission?.base_position ?? base}
+            basePosition={mission?.return_position ?? base}
             layerState={layerState}
             onMapClick={setBase}
-            route={mission?.route ?? null}
+            route={mission ? missionRoute(mission) : null}
           />
         ) : (
           <p className="p-6">Cargando región…</p>
         )}
-        {mission && <RouteBanner route={mission.route} />}
+        {mission && <RouteBanner route={missionRoute(mission)} />}
       </main>
     </div>
   );

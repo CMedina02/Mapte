@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
 import type { ContingencyType, Mission } from '../../shared/types/contracts';
+import { missionRoute } from '../../shared/mission';
 import { useOnline } from '../offline-sync/offline';
 
 const TYPES: Record<ContingencyType, string> = {
@@ -23,7 +24,7 @@ export default function ContingencyPanel({ mission, onMission }: Props) {
 
     const online = useOnline();
 
-    const path = mission.route.path;
+    const path = missionRoute(mission).path;
     const idx = Math.min(pointIdx, path.length - 1);
     const position = path[idx];
     const invalid = !position || Number.isNaN(oxygen) || oxygen < 0;
@@ -36,7 +37,7 @@ export default function ContingencyPanel({ mission, onMission }: Props) {
                 mission.mission_id,
                 () =>
                     marsApi.triggerContingency(mission.mission_id, {
-                        mission_version: mission.version,
+                        mission_version: mission.mission_version,
                         contingency_type: type,
                         position,
                         oxygen_available_min: oxygen,

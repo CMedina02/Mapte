@@ -18,6 +18,7 @@ from app.modules.missions.api.router import (
     get_mission,
     get_mission_events,
     get_mission_package,
+    optimize_preventive_support,
     plan_mission,
     report_hazard_and_replan,
     submit_observation,
@@ -30,6 +31,7 @@ from app.modules.missions.api.schemas import (
     MissionReplanRequestSchema,
     MissionStatusRequestSchema,
     ObservationRequestSchema,
+    PreventiveSupportRequestSchema,
 )
 from app.modules.missions.observations import decide_observation
 from app.modules.missions.persistence import (
@@ -48,6 +50,7 @@ from app.modules.missions.planning import (
     objective_repository_from_catalogs,
 )
 from app.modules.missions.planning.persistence import mission_create_from_plan
+from app.modules.missions.preventive_support import sample_route_positions
 from app.modules.missions.resources import SupportResources
 from app.modules.missions.routing import RoutePlanningConstraints
 from app.modules.missions.terrain import GridCell, LocalPosition
@@ -249,7 +252,7 @@ def test_plan_and_get_api_functions_share_persisted_mission(tmp_path) -> None:
     )
 
     assert replanned.mission_version == 2
-    assert replanned.hazard_reports[0]["hazard_code"] == "LOOSE_ROCKS"
+    assert replanned.hazard_reports[0].hazard_code == "LOOSE_ROCKS"
     original = repository.get(created.mission_id, version=1)
     assert original is not None
     assert original.snapshot["hazard_reports"] == []
@@ -283,7 +286,7 @@ def test_plan_and_get_api_functions_share_persisted_mission(tmp_path) -> None:
     )
 
     assert second_replan.mission_version == 3
-    assert [item["hazard_code"] for item in second_replan.hazard_reports] == [
+    assert [item.hazard_code for item in second_replan.hazard_reports] == [
         "LOOSE_ROCKS",
         "SOFT_SOIL",
     ]
@@ -348,10 +351,10 @@ def test_plan_and_get_api_functions_share_persisted_mission(tmp_path) -> None:
         event for event in events.events if event.event_type == "contingency_evaluated"
     )
     assert contingency_event.payload["hazard_report_ids"] == [
-        item["report_id"] for item in second_replan.hazard_reports
+        item.report_id for item in second_replan.hazard_reports
     ]
     assert aborted.lifecycle_status == "aborted"
-    assert aborted.legs[-1]["end_label"] == "base"
+    assert aborted.legs[-1].end_label == "base"
     assert events.events[-1].event_type == "mission_aborted"
 
 
@@ -494,9 +497,9 @@ def test_oxygen_contingency_reuses_mission_safety_model_and_is_audited(tmp_path)
     assert contingency.next_objective_id is None
     assert contingency.routing_constraints is not None
     assert contingency.routing_constraints.speed_m_per_min == 10
-    assert contingency.resources["oxygen_available_min"] == 31
-    assert contingency.resource_evaluation["reserve_margin_min"] < 0
-    assert [(leg["start_label"], leg["end_label"]) for leg in contingency.legs] == [
+    assert contingency.resources.oxygen_available_min == 31
+    assert contingency.resource_evaluation.reserve_margin_min < 0
+    assert [(leg.start_label, leg.end_label) for leg in contingency.legs] == [
         ("current_position", "base")
     ]
     assert "OXYGEN_REDUCED" in contingency.alerts
@@ -559,9 +562,7 @@ def test_contingency_rejects_unmodeled_or_invalid_scenarios_without_new_version(
         assert repository.get(created.mission_id).current_version == 2
 
     legacy_snapshot = {
-        key: value
-        for key, value in created.snapshot.items()
-        if key != "routing_constraints"
+        key: value for key, value in created.snapshot.items() if key != "routing_constraints"
     }
     repository.update(
         created.mission_id,
@@ -589,9 +590,7 @@ def test_contingency_rejects_unmodeled_or_invalid_scenarios_without_new_version(
     assert repository.get(created.mission_id).current_version == 3
 
 
-def test_mission_package_is_self_contained_and_reports_sync_assets(
-    tmp_path, monkeypatch
-) -> None:
+def test_mission_package_is_self_contained_and_reports_sync_assets(tmp_path, monkeypatch) -> None:
     write_region(tmp_path)
     catalog_store = load_catalog(tmp_path, [REGION_ID])
     science = load_science_catalog(REGION_ID)
@@ -668,7 +667,7 @@ def test_mission_package_is_self_contained_and_reports_sync_assets(
     assert updated_package.sync.mission_version == returned.mission_version
     assert updated_package.mission.completed_objective_ids == [selected_id]
     assert updated_package.mission.next_objective_id is None
-    assert updated_package.mission.legs[-1]["end_label"] == "base"
+    assert updated_package.mission.legs[-1].end_label == "base"
 
     texture_path = catalog_store.get(REGION_ID).asset_files()["imagery.png"]
     texture_path.unlink()
@@ -694,3 +693,93 @@ def test_observation_rules_cover_every_real_catalog_finding() -> None:
         assert objective is not None
         for finding_code in source.possible_findings:
             assert decide_observation(objective, finding_code).finding_code == finding_code
+
+
+def test_preventive_support_compares_reproducible_options_without_mutating_mission(
+    tmp_path,
+) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "preventive.sqlite3")
+    stored = repository.create(mission_create_from_plan(planner().plan(request())))
+    payload = PreventiveSupportRequestSchema.model_validate(
+        {
+            "mission_version": 1,
+            "crew_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+            "support_vehicle_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+            "oxygen_available_min": 100,
+            "vehicle_speed_m_per_min": 20,
+            "max_candidates": 3,
+        }
+    )
+
+    first = optimize_preventive_support(
+        stored.mission_id, payload, terrain_repository(), repository
+    )
+    second = optimize_preventive_support(
+        stored.mission_id, payload, terrain_repository(), repository
+    )
+
+    assert first.mission_version == 1
+    assert first.options[0].kind == "direct_return"
+    assert first.options[0].vehicle_route is None
+    assert 2 <= len(first.options) <= 4
+    assert [item.support_position for item in first.options] == [
+        item.support_position for item in second.options
+    ]
+    assert first.recommended_option_id in {item.option_id for item in first.options}
+    assert all(item.intervention_time_min is not None for item in first.options)
+    assert repository.get(stored.mission_id).current_version == 1
+    assert repository.list_events(stored.mission_id)[-1].event_type == "plan_created"
+
+
+def test_preventive_support_sampling_preserves_the_return_half_of_a_closed_route() -> None:
+    outbound = position(1, 0)
+    destination = position(0, 2)
+    return_midpoint = position(1, 2)
+
+    sampled = sample_route_positions(
+        (outbound, destination, return_midpoint, outbound), max_candidates=2
+    )
+
+    assert sampled == (destination, return_midpoint)
+
+
+def test_preventive_support_refuses_false_recommendation_and_invalid_scenario(tmp_path) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "preventive-invalid.sqlite3")
+    stored = repository.create(mission_create_from_plan(planner().plan(request())))
+    base = {
+        "mission_version": 1,
+        "crew_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+        "support_vehicle_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+        "vehicle_speed_m_per_min": 20,
+        "max_candidates": 3,
+    }
+
+    exhausted = optimize_preventive_support(
+        stored.mission_id,
+        PreventiveSupportRequestSchema.model_validate({**base, "oxygen_available_min": 0}),
+        terrain_repository(),
+        repository,
+    )
+    assert exhausted.recommended_option_id is None
+    assert "NO_OPTION_PRESERVES_MODELED_RESERVE" in exhausted.warnings
+    assert all(item.resource_evaluation.status == "not_viable" for item in exhausted.options)
+
+    with pytest.raises(HTTPException) as increased_support:
+        optimize_preventive_support(
+            stored.mission_id,
+            PreventiveSupportRequestSchema.model_validate({**base, "oxygen_available_min": 201}),
+            terrain_repository(),
+            repository,
+        )
+    assert increased_support.value.status_code == 400
+
+    with pytest.raises(HTTPException) as stale:
+        optimize_preventive_support(
+            stored.mission_id,
+            PreventiveSupportRequestSchema.model_validate(
+                {**base, "mission_version": 2, "oxygen_available_min": 100}
+            ),
+            terrain_repository(),
+            repository,
+        )
+    assert stale.value.status_code == 409

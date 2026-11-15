@@ -26,6 +26,8 @@ from app.modules.missions.api.schemas import (
     MissionReplanRequestSchema,
     MissionStatusRequestSchema,
     ObservationRequestSchema,
+    PreventiveSupportRequestSchema,
+    PreventiveSupportResponseSchema,
     RouteRequestSchema,
     RouteResultSchema,
 )
@@ -45,12 +47,16 @@ from app.modules.missions.planning import (
     ObjectiveRepository,
 )
 from app.modules.missions.planning.persistence import mission_create_from_plan
+from app.modules.missions.preventive_support import (
+    PreventiveSupportOptimizer,
+    sample_route_positions,
+)
 from app.modules.missions.resources import SupportResources
 from app.modules.missions.routing import (
     InvalidRouteEndpointError,
     RoutePlanningConstraints,
 )
-from app.modules.missions.routing.service import RouteApplicationService
+from app.modules.missions.routing.service import RouteApplicationService, RouteComputation
 from app.modules.missions.terrain import (
     EnvironmentalHazardReport,
     FrameMismatchError,
@@ -111,35 +117,7 @@ def compute_route(payload: RouteRequestSchema, repository: TerrainDep) -> RouteR
     except (FrameMismatchError, InvalidRouteEndpointError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    route = result.route
-    return RouteResultSchema(
-        route_id=result.route_id,
-        region_id=result.region_id,
-        frame_id=result.frame_id,
-        terrain_version=result.terrain_version,
-        path=(
-            [
-                {
-                    "x_m": point.x_m,
-                    "y_m": point.y_m,
-                    "z_m": point.z_m,
-                    "frame_id": point.frame_id,
-                }
-                for point in route.path
-            ]
-            if route is not None
-            else []
-        ),
-        distance_m=route.distance_m if route is not None else None,
-        duration_min=route.duration_min if route is not None else None,
-        ascent_m=route.ascent_m if route is not None else None,
-        max_slope_deg=route.max_slope_deg if route is not None else None,
-        status=result.status.value,
-        unknown_segments=result.unknown_segments,
-        warnings=list(result.warnings),
-        evidence_ids=list(result.evidence_ids),
-        assumptions=list(result.assumptions),
-    )
+    return _route_response(result)
 
 
 @missions_router.post("/missions/plan", response_model=MissionPlanResponseSchema, status_code=201)
@@ -573,9 +551,7 @@ def evaluate_contingency(
         "alerts": list(dict.fromkeys(["OXYGEN_REDUCED", *draft.snapshot["alerts"]])),
         "decision_log": [*stored.snapshot["decision_log"], decision_entry],
         "evidence_ids": list(
-            dict.fromkeys(
-                [*stored.snapshot["evidence_ids"], *draft.snapshot["evidence_ids"]]
-            )
+            dict.fromkeys([*stored.snapshot["evidence_ids"], *draft.snapshot["evidence_ids"]])
         ),
     }
     updated = _update_mission(
@@ -591,6 +567,99 @@ def evaluate_contingency(
         ),
     )
     return _mission_response(updated)
+
+
+@missions_router.post(
+    "/missions/{mission_id}/preventive-support-options",
+    response_model=PreventiveSupportResponseSchema,
+)
+def optimize_preventive_support(
+    mission_id: str,
+    payload: PreventiveSupportRequestSchema,
+    terrain: TerrainDep,
+    missions: MissionDep,
+) -> PreventiveSupportResponseSchema:
+    stored = _current_mission(missions, mission_id, payload.mission_version)
+    if stored.lifecycle_status not in {
+        MissionLifecycleStatus.DRAFT,
+        MissionLifecycleStatus.ACTIVE,
+    }:
+        raise HTTPException(status_code=409, detail="La misión ya está cerrada.")
+    constraints_data = stored.snapshot.get("routing_constraints")
+    if constraints_data is None:
+        raise HTTPException(
+            status_code=409,
+            detail="La misión no conserva las restricciones necesarias para comparar opciones.",
+        )
+    current_oxygen = stored.snapshot["resources"]["oxygen_available_min"]
+    if payload.oxygen_available_min > current_oxygen:
+        raise HTTPException(
+            status_code=400,
+            detail="oxygen_available_min no puede superar el soporte registrado en la misión.",
+        )
+    path_points = tuple(
+        _local_position_data(point) for leg in stored.snapshot["legs"] for point in leg["path"]
+    )
+    candidates = sample_route_positions(path_points, payload.max_candidates)
+    if not candidates:
+        raise HTTPException(
+            status_code=409, detail="La misión no tiene una ruta vigente evaluable."
+        )
+    reports = tuple(_hazard_from_data(item) for item in stored.snapshot.get("hazard_reports", []))
+    optimizer = PreventiveSupportOptimizer(terrain, reports)
+    try:
+        analysis = optimizer.analyze(
+            region_id=stored.region_id,
+            crew_position=_local_position(payload.crew_position),
+            return_position=_local_position_data(stored.snapshot["return_position"]),
+            vehicle_position=_local_position(payload.support_vehicle_position),
+            candidate_positions=candidates,
+            crew_constraints=_routing_constraints_from_data(constraints_data),
+            vehicle_speed_m_per_min=payload.vehicle_speed_m_per_min,
+            resources=SupportResources(
+                payload.oxygen_available_min,
+                stored.snapshot["resources"]["return_reserve_min"],
+            ),
+        )
+    except (ValueError, FrameMismatchError, InvalidRouteEndpointError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return PreventiveSupportResponseSchema.model_validate(
+        {
+            "mission_id": stored.mission_id,
+            "mission_version": stored.current_version,
+            "terrain_version": stored.terrain_version,
+            "options": [
+                {
+                    "option_id": option.option_id,
+                    "kind": option.kind.value,
+                    "support_position": _position_data(option.support_position),
+                    "crew_route": _route_response(option.crew_route),
+                    "vehicle_route": (
+                        _route_response(option.vehicle_route) if option.vehicle_route else None
+                    ),
+                    "intervention_time_min": option.intervention_time_min,
+                    "total_distance_m": option.total_distance_m,
+                    "resource_evaluation": {
+                        "status": option.resource_evaluation.status.value,
+                        "known_consumption_min": option.resource_evaluation.known_consumption_min,
+                        "projected_consumption_min": (
+                            option.resource_evaluation.projected_consumption_min
+                        ),
+                        "oxygen_remaining_min": option.resource_evaluation.oxygen_remaining_min,
+                        "reserve_margin_min": option.resource_evaluation.reserve_margin_min,
+                        "reason_codes": list(option.resource_evaluation.reason_codes),
+                        "warnings": list(option.resource_evaluation.warnings),
+                        "assumptions": list(option.resource_evaluation.assumptions),
+                    },
+                }
+                for option in analysis.options
+            ],
+            "recommended_option_id": analysis.recommended_option_id,
+            "warnings": list(analysis.warnings),
+            "assumptions": list(analysis.assumptions),
+            "generated_at": datetime.now(UTC),
+        }
+    )
 
 
 @missions_router.post(
@@ -781,6 +850,38 @@ def _mission_response(stored: StoredMission) -> MissionPlanResponseSchema:
             "viability_status": stored.viability_status.value,
             **stored.snapshot,
         }
+    )
+
+
+def _route_response(result: RouteComputation) -> RouteResultSchema:
+    route = result.route
+    return RouteResultSchema(
+        route_id=result.route_id,
+        region_id=result.region_id,
+        frame_id=result.frame_id,
+        terrain_version=result.terrain_version,
+        path=(
+            [
+                {
+                    "x_m": point.x_m,
+                    "y_m": point.y_m,
+                    "z_m": point.z_m,
+                    "frame_id": point.frame_id,
+                }
+                for point in route.path
+            ]
+            if route is not None
+            else []
+        ),
+        distance_m=route.distance_m if route is not None else None,
+        duration_min=route.duration_min if route is not None else None,
+        ascent_m=route.ascent_m if route is not None else None,
+        max_slope_deg=route.max_slope_deg if route is not None else None,
+        status=result.status.value,
+        unknown_segments=result.unknown_segments,
+        warnings=list(result.warnings),
+        evidence_ids=list(result.evidence_ids),
+        assumptions=list(result.assumptions),
     )
 
 

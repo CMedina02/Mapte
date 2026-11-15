@@ -1,6 +1,7 @@
 import type {
   Constraints, ContingencyRequest, Health, Mission, MissionPackage, MissionPlanRequest, ObservationRequest,
-  Position, RegionManifest, RouteRequest, Terrain,
+  MissionLeg, Position, PreventiveSupportRequest, PreventiveSupportResponse, RegionManifest, RouteRequest,
+  RouteResult, RouteStatus, Terrain,
 } from '../types/contracts';
 import { MarsApiError } from './errors';
 import {
@@ -128,7 +129,7 @@ function manifest(): RegionManifest {
 
 // Guarda misión y restricciones en localStorage para que el panel (/) y el visor (/visor),
 // en pestañas distintas, vean la misma misión como con el backend real.
-const STORE_KEY = 'mars.mock.state.v3'; // v3: marco real del backend (las misiones v2 usaban otro frame_id)
+const STORE_KEY = 'mars.mock.state.v4'; // v4: contrato versionado de misión alineado con el backend
 
 interface MockState {
   mission: Mission | null;
@@ -158,6 +159,79 @@ const notFound = () => new MarsApiError(404, 'MISSION_NOT_FOUND', 'No hay misió
 const positionOf = (id: string): Position | undefined => OBJECTIVES.find((o) => o.objective_id === id)?.position;
 const titleOf = (id: string) => OBJECTIVES.find((o) => o.objective_id === id)?.title ?? id;
 
+function missionLegs(points: Position[], labels: string[], constraints: Constraints, resources: Mission['resources']): MissionLeg[] {
+  return points.slice(0, -1).map((start, index) => {
+    const route = simulateRoute([start, points[index + 1]], constraints, resources);
+    return {
+      leg_id: `leg-${index + 1}`,
+      route_id: route.route_id,
+      start_label: labels[index],
+      end_label: labels[index + 1],
+      status: route.status,
+      path: route.path,
+      metrics: {
+        distance_m: route.distance_m,
+        duration_min: route.duration_min,
+        ascent_m: route.ascent_m,
+        max_slope_deg: route.max_slope_deg,
+        unknown_segments: route.unknown_segments,
+      },
+      warnings: route.warnings,
+      assumptions: route.assumptions,
+    };
+  });
+}
+
+function evaluateLegs(legs: MissionLeg[], resources: Mission['resources'], activityMin = 0): Mission['resource_evaluation'] {
+  const status: RouteStatus = legs.some((leg) => leg.status === 'not_viable')
+    ? 'not_viable'
+    : legs.some((leg) => leg.status === 'unknown')
+      ? 'unknown'
+      : 'viable';
+  const durations = legs.map((leg) => leg.metrics.duration_min);
+  const projected = durations.some((value) => value === null)
+    ? null
+    : durations.reduce<number>((total, value) => total + (value ?? 0), activityMin);
+  const remaining = projected === null ? null : resources.oxygen_available_min - projected;
+  const margin = remaining === null ? null : remaining - resources.return_reserve_min;
+  const finalStatus: RouteStatus = projected === null ? 'unknown' : margin !== null && margin < 0 ? 'not_viable' : status;
+  return {
+    status: finalStatus,
+    known_consumption_min: durations.reduce<number>((total, value) => total + (value ?? 0), activityMin),
+    projected_consumption_min: projected,
+    oxygen_remaining_min: remaining,
+    reserve_margin_min: margin,
+    reason_codes: finalStatus === 'not_viable' ? ['INSUFFICIENT_RETURN_RESERVE'] : finalStatus === 'unknown' ? ['DURATION_UNKNOWN'] : [],
+    warnings: [...new Set(legs.flatMap((leg) => leg.warnings))],
+    assumptions: [...new Set(legs.flatMap((leg) => leg.assumptions))],
+  };
+}
+
+function supportEvaluation(routes: RouteResult[], interventionMin: number | null, resources: Mission['resources']): Mission['resource_evaluation'] {
+  const routeStatus: RouteStatus = routes.some((route) => route.status === 'not_viable')
+    ? 'not_viable'
+    : routes.some((route) => route.status === 'unknown')
+      ? 'unknown'
+      : 'viable';
+  const remaining = interventionMin === null ? null : resources.oxygen_available_min - interventionMin;
+  const margin = remaining === null ? null : remaining - resources.return_reserve_min;
+  const status: RouteStatus = routeStatus === 'not_viable' || (margin !== null && margin < 0)
+    ? 'not_viable'
+    : interventionMin === null || routeStatus === 'unknown'
+      ? 'unknown'
+      : 'viable';
+  return {
+    status,
+    known_consumption_min: interventionMin ?? 0,
+    projected_consumption_min: interventionMin,
+    oxygen_remaining_min: remaining,
+    reserve_margin_min: margin,
+    reason_codes: status === 'not_viable' ? ['INSUFFICIENT_RETURN_RESERVE'] : status === 'unknown' ? ['DURATION_UNKNOWN'] : [],
+    warnings: [],
+    assumptions: ['El consumo hasta la intervención usa el mayor tiempo de llegada.'],
+  };
+}
+
 // Pruebas FE-06: VITE_MOCK_FAIL=409 o 503 en .env.local hace fallar la PRIMERA mutación (se reinicia al recargar).
 let pendingFail = import.meta.env.VITE_MOCK_FAIL as string | undefined;
 
@@ -171,14 +245,14 @@ function advance(update: (m: Mission, c: Constraints) => Mission, clientVersion:
   }
   if (pendingFail === '409') {
     pendingFail = undefined;
-    state.mission.version += 1; // otro dispositivo modificó la misión
+    state.mission.mission_version += 1; // otro dispositivo modificó la misión
     save(state);
   }
-  if (clientVersion !== state.mission.version) {
+  if (clientVersion !== state.mission.mission_version) {
     throw new MarsApiError(409, 'VERSION_CONFLICT', 'La misión cambió en el servidor; recarga el estado.');
   }
   const next = update(structuredClone(state.mission), state.constraints);
-  return save({ ...state, mission: { ...next, version: state.mission.version + 1 } });
+  return save({ ...state, mission: { ...next, mission_version: state.mission.mission_version + 1 } });
 }
 
 export const mockApi = {
@@ -195,31 +269,42 @@ export const mockApi = {
 
   plan: (req: MissionPlanRequest) => {
     const stops = req.objective_ids.flatMap((id) => positionOf(id) ?? []);
-    const route = simulateRoute([req.base_position, ...stops, req.base_position], req.constraints, req.resources);
+    const points = [req.base_position, ...stops, req.base_position];
+    const labels = ['base', ...req.objective_ids, 'base'];
+    const legs = missionLegs(points, labels, req.constraints, req.resources);
+    const activityMin = Object.values(req.activity_durations_min ?? {}).reduce((total, value) => total + value, 0);
+    const resourceEvaluation = evaluateLegs(legs, req.resources, activityMin);
     return save({
       constraints: req.constraints,
       mission: {
         mission_id: `mission-sharp-${Date.now().toString(36)}`, // cada plan es una misión nueva (como en el backend)
+        mission_version: 1,
         region_id: req.region_id,
-        version: 1,
-        status: 'planned',
-        base_position: req.base_position,
+        frame_id: req.base_position.frame_id,
+        terrain_version: RT.source_terrain_version,
+        lifecycle_status: 'draft',
+        viability_status: resourceEvaluation.status,
+        start_position: req.base_position,
+        current_position: null,
+        return_position: req.base_position,
         objective_ids: req.objective_ids,
-        route,
-        resources: req.resources,
         completed_objective_ids: [],
         next_objective_id: req.objective_ids[0] ?? null,
-        alerts: route.status === 'not_viable' ? ['Plan no viable: revisa las advertencias de la ruta.'] : [],
+        legs,
+        routing_constraints: req.constraints,
+        resources: req.resources,
+        resource_evaluation: resourceEvaluation,
+        alerts: resourceEvaluation.status === 'not_viable' ? ['MISSION_NOT_VIABLE'] : [],
         decision_log: [
           {
             event_type: 'plan_created',
-            message: `Simulación: base → ${req.objective_ids.map(titleOf).join(' → ')} → base. Ruta ${route.status}.`,
-            evidence_ids: route.evidence_ids,
+            message: `Simulación: base → ${req.objective_ids.map(titleOf).join(' → ')} → base. Ruta ${resourceEvaluation.status}.`,
+            evidence_ids: ['ev-trek'],
             simulated: true,
           },
         ],
         evidence_ids: ['ev-trek'],
-        sample_only: true,
+        hazard_reports: [],
       },
     });
   },
@@ -234,19 +319,20 @@ export const mockApi = {
     advance((m, c) => {
       const completed = [...new Set([...m.completed_objective_ids, req.objective_id])];
       const remaining = m.objective_ids.filter((id) => !completed.includes(id));
-      const here = positionOf(req.objective_id) ?? m.base_position;
-      const route = simulateRoute(
-        [here, ...remaining.flatMap((id) => positionOf(id) ?? []), m.base_position],
-        c,
-        m.resources,
-      );
+      const here = positionOf(req.objective_id) ?? m.return_position;
+      const points = [here, ...remaining.flatMap((id) => positionOf(id) ?? []), m.return_position];
+      const legs = missionLegs(points, [req.objective_id, ...remaining, 'base'], c, m.resources);
+      const resourceEvaluation = evaluateLegs(legs, m.resources);
       return {
         ...m,
-        status: 'in_progress',
+        lifecycle_status: 'active',
+        viability_status: 'unknown',
+        current_position: here,
         completed_objective_ids: completed,
         next_objective_id: remaining[0] ?? null,
-        route,
-        alerts: route.status === 'not_viable' ? ['Ruta restante no viable: consulta al panel de control.'] : [],
+        legs,
+        resource_evaluation: resourceEvaluation,
+        alerts: ['ROUTE_REVALIDATION_REQUIRED'],
         decision_log: [
           ...m.decision_log,
           {
@@ -263,30 +349,80 @@ export const mockApi = {
 
   contingency: (req: ContingencyRequest) =>
     advance((m, c) => {
+      if (req.contingency_type === 'rover_unavailable') {
+        throw new MarsApiError(400, 'UNMODELED_CONTINGENCY', 'El escenario rover_unavailable aún no tiene un modelo operativo válido.');
+      }
       const resources = { ...m.resources, oxygen_available_min: req.oxygen_available_min };
-      const route = simulateRoute([req.position, m.base_position], c, resources);
-      const ok = route.status === 'viable';
+      const legs = missionLegs([req.position, m.return_position], ['current_position', 'base'], c, resources);
+      const resourceEvaluation = evaluateLegs(legs, resources);
+      const ok = resourceEvaluation.status === 'viable';
       return {
         ...m,
-        status: 'contingency',
+        viability_status: resourceEvaluation.status,
+        current_position: req.position,
         resources,
-        route,
+        resource_evaluation: resourceEvaluation,
+        legs,
+        next_objective_id: null,
         alerts: [
+          'OXYGEN_REDUCED',
           ok
-            ? `Contingencia ${req.contingency_type}: retorno a la base viable (${route.duration_min} min, simulado).`
+            ? `Contingencia ${req.contingency_type}: retorno a la base viable (${legs[0].metrics.duration_min} min, simulado).`
             : `Contingencia ${req.contingency_type}: retorno a la base NO viable con los recursos disponibles (simulado).`,
         ],
         decision_log: [
           ...m.decision_log,
           {
             event_type: 'contingency',
-            message: `Simulación: ${req.contingency_type} con ${req.oxygen_available_min} min de O₂. Retorno ${route.status}.`,
-            evidence_ids: route.evidence_ids,
+            message: `Simulación: ${req.contingency_type} con ${req.oxygen_available_min} min de O₂. Retorno ${resourceEvaluation.status}.`,
+            evidence_ids: m.evidence_ids,
             simulated: true,
           },
         ],
       };
     }, req.mission_version),
+
+  preventiveSupport: (req: PreventiveSupportRequest): PreventiveSupportResponse => {
+    const { mission } = loadState();
+    if (!mission) throw notFound();
+    if (req.mission_version !== mission.mission_version) {
+      throw new MarsApiError(409, 'VERSION_CONFLICT', 'La misión cambió en el servidor; recarga el estado.');
+    }
+    const resources = { ...mission.resources, oxygen_available_min: req.oxygen_available_min };
+    const constraints = mission.routing_constraints ?? { max_slope_deg: 15, speed_m_per_min: 20, avoid_unknown: true };
+    const direct = simulateRoute([req.crew_position, mission.return_position], constraints, resources);
+    const vehicle = simulateRoute(
+      [req.support_vehicle_position, req.crew_position],
+      { ...constraints, speed_m_per_min: req.vehicle_speed_m_per_min },
+    );
+    const directTime = direct.duration_min;
+    const rendezvousTime = vehicle.duration_min;
+    const options: PreventiveSupportResponse['options'] = [
+      {
+        option_id: 'direct-return', kind: 'direct_return', support_position: mission.return_position,
+        crew_route: direct, vehicle_route: null, intervention_time_min: directTime,
+        total_distance_m: direct.distance_m, resource_evaluation: supportEvaluation([direct], directTime, resources),
+      },
+      {
+        option_id: 'rendezvous-1', kind: 'rendezvous', support_position: req.crew_position,
+        crew_route: simulateRoute([req.crew_position, req.crew_position], constraints), vehicle_route: vehicle,
+        intervention_time_min: rendezvousTime, total_distance_m: vehicle.distance_m,
+        resource_evaluation: supportEvaluation([vehicle], rendezvousTime, resources),
+      },
+    ];
+    const viable = options.filter((option) => option.resource_evaluation.status !== 'not_viable');
+    viable.sort((a, b) => (a.intervention_time_min ?? Infinity) - (b.intervention_time_min ?? Infinity));
+    return {
+      mission_id: mission.mission_id,
+      mission_version: mission.mission_version,
+      terrain_version: mission.terrain_version,
+      options,
+      recommended_option_id: viable[0]?.option_id ?? null,
+      warnings: viable.length ? ['SIMULATED_DECISION_SUPPORT_ONLY'] : ['SIMULATED_DECISION_SUPPORT_ONLY', 'NO_OPTION_PRESERVES_MODELED_RESERVE'],
+      assumptions: ['Mock reducido; el backend real muestrea puntos sobre la ruta vigente.'],
+      generated_at: new Date().toISOString(),
+    };
+  },
 
   package: (): MissionPackage => {
     const { mission } = loadState();
@@ -301,7 +437,7 @@ export const mockApi = {
       missing_assets: [],
       package_status: 'ready_to_sync',
       sync: {
-        mission_version: mission.version,
+        mission_version: mission.mission_version,
         requires_network: false,
         remote_asset_count: 0,
         missing_asset_count: 0,

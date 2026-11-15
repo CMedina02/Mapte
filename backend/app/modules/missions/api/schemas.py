@@ -68,6 +68,64 @@ class MissionPlanRequestSchema(BaseModel):
     activity_durations_min: dict[str, float] = Field(default_factory=dict)
 
 
+class MissionRouteMetricsSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    distance_m: float | None = Field(default=None, ge=0)
+    duration_min: float | None = Field(default=None, ge=0)
+    ascent_m: float | None = Field(default=None, ge=0)
+    max_slope_deg: float | None = Field(default=None, ge=0)
+    unknown_segments: int = Field(ge=0)
+
+
+class MissionLegSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    leg_id: str = Field(min_length=1)
+    route_id: str = Field(min_length=1)
+    start_label: str = Field(min_length=1)
+    end_label: str = Field(min_length=1)
+    status: Literal["viable", "not_viable", "unknown"]
+    path: list[PositionSchema]
+    metrics: MissionRouteMetricsSchema
+    warnings: list[str]
+    assumptions: list[str]
+
+
+class MissionResourceEvaluationSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["viable", "not_viable", "unknown"]
+    known_consumption_min: float = Field(ge=0)
+    projected_consumption_min: float | None = Field(default=None, ge=0)
+    oxygen_remaining_min: float | None = None
+    reserve_margin_min: float | None = None
+    reason_codes: list[str]
+    warnings: list[str]
+    assumptions: list[str]
+
+
+class MissionDecisionSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_type: str = Field(min_length=1)
+    message: str = Field(min_length=1)
+    evidence_ids: list[str]
+    simulated: bool
+
+
+class MissionHazardReportSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    report_id: str = Field(min_length=1)
+    mission_version: int = Field(ge=1)
+    position: PositionSchema
+    hazard_code: str = Field(min_length=1)
+    effect: Literal["blocked", "unknown", "high_cost"]
+    affected_radius_m: float = Field(ge=0)
+    cost_multiplier: float = Field(ge=1)
+
+
 class MissionPlanResponseSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -84,14 +142,14 @@ class MissionPlanResponseSchema(BaseModel):
     objective_ids: list[str]
     completed_objective_ids: list[str] = Field(default_factory=list)
     next_objective_id: str | None
-    legs: list[dict]
+    legs: list[MissionLegSchema]
     routing_constraints: RouteConstraintsSchema | None = None
-    resources: dict
-    resource_evaluation: dict
+    resources: MissionResourcesSchema
+    resource_evaluation: MissionResourceEvaluationSchema
     alerts: list[str]
-    decision_log: list[dict]
+    decision_log: list[MissionDecisionSchema]
     evidence_ids: list[str]
-    hazard_reports: list[dict] = Field(default_factory=list)
+    hazard_reports: list[MissionHazardReportSchema] = Field(default_factory=list)
 
 
 class HazardReportSchema(BaseModel):
@@ -168,6 +226,43 @@ class ContingencyRequestSchema(BaseModel):
     contingency_type: Literal["oxygen_reduced", "rover_unavailable"]
     position: PositionSchema
     oxygen_available_min: float = Field(ge=0)
+
+
+class PreventiveSupportRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mission_version: int = Field(ge=1)
+    crew_position: PositionSchema
+    support_vehicle_position: PositionSchema
+    oxygen_available_min: float = Field(ge=0)
+    vehicle_speed_m_per_min: float = Field(gt=0)
+    max_candidates: int = Field(default=7, ge=2, le=12)
+
+
+class PreventiveSupportOptionSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    option_id: str = Field(min_length=1)
+    kind: Literal["direct_return", "rendezvous"]
+    support_position: PositionSchema
+    crew_route: RouteResultSchema
+    vehicle_route: RouteResultSchema | None
+    intervention_time_min: float | None = Field(default=None, ge=0)
+    total_distance_m: float | None = Field(default=None, ge=0)
+    resource_evaluation: MissionResourceEvaluationSchema
+
+
+class PreventiveSupportResponseSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mission_id: str = Field(min_length=1)
+    mission_version: int = Field(ge=1)
+    terrain_version: str = Field(min_length=1)
+    options: list[PreventiveSupportOptionSchema]
+    recommended_option_id: str | None
+    warnings: list[str]
+    assumptions: list[str]
+    generated_at: datetime
 
 
 class MissionPackageSyncSchema(BaseModel):

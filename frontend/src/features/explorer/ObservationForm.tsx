@@ -44,7 +44,7 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
       mission.mission_id,
       () =>
         marsApi.submitObservation(mission.mission_id, {
-          mission_version: mission.version,
+          mission_version: mission.mission_version,
           objective_id: objective.objective_id,
           finding_code: finding,
           notes: notes.trim() || undefined,

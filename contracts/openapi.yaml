@@ -1,922 +1,3043 @@
-openapi: 3.0.3
-info:
-  title: Mars Resilience Lab — API interna (contrato propuesto)
-  version: 1.0.0-draft
-  description: Contrato para tres desarrolladores. Los ejemplos demo son sintéticos, no datos NASA ni resultados
-    científicos.
-servers:
-- url: /api/v1
-  description: Mismo origen o proxy de desarrollo
-tags:
-- name: System
-- name: Catalog
-- name: Missions
-paths:
-  /health:
-    get:
-      tags:
-      - System
-      summary: Estado del servicio
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Health'
-        '400': &id001
-          description: Error con estructura consistente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '404': *id001
-        '422': *id001
-        '503': *id001
-  /regions:
-    get:
-      tags:
-      - Catalog
-      summary: Lista de regiones
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RegionsResponse'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-  /regions/{region_id}/manifest:
-    get:
-      tags:
-      - Catalog
-      summary: Capas y referencia geográfica
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RegionManifest'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-      parameters:
-      - name: region_id
-        in: path
-        required: true
-        schema:
-          type: string
-  /regions/{region_id}/objectives:
-    get:
-      tags:
-      - Catalog
-      summary: Objetivos científicos
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ObjectivesResponse'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-      parameters:
-      - name: region_id
-        in: path
-        required: true
-        schema:
-          type: string
-  /regions/{region_id}/photos:
-    get:
-      tags:
-      - Catalog
-      summary: Fotografías asociadas
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PhotosResponse'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-      parameters:
-      - name: region_id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: objective_id
-        in: query
-        required: false
-        schema:
-          type: string
-  /routes/compute:
-    post:
-      tags:
-      - Missions
-      summary: Evaluar una ruta
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RouteResult'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RouteRequest'
-  /missions/plan:
-    post:
-      tags:
-      - Missions
-      summary: Crear un plan de misión
-      responses:
-        '201':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Mission'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MissionPlanRequest'
-  /missions/{mission_id}:
-    get:
-      tags:
-      - Missions
-      summary: Consultar estado de misión
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Mission'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-      parameters:
-      - name: mission_id
-        in: path
-        required: true
-        schema:
-          type: string
-  /missions/{mission_id}/observations:
-    post:
-      tags:
-      - Missions
-      summary: Registrar observación y replanificar
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Mission'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-        '409': *id001
-      parameters:
-      - name: mission_id
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ObservationRequest'
-  /missions/{mission_id}/contingencies:
-    post:
-      tags:
-      - Missions
-      summary: Reevaluar retorno ante escenario
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Mission'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-        '409': *id001
-      parameters:
-      - name: mission_id
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ContingencyRequest'
-  /missions/{mission_id}/package:
-    get:
-      tags:
-      - Missions
-      summary: Descargar paquete offline lógico
-      responses:
-        '200':
-          description: Respuesta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MissionPackage'
-        '400': *id001
-        '404': *id001
-        '422': *id001
-        '503': *id001
-      parameters:
-      - name: mission_id
-        in: path
-        required: true
-        schema:
-          type: string
-components:
-  schemas:
-    Position:
-      type: object
-      required:
-      - x_m
-      - y_m
-      - frame_id
-      properties:
-        x_m:
-          type: number
-        y_m:
-          type: number
-        frame_id:
-          type: string
-          minLength: 1
-    Constraints:
-      type: object
-      required:
-      - max_slope_deg
-      - speed_m_per_min
-      - avoid_unknown
-      properties:
-        max_slope_deg:
-          type: number
-          minimum: 0
-          maximum: 90
-        speed_m_per_min:
-          type: number
-          exclusiveMinimum: 0
-        avoid_unknown:
-          type: boolean
-    Resources:
-      type: object
-      required:
-      - oxygen_available_min
-      - return_reserve_min
-      properties:
-        oxygen_available_min:
-          type: number
-          minimum: 0
-        return_reserve_min:
-          type: number
-          minimum: 0
-    Health:
-      type: object
-      required:
-      - status
-      - api_version
-      properties:
-        status:
-          type: string
-          enum:
-          - ok
-          - degraded
-        api_version:
-          type: string
-    Region:
-      type: object
-      required:
-      - region_id
-      - name
-      - body
-      - description
-      - available
-      properties:
-        region_id:
-          type: string
-        name:
-          type: string
-        body:
-          type: string
-          enum:
-          - Mars
-        description:
-          type: string
-        available:
-          type: boolean
-    RegionsResponse:
-      type: object
-      required:
-      - regions
-      properties:
-        regions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Region'
-    Frame:
-      type: object
-      required:
-      - frame_id
-      - units
-      - origin_east_lon_deg
-      - origin_planetocentric_lat_deg
-      - projection_definition
-      - longitude_direction
-      - latitude_type
-      properties:
-        frame_id:
-          type: string
-        units:
-          type: string
-          enum:
-          - m
-        origin_east_lon_deg:
-          type: number
-        origin_planetocentric_lat_deg:
-          type: number
-        projection_definition:
-          type: string
-        longitude_direction:
-          type: string
-          enum:
-          - east
-          - west
-        latitude_type:
-          type: string
-          enum:
-          - planetocentric
-          - planetographic
-    Bounds:
-      type: object
-      required:
-      - min_x
-      - min_y
-      - max_x
-      - max_y
-      properties:
-        min_x:
-          type: number
-        min_y:
-          type: number
-        max_x:
-          type: number
-        max_y:
-          type: number
-    Evidence:
-      type: object
-      required:
-      - evidence_id
-      - title
-      - mission
-      - instrument
-      - source_url
-      - credit
-      - captured_at
-      - resolution_m
-      - caveats
-      properties:
-        evidence_id:
-          type: string
-        title:
-          type: string
-        mission:
-          type: string
-        instrument:
-          type: string
-        source_url:
-          type: string
-          format: uri
-        credit:
-          type: string
-        captured_at:
-          type: string
-          format: date-time
-          nullable: true
-        resolution_m:
-          type: number
-          nullable: true
-        caveats:
-          type: array
-          items:
-            type: string
-    Layer:
-      type: object
-      required:
-      - layer_id
-      - kind
-      - title
-      - asset_url
-      - opacity_default
-      - resolution_m_per_pixel
-      - evidence_ids
-      - nodata_policy
-      properties:
-        layer_id:
-          type: string
-        kind:
-          type: string
-          enum:
-          - optical
-          - topographic
-          - geologic
-          - thermal
-          - spectral
-          - other
-        title:
-          type: string
-        asset_url:
-          type: string
-        opacity_default:
-          type: number
-          minimum: 0
-          maximum: 1
-        resolution_m_per_pixel:
-          type: number
-          exclusiveMinimum: 0
-        evidence_ids:
-          type: array
-          items:
-            type: string
-        nodata_policy:
-          type: string
-          enum:
-          - unknown
-    RegionManifest:
-      type: object
-      required:
-      - region_id
-      - frame
-      - bounds_local_m
-      - layers
-      - evidence
-      properties:
-        region_id:
-          type: string
-        frame:
-          $ref: '#/components/schemas/Frame'
-        bounds_local_m:
-          $ref: '#/components/schemas/Bounds'
-        layers:
-          type: array
-          items:
-            $ref: '#/components/schemas/Layer'
-        evidence:
-          type: array
-          items:
-            $ref: '#/components/schemas/Evidence'
-        sample_only:
-          type: boolean
-    Objective:
-      type: object
-      required:
-      - objective_id
-      - region_id
-      - title
-      - position
-      - science_question
-      - priority_weight
-      - activities
-      - possible_findings
-      - evidence_ids
-      properties:
-        objective_id:
-          type: string
-        region_id:
-          type: string
-        title:
-          type: string
-        position:
-          $ref: '#/components/schemas/Position'
-        science_question:
-          type: string
-        priority_weight:
-          type: number
-          minimum: 0
-        activities:
-          type: array
-          items:
-            type: string
-        possible_findings:
-          type: array
-          items:
-            type: string
-        evidence_ids:
-          type: array
-          items:
-            type: string
-    ObjectivesResponse:
-      type: object
-      required:
-      - objectives
-      properties:
-        objectives:
-          type: array
-          items:
-            $ref: '#/components/schemas/Objective'
-    Photo:
-      type: object
-      required:
-      - photo_id
-      - objective_id
-      - image_url
-      - camera
-      - sol
-      - captured_at
-      - credit
-      - source_url
-      - location
-      - location_quality
-      - limitations
-      properties:
-        photo_id:
-          type: string
-        objective_id:
-          type: string
-        image_url:
-          type: string
-        camera:
-          type: string
-        sol:
-          type: integer
-          nullable: true
-        captured_at:
-          type: string
-          format: date-time
-          nullable: true
-        credit:
-          type: string
-        source_url:
-          type: string
-          format: uri
-        location:
-          allOf:
-          - $ref: '#/components/schemas/Position'
-          nullable: true
-        location_quality:
-          type: string
-          enum:
-          - verified
-          - approximate
-          - unknown
-        limitations:
-          type: array
-          items:
-            type: string
-    PhotosResponse:
-      type: object
-      required:
-      - photos
-      properties:
-        photos:
-          type: array
-          items:
-            $ref: '#/components/schemas/Photo'
-        sample_only:
-          type: boolean
-    RouteRequest:
-      type: object
-      required:
-      - region_id
-      - start
-      - end
-      - constraints
-      properties:
-        region_id:
-          type: string
-        start:
-          $ref: '#/components/schemas/Position'
-        end:
-          $ref: '#/components/schemas/Position'
-        constraints:
-          $ref: '#/components/schemas/Constraints'
-    RouteResult:
-      type: object
-      required:
-      - route_id
-      - region_id
-      - path
-      - distance_m
-      - duration_min
-      - ascent_m
-      - max_slope_deg
-      - status
-      - unknown_segments
-      - warnings
-      - evidence_ids
-      - assumptions
-      properties:
-        route_id:
-          type: string
-        region_id:
-          type: string
-        path:
-          type: array
-          items:
-            $ref: '#/components/schemas/Position'
-        distance_m:
-          type: number
-          minimum: 0
-        duration_min:
-          type: number
-          minimum: 0
-        ascent_m:
-          type: number
-          minimum: 0
-        max_slope_deg:
-          type: number
-          minimum: 0
-        status:
-          type: string
-          enum:
-          - viable
-          - not_viable
-          - unknown
-        unknown_segments:
-          type: integer
-          minimum: 0
-        warnings:
-          type: array
-          items:
-            type: string
-        evidence_ids:
-          type: array
-          items:
-            type: string
-        assumptions:
-          type: array
-          items:
-            type: string
-        sample_only:
-          type: boolean
-    MissionPlanRequest:
-      type: object
-      required:
-      - region_id
-      - base_position
-      - objective_ids
-      - constraints
-      - resources
-      properties:
-        region_id:
-          type: string
-        base_position:
-          $ref: '#/components/schemas/Position'
-        objective_ids:
-          type: array
-          items:
-            type: string
-          minItems: 1
-        constraints:
-          $ref: '#/components/schemas/Constraints'
-        resources:
-          $ref: '#/components/schemas/Resources'
-    Decision:
-      type: object
-      required:
-      - event_type
-      - message
-      - evidence_ids
-      - simulated
-      properties:
-        event_type:
-          type: string
-        message:
-          type: string
-        evidence_ids:
-          type: array
-          items:
-            type: string
-        simulated:
-          type: boolean
-    Mission:
-      type: object
-      required:
-      - mission_id
-      - region_id
-      - version
-      - status
-      - base_position
-      - objective_ids
-      - route
-      - resources
-      - completed_objective_ids
-      - next_objective_id
-      - alerts
-      - decision_log
-      - evidence_ids
-      properties:
-        mission_id:
-          type: string
-        region_id:
-          type: string
-        version:
-          type: integer
-          minimum: 1
-        status:
-          type: string
-          enum:
-          - planned
-          - in_progress
-          - contingency
-          - completed
-          - cancelled
-        base_position:
-          $ref: '#/components/schemas/Position'
-        objective_ids:
-          type: array
-          items:
-            type: string
-        route:
-          $ref: '#/components/schemas/RouteResult'
-        resources:
-          $ref: '#/components/schemas/Resources'
-        completed_objective_ids:
-          type: array
-          items:
-            type: string
-        next_objective_id:
-          type: string
-          nullable: true
-        alerts:
-          type: array
-          items:
-            type: string
-        decision_log:
-          type: array
-          items:
-            $ref: '#/components/schemas/Decision'
-        evidence_ids:
-          type: array
-          items:
-            type: string
-        sample_only:
-          type: boolean
-    ObservationRequest:
-      type: object
-      required:
-      - mission_version
-      - objective_id
-      - finding_code
-      properties:
-        mission_version:
-          type: integer
-          minimum: 1
-        objective_id:
-          type: string
-        finding_code:
-          type: string
-        notes:
-          type: string
-          maxLength: 1000
-    ContingencyRequest:
-      type: object
-      required:
-      - mission_version
-      - contingency_type
-      - position
-      - oxygen_available_min
-      properties:
-        mission_version:
-          type: integer
-          minimum: 1
-        contingency_type:
-          type: string
-          enum:
-          - oxygen_reduced
-          - rover_unavailable
-        position:
-          $ref: '#/components/schemas/Position'
-        oxygen_available_min:
-          type: number
-          minimum: 0
-    MissionPackage:
-      type: object
-      required:
-      - package_version
-      - mission
-      - region_manifest
-      - objectives
-      - photos
-      - offline_assets
-      - missing_assets
-      - package_status
-      - sync
-      - generated_at
-      properties:
-        package_version:
-          type: string
-          enum:
-          - '1.0'
-        mission:
-          $ref: '#/components/schemas/Mission'
-        region_manifest:
-          $ref: '#/components/schemas/RegionManifest'
-        objectives:
-          type: array
-          items:
-            $ref: '#/components/schemas/Objective'
-        photos:
-          type: array
-          items:
-            $ref: '#/components/schemas/Photo'
-        offline_assets:
-          type: array
-          items:
-            type: string
-        missing_assets:
-          type: array
-          items:
-            type: string
-        package_status:
-          type: string
-          enum:
-          - ready_to_sync
-          - incomplete
-        sync:
-          $ref: '#/components/schemas/PackageSync'
-        generated_at:
-          type: string
-          format: date-time
-        sample_only:
-          type: boolean
-    PackageSync:
-      type: object
-      required:
-      - mission_version
-      - requires_network
-      - remote_asset_count
-      - missing_asset_count
-      properties:
-        mission_version:
-          type: integer
-          minimum: 1
-        requires_network:
-          type: boolean
-        remote_asset_count:
-          type: integer
-          minimum: 0
-        missing_asset_count:
-          type: integer
-          minimum: 0
-    ApiError:
-      type: object
-      required:
-      - error
-      properties:
-        error:
-          type: object
-          required:
-          - code
-          - message
-          - details
-          - request_id
-          properties:
-            code:
-              type: string
-            message:
-              type: string
-            details:
-              type: object
-              additionalProperties: true
-            request_id:
-              type: string
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Mapte API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regions": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "List Regions",
+        "operationId": "list_regions_api_v1_regions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regions/{region_id}/manifest": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Get Region Manifest",
+        "operationId": "get_region_manifest_api_v1_regions__region_id__manifest_get",
+        "parameters": [
+          {
+            "name": "region_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Region Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionManifestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regions/{region_id}/objectives": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Get Objectives",
+        "operationId": "get_objectives_api_v1_regions__region_id__objectives_get",
+        "parameters": [
+          {
+            "name": "region_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Region Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectivesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regions/{region_id}/photos": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Get Photos",
+        "operationId": "get_photos_api_v1_regions__region_id__photos_get",
+        "parameters": [
+          {
+            "name": "region_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Region Id"
+            }
+          },
+          {
+            "name": "objective_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Objective Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotosResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{region_id}/{filename}": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Get Asset",
+        "operationId": "get_asset_api_v1_assets__region_id___filename__get",
+        "parameters": [
+          {
+            "name": "region_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Region Id"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Región o asset no publicado."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/routes/compute": {
+      "post": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Compute Route",
+        "operationId": "compute_route_api_v1_routes_compute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteRequestSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteResultSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/plan": {
+      "post": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Plan Mission",
+        "operationId": "plan_mission_api_v1_missions_plan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissionPlanRequestSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlanResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}": {
+      "get": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Get Mission",
+        "operationId": "get_mission_api_v1_missions__mission_id__get",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlanResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}/package": {
+      "get": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Get Mission Package",
+        "operationId": "get_mission_package_api_v1_missions__mission_id__package_get",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPackageResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}/hazard-reports": {
+      "post": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Report Hazard And Replan",
+        "operationId": "report_hazard_and_replan_api_v1_missions__mission_id__hazard_reports_post",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissionReplanRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlanResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}/progress": {
+      "patch": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Update Mission Progress",
+        "operationId": "update_mission_progress_api_v1_missions__mission_id__progress_patch",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissionProgressRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlanResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}/status": {
+      "post": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Change Mission Status",
+        "operationId": "change_mission_status_api_v1_missions__mission_id__status_post",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissionStatusRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlanResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}/events": {
+      "get": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Get Mission Events",
+        "operationId": "get_mission_events_api_v1_missions__mission_id__events_get",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionEventsResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}/contingencies": {
+      "post": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Evaluate Contingency",
+        "operationId": "evaluate_contingency_api_v1_missions__mission_id__contingencies_post",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContingencyRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlanResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}/preventive-support-options": {
+      "post": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Optimize Preventive Support",
+        "operationId": "optimize_preventive_support_api_v1_missions__mission_id__preventive_support_options_post",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreventiveSupportRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreventiveSupportResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{mission_id}/observations": {
+      "post": {
+        "tags": [
+          "Missions"
+        ],
+        "summary": "Submit Observation",
+        "operationId": "submit_observation_api_v1_missions__mission_id__observations_post",
+        "parameters": [
+          {
+            "name": "mission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservationRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlanResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BoundsSchema": {
+        "properties": {
+          "min_x": {
+            "type": "number",
+            "title": "Min X"
+          },
+          "min_y": {
+            "type": "number",
+            "title": "Min Y"
+          },
+          "max_x": {
+            "type": "number",
+            "title": "Max X"
+          },
+          "max_y": {
+            "type": "number",
+            "title": "Max Y"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "min_x",
+          "min_y",
+          "max_x",
+          "max_y"
+        ],
+        "title": "BoundsSchema"
+      },
+      "ContingencyRequestSchema": {
+        "properties": {
+          "mission_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Mission Version"
+          },
+          "contingency_type": {
+            "type": "string",
+            "enum": [
+              "oxygen_reduced",
+              "rover_unavailable"
+            ],
+            "title": "Contingency Type"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "oxygen_available_min": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Oxygen Available Min"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mission_version",
+          "contingency_type",
+          "position",
+          "oxygen_available_min"
+        ],
+        "title": "ContingencyRequestSchema"
+      },
+      "EvidenceSchema": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Evidence Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "mission": {
+            "type": "string",
+            "title": "Mission"
+          },
+          "instrument": {
+            "type": "string",
+            "title": "Instrument"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "credit": {
+            "type": "string",
+            "title": "Credit"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "resolution_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution M"
+          },
+          "caveats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Caveats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "title",
+          "mission",
+          "instrument",
+          "source_url",
+          "credit"
+        ],
+        "title": "EvidenceSchema"
+      },
+      "FrameSchema": {
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Frame Id"
+          },
+          "units": {
+            "type": "string",
+            "const": "m",
+            "title": "Units",
+            "default": "m"
+          },
+          "origin_east_lon_deg": {
+            "type": "number",
+            "title": "Origin East Lon Deg"
+          },
+          "origin_planetocentric_lat_deg": {
+            "type": "number",
+            "title": "Origin Planetocentric Lat Deg"
+          },
+          "projection_definition": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Projection Definition"
+          },
+          "longitude_direction": {
+            "type": "string",
+            "enum": [
+              "east",
+              "west"
+            ],
+            "title": "Longitude Direction",
+            "default": "east"
+          },
+          "latitude_type": {
+            "type": "string",
+            "enum": [
+              "planetocentric",
+              "planetographic"
+            ],
+            "title": "Latitude Type",
+            "default": "planetocentric"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "frame_id",
+          "origin_east_lon_deg",
+          "origin_planetocentric_lat_deg",
+          "projection_definition"
+        ],
+        "title": "FrameSchema"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HazardReportSchema": {
+        "properties": {
+          "hazard_code": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Hazard Code"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "unknown",
+              "high_cost"
+            ],
+            "title": "Effect"
+          },
+          "affected_radius_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Affected Radius M"
+          },
+          "cost_multiplier": {
+            "type": "number",
+            "minimum": 1.0,
+            "title": "Cost Multiplier",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hazard_code",
+          "position",
+          "effect",
+          "affected_radius_m"
+        ],
+        "title": "HazardReportSchema"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status"
+          },
+          "api_version": {
+            "type": "string",
+            "title": "Api Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "api_version"
+        ],
+        "title": "HealthResponse"
+      },
+      "LayerSchema": {
+        "properties": {
+          "layer_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Layer Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "optical",
+              "topographic",
+              "geologic",
+              "thermal",
+              "spectral",
+              "other"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "asset_url": {
+            "type": "string",
+            "title": "Asset Url"
+          },
+          "opacity_default": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Opacity Default"
+          },
+          "resolution_m_per_pixel": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Resolution M Per Pixel"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "nodata_policy": {
+            "type": "string",
+            "const": "unknown",
+            "title": "Nodata Policy",
+            "default": "unknown"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "layer_id",
+          "kind",
+          "title",
+          "asset_url",
+          "opacity_default",
+          "resolution_m_per_pixel",
+          "evidence_ids"
+        ],
+        "title": "LayerSchema"
+      },
+      "MissionDecisionSchema": {
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Event Type"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_type",
+          "message",
+          "evidence_ids",
+          "simulated"
+        ],
+        "title": "MissionDecisionSchema"
+      },
+      "MissionEventSchema": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "mission_id": {
+            "type": "string",
+            "title": "Mission Id"
+          },
+          "mission_version": {
+            "type": "integer",
+            "title": "Mission Version"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "mission_id",
+          "mission_version",
+          "event_type",
+          "payload",
+          "created_at"
+        ],
+        "title": "MissionEventSchema"
+      },
+      "MissionEventsResponseSchema": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/MissionEventSchema"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "events"
+        ],
+        "title": "MissionEventsResponseSchema"
+      },
+      "MissionHazardReportSchema": {
+        "properties": {
+          "report_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Report Id"
+          },
+          "mission_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Mission Version"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "hazard_code": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Hazard Code"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "unknown",
+              "high_cost"
+            ],
+            "title": "Effect"
+          },
+          "affected_radius_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Affected Radius M"
+          },
+          "cost_multiplier": {
+            "type": "number",
+            "minimum": 1.0,
+            "title": "Cost Multiplier"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report_id",
+          "mission_version",
+          "position",
+          "hazard_code",
+          "effect",
+          "affected_radius_m",
+          "cost_multiplier"
+        ],
+        "title": "MissionHazardReportSchema"
+      },
+      "MissionLegSchema": {
+        "properties": {
+          "leg_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Leg Id"
+          },
+          "route_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Route Id"
+          },
+          "start_label": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Start Label"
+          },
+          "end_label": {
+            "type": "string",
+            "minLength": 1,
+            "title": "End Label"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "viable",
+              "not_viable",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "path": {
+            "items": {
+              "$ref": "#/components/schemas/PositionSchema"
+            },
+            "type": "array",
+            "title": "Path"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/MissionRouteMetricsSchema"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "leg_id",
+          "route_id",
+          "start_label",
+          "end_label",
+          "status",
+          "path",
+          "metrics",
+          "warnings",
+          "assumptions"
+        ],
+        "title": "MissionLegSchema"
+      },
+      "MissionPackageResponseSchema": {
+        "properties": {
+          "package_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Package Version",
+            "default": "1.0"
+          },
+          "mission": {
+            "$ref": "#/components/schemas/MissionPlanResponseSchema"
+          },
+          "region_manifest": {
+            "$ref": "#/components/schemas/RegionManifestResponse"
+          },
+          "objectives": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectiveSchema"
+            },
+            "type": "array",
+            "title": "Objectives"
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoSchema"
+            },
+            "type": "array",
+            "title": "Photos"
+          },
+          "offline_assets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Offline Assets"
+          },
+          "missing_assets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Assets"
+          },
+          "package_status": {
+            "type": "string",
+            "enum": [
+              "ready_to_sync",
+              "incomplete"
+            ],
+            "title": "Package Status"
+          },
+          "sync": {
+            "$ref": "#/components/schemas/MissionPackageSyncSchema"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "sample_only": {
+            "type": "boolean",
+            "title": "Sample Only",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mission",
+          "region_manifest",
+          "objectives",
+          "photos",
+          "offline_assets",
+          "missing_assets",
+          "package_status",
+          "sync",
+          "generated_at"
+        ],
+        "title": "MissionPackageResponseSchema"
+      },
+      "MissionPackageSyncSchema": {
+        "properties": {
+          "mission_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Mission Version"
+          },
+          "requires_network": {
+            "type": "boolean",
+            "title": "Requires Network"
+          },
+          "remote_asset_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Remote Asset Count"
+          },
+          "missing_asset_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Missing Asset Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mission_version",
+          "requires_network",
+          "remote_asset_count",
+          "missing_asset_count"
+        ],
+        "title": "MissionPackageSyncSchema"
+      },
+      "MissionPlanRequestSchema": {
+        "properties": {
+          "region_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Region Id"
+          },
+          "base_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "objective_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Objective Ids"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/RouteConstraintsSchema"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/MissionResourcesSchema"
+          },
+          "activity_durations_min": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Activity Durations Min"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "region_id",
+          "base_position",
+          "objective_ids",
+          "constraints",
+          "resources"
+        ],
+        "title": "MissionPlanRequestSchema"
+      },
+      "MissionPlanResponseSchema": {
+        "properties": {
+          "mission_id": {
+            "type": "string",
+            "title": "Mission Id"
+          },
+          "mission_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Mission Version"
+          },
+          "region_id": {
+            "type": "string",
+            "title": "Region Id"
+          },
+          "frame_id": {
+            "type": "string",
+            "title": "Frame Id"
+          },
+          "terrain_version": {
+            "type": "string",
+            "title": "Terrain Version"
+          },
+          "lifecycle_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "completed",
+              "aborted"
+            ],
+            "title": "Lifecycle Status"
+          },
+          "viability_status": {
+            "type": "string",
+            "enum": [
+              "viable",
+              "not_viable",
+              "unknown"
+            ],
+            "title": "Viability Status"
+          },
+          "start_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "current_position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "return_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "objective_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Objective Ids"
+          },
+          "completed_objective_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Completed Objective Ids"
+          },
+          "next_objective_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Objective Id"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/MissionLegSchema"
+            },
+            "type": "array",
+            "title": "Legs"
+          },
+          "routing_constraints": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteConstraintsSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resources": {
+            "$ref": "#/components/schemas/MissionResourcesSchema"
+          },
+          "resource_evaluation": {
+            "$ref": "#/components/schemas/MissionResourceEvaluationSchema"
+          },
+          "alerts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alerts"
+          },
+          "decision_log": {
+            "items": {
+              "$ref": "#/components/schemas/MissionDecisionSchema"
+            },
+            "type": "array",
+            "title": "Decision Log"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "hazard_reports": {
+            "items": {
+              "$ref": "#/components/schemas/MissionHazardReportSchema"
+            },
+            "type": "array",
+            "title": "Hazard Reports"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mission_id",
+          "mission_version",
+          "region_id",
+          "frame_id",
+          "terrain_version",
+          "lifecycle_status",
+          "viability_status",
+          "start_position",
+          "return_position",
+          "objective_ids",
+          "next_objective_id",
+          "legs",
+          "resources",
+          "resource_evaluation",
+          "alerts",
+          "decision_log",
+          "evidence_ids"
+        ],
+        "title": "MissionPlanResponseSchema"
+      },
+      "MissionProgressRequestSchema": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "current_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "completed_objective_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Completed Objective Ids"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/MissionResourcesSchema"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "current_position",
+          "completed_objective_ids",
+          "resources"
+        ],
+        "title": "MissionProgressRequestSchema"
+      },
+      "MissionReplanRequestSchema": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "current_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "completed_objective_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Completed Objective Ids"
+          },
+          "report": {
+            "$ref": "#/components/schemas/HazardReportSchema"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/RouteConstraintsSchema"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/MissionResourcesSchema"
+          },
+          "activity_durations_min": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Activity Durations Min"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "current_position",
+          "report",
+          "constraints",
+          "resources"
+        ],
+        "title": "MissionReplanRequestSchema"
+      },
+      "MissionResourceEvaluationSchema": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "viable",
+              "not_viable",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "known_consumption_min": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Known Consumption Min"
+          },
+          "projected_consumption_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projected Consumption Min"
+          },
+          "oxygen_remaining_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oxygen Remaining Min"
+          },
+          "reserve_margin_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reserve Margin Min"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "known_consumption_min",
+          "reason_codes",
+          "warnings",
+          "assumptions"
+        ],
+        "title": "MissionResourceEvaluationSchema"
+      },
+      "MissionResourcesSchema": {
+        "properties": {
+          "oxygen_available_min": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Oxygen Available Min"
+          },
+          "return_reserve_min": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Return Reserve Min"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "oxygen_available_min",
+          "return_reserve_min"
+        ],
+        "title": "MissionResourcesSchema"
+      },
+      "MissionRouteMetricsSchema": {
+        "properties": {
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
+          },
+          "ascent_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ascent M"
+          },
+          "max_slope_deg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Slope Deg"
+          },
+          "unknown_segments": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unknown Segments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "unknown_segments"
+        ],
+        "title": "MissionRouteMetricsSchema"
+      },
+      "MissionStatusRequestSchema": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "complete",
+              "abort"
+            ],
+            "title": "Action"
+          },
+          "current_position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resources": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MissionResourcesSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constraints": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteConstraintsSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "action"
+        ],
+        "title": "MissionStatusRequestSchema"
+      },
+      "ObjectiveSchema": {
+        "properties": {
+          "objective_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Objective Id"
+          },
+          "region_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Region Id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "science_question": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Science Question"
+          },
+          "priority_weight": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Priority Weight",
+            "description": "Parámetro del escenario de misión; no es una puntuación de NASA."
+          },
+          "activities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Activities"
+          },
+          "possible_findings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Possible Findings"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "objective_id",
+          "region_id",
+          "title",
+          "position",
+          "science_question",
+          "priority_weight",
+          "activities",
+          "possible_findings",
+          "evidence_ids"
+        ],
+        "title": "ObjectiveSchema"
+      },
+      "ObjectivesResponse": {
+        "properties": {
+          "objectives": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectiveSchema"
+            },
+            "type": "array",
+            "title": "Objectives"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "objectives"
+        ],
+        "title": "ObjectivesResponse"
+      },
+      "ObservationRequestSchema": {
+        "properties": {
+          "mission_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Mission Version"
+          },
+          "objective_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Objective Id"
+          },
+          "finding_code": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Finding Code"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mission_version",
+          "objective_id",
+          "finding_code"
+        ],
+        "title": "ObservationRequestSchema"
+      },
+      "PhotoSchema": {
+        "properties": {
+          "photo_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Photo Id"
+          },
+          "objective_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Objective Id"
+          },
+          "image_url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Image Url"
+          },
+          "camera": {
+            "type": "string",
+            "title": "Camera"
+          },
+          "sol": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sol"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "credit": {
+            "type": "string",
+            "title": "Credit"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location_quality": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "approximate",
+              "unknown"
+            ],
+            "title": "Location Quality"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "photo_id",
+          "objective_id",
+          "image_url",
+          "camera",
+          "sol",
+          "captured_at",
+          "credit",
+          "source_url",
+          "location",
+          "location_quality",
+          "limitations"
+        ],
+        "title": "PhotoSchema"
+      },
+      "PhotosResponse": {
+        "properties": {
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoSchema"
+            },
+            "type": "array",
+            "title": "Photos"
+          },
+          "sample_only": {
+            "type": "boolean",
+            "title": "Sample Only",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "photos"
+        ],
+        "title": "PhotosResponse"
+      },
+      "PositionSchema": {
+        "properties": {
+          "x_m": {
+            "type": "number",
+            "title": "X M"
+          },
+          "y_m": {
+            "type": "number",
+            "title": "Y M"
+          },
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Frame Id"
+          },
+          "z_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Z M",
+            "description": "Elevation in meters relative to terrain datum; null if missing."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "x_m",
+          "y_m",
+          "frame_id"
+        ],
+        "title": "PositionSchema",
+        "description": "Local Mars-frame position with backend-resolved elevation."
+      },
+      "PreventiveSupportOptionSchema": {
+        "properties": {
+          "option_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Option Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "direct_return",
+              "rendezvous"
+            ],
+            "title": "Kind"
+          },
+          "support_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "crew_route": {
+            "$ref": "#/components/schemas/RouteResultSchema"
+          },
+          "vehicle_route": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteResultSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "intervention_time_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intervention Time Min"
+          },
+          "total_distance_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Distance M"
+          },
+          "resource_evaluation": {
+            "$ref": "#/components/schemas/MissionResourceEvaluationSchema"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "option_id",
+          "kind",
+          "support_position",
+          "crew_route",
+          "vehicle_route",
+          "resource_evaluation"
+        ],
+        "title": "PreventiveSupportOptionSchema"
+      },
+      "PreventiveSupportRequestSchema": {
+        "properties": {
+          "mission_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Mission Version"
+          },
+          "crew_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "support_vehicle_position": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "oxygen_available_min": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Oxygen Available Min"
+          },
+          "vehicle_speed_m_per_min": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Vehicle Speed M Per Min"
+          },
+          "max_candidates": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 2.0,
+            "title": "Max Candidates",
+            "default": 7
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mission_version",
+          "crew_position",
+          "support_vehicle_position",
+          "oxygen_available_min",
+          "vehicle_speed_m_per_min"
+        ],
+        "title": "PreventiveSupportRequestSchema"
+      },
+      "PreventiveSupportResponseSchema": {
+        "properties": {
+          "mission_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Mission Id"
+          },
+          "mission_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Mission Version"
+          },
+          "terrain_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Terrain Version"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PreventiveSupportOptionSchema"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "recommended_option_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended Option Id"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mission_id",
+          "mission_version",
+          "terrain_version",
+          "options",
+          "recommended_option_id",
+          "warnings",
+          "assumptions",
+          "generated_at"
+        ],
+        "title": "PreventiveSupportResponseSchema"
+      },
+      "QualityZoneSchema": {
+        "properties": {
+          "zone_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Zone Id"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "nominal",
+              "unknown"
+            ],
+            "title": "Quality"
+          },
+          "extent_m": {
+            "$ref": "#/components/schemas/SectorExtentSchema"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "zone_id",
+          "quality",
+          "extent_m",
+          "reason"
+        ],
+        "title": "QualityZoneSchema",
+        "description": "Zone whose terrain data must be treated with a non-nominal quality."
+      },
+      "RegionManifestResponse": {
+        "properties": {
+          "region_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Region Id"
+          },
+          "frame": {
+            "$ref": "#/components/schemas/FrameSchema"
+          },
+          "bounds_local_m": {
+            "$ref": "#/components/schemas/BoundsSchema"
+          },
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/LayerSchema"
+            },
+            "type": "array",
+            "title": "Layers"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSchema"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "sample_only": {
+            "type": "boolean",
+            "title": "Sample Only",
+            "default": false
+          },
+          "terrain": {
+            "$ref": "#/components/schemas/TerrainManifestSchema"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "region_id",
+          "frame",
+          "bounds_local_m",
+          "layers",
+          "evidence",
+          "terrain"
+        ],
+        "title": "RegionManifestResponse"
+      },
+      "RegionSchema": {
+        "properties": {
+          "region_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Region Id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "body": {
+            "type": "string",
+            "const": "Mars",
+            "title": "Body",
+            "default": "Mars"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "region_id",
+          "name",
+          "description"
+        ],
+        "title": "RegionSchema"
+      },
+      "RegionsResponse": {
+        "properties": {
+          "regions": {
+            "items": {
+              "$ref": "#/components/schemas/RegionSchema"
+            },
+            "type": "array",
+            "title": "Regions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "regions"
+        ],
+        "title": "RegionsResponse"
+      },
+      "RouteConstraintsSchema": {
+        "properties": {
+          "max_slope_deg": {
+            "type": "number",
+            "exclusiveMaximum": 90.0,
+            "minimum": 0.0,
+            "title": "Max Slope Deg"
+          },
+          "speed_m_per_min": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Speed M Per Min"
+          },
+          "avoid_unknown": {
+            "type": "boolean",
+            "title": "Avoid Unknown"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "max_slope_deg",
+          "speed_m_per_min",
+          "avoid_unknown"
+        ],
+        "title": "RouteConstraintsSchema"
+      },
+      "RouteRequestSchema": {
+        "properties": {
+          "region_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Region Id"
+          },
+          "start": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "end": {
+            "$ref": "#/components/schemas/PositionSchema"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/RouteConstraintsSchema"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "region_id",
+          "start",
+          "end",
+          "constraints"
+        ],
+        "title": "RouteRequestSchema"
+      },
+      "RouteResultSchema": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Route Id"
+          },
+          "region_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Region Id"
+          },
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Frame Id"
+          },
+          "terrain_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Terrain Version"
+          },
+          "path": {
+            "items": {
+              "$ref": "#/components/schemas/PositionSchema"
+            },
+            "type": "array",
+            "title": "Path"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
+          },
+          "ascent_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ascent M"
+          },
+          "max_slope_deg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Slope Deg"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "viable",
+              "not_viable",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "unknown_segments": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unknown Segments"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "sample_only": {
+            "type": "boolean",
+            "title": "Sample Only",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "route_id",
+          "region_id",
+          "frame_id",
+          "terrain_version",
+          "path",
+          "status",
+          "unknown_segments",
+          "warnings",
+          "evidence_ids",
+          "assumptions"
+        ],
+        "title": "RouteResultSchema"
+      },
+      "SectorExtentSchema": {
+        "properties": {
+          "x_min_m": {
+            "type": "number",
+            "title": "X Min M"
+          },
+          "x_max_m": {
+            "type": "number",
+            "title": "X Max M"
+          },
+          "y_min_m": {
+            "type": "number",
+            "title": "Y Min M"
+          },
+          "y_max_m": {
+            "type": "number",
+            "title": "Y Max M"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "x_min_m",
+          "x_max_m",
+          "y_min_m",
+          "y_max_m"
+        ],
+        "title": "SectorExtentSchema",
+        "description": "Sector extent in local frame meters."
+      },
+      "TerrainGridMetadataSchema": {
+        "properties": {
+          "origin_center_x_m": {
+            "type": "number",
+            "title": "Origin Center X M"
+          },
+          "origin_center_y_m": {
+            "type": "number",
+            "title": "Origin Center Y M"
+          },
+          "pixel_size_x_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pixel Size X M"
+          },
+          "pixel_size_y_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pixel Size Y M"
+          },
+          "row_order": {
+            "type": "string",
+            "const": "north_to_south",
+            "title": "Row Order",
+            "default": "north_to_south"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "origin_center_x_m",
+          "origin_center_y_m",
+          "pixel_size_x_m",
+          "pixel_size_y_m"
+        ],
+        "title": "TerrainGridMetadataSchema",
+        "description": "Exposed grid geometry parameters."
+      },
+      "TerrainManifestSchema": {
+        "properties": {
+          "heightmap_url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Heightmap Url"
+          },
+          "width_px": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Width Px"
+          },
+          "height_px": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Height Px"
+          },
+          "elevation_min_m": {
+            "type": "number",
+            "title": "Elevation Min M"
+          },
+          "elevation_max_m": {
+            "type": "number",
+            "title": "Elevation Max M"
+          },
+          "texture_layer_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Texture Layer Id"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Evidence Ids"
+          },
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Frame Id"
+          },
+          "terrain_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Terrain Version"
+          },
+          "vertical_datum": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Vertical Datum"
+          },
+          "units": {
+            "type": "string",
+            "const": "m",
+            "title": "Units",
+            "default": "m"
+          },
+          "format": {
+            "type": "string",
+            "const": "f32",
+            "title": "Format",
+            "default": "f32"
+          },
+          "dtype": {
+            "type": "string",
+            "const": "float32_little_endian",
+            "title": "Dtype",
+            "default": "float32_little_endian"
+          },
+          "header_bytes": {
+            "type": "integer",
+            "const": 0,
+            "title": "Header Bytes",
+            "default": 0
+          },
+          "memory_order": {
+            "type": "string",
+            "const": "row_major",
+            "title": "Memory Order",
+            "default": "row_major"
+          },
+          "nodata_policy": {
+            "type": "string",
+            "const": "f32_nan",
+            "title": "Nodata Policy",
+            "default": "f32_nan"
+          },
+          "texture_aligned": {
+            "type": "boolean",
+            "title": "Texture Aligned",
+            "default": true
+          },
+          "grid": {
+            "$ref": "#/components/schemas/TerrainGridMetadataSchema"
+          },
+          "texture_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Texture Url"
+          },
+          "texture_grid": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextureGridMetadataSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blocked_mask_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Mask Url"
+          },
+          "dataset_checksum_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Checksum Sha256"
+          },
+          "sector_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Sector Id"
+          },
+          "extent_m": {
+            "$ref": "#/components/schemas/SectorExtentSchema"
+          },
+          "quality_zones": {
+            "items": {
+              "$ref": "#/components/schemas/QualityZoneSchema"
+            },
+            "type": "array",
+            "title": "Quality Zones"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "heightmap_url",
+          "width_px",
+          "height_px",
+          "elevation_min_m",
+          "elevation_max_m",
+          "texture_layer_id",
+          "evidence_ids",
+          "frame_id",
+          "terrain_version",
+          "vertical_datum",
+          "grid",
+          "sector_id",
+          "extent_m"
+        ],
+        "title": "TerrainManifestSchema",
+        "description": "Terrain block within RegionManifest for 3D rendering."
+      },
+      "TextureGridMetadataSchema": {
+        "properties": {
+          "origin_center_x_m": {
+            "type": "number",
+            "title": "Origin Center X M"
+          },
+          "origin_center_y_m": {
+            "type": "number",
+            "title": "Origin Center Y M"
+          },
+          "pixel_size_x_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pixel Size X M"
+          },
+          "pixel_size_y_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pixel Size Y M"
+          },
+          "row_order": {
+            "type": "string",
+            "const": "north_to_south",
+            "title": "Row Order",
+            "default": "north_to_south"
+          },
+          "width_px": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Width Px"
+          },
+          "height_px": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Height Px"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "origin_center_x_m",
+          "origin_center_y_m",
+          "pixel_size_x_m",
+          "pixel_size_y_m",
+          "width_px",
+          "height_px"
+        ],
+        "title": "TextureGridMetadataSchema",
+        "description": "Texture raster geometry (may differ in resolution from the heightmap)."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

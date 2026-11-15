@@ -1,7 +1,8 @@
 import type {
   ApiError, ContingencyRequest, Health, Mission, MissionPackage, MissionPlanRequest,
   Objective, ObjectivesResponse, ObservationRequest, Photo, PhotosResponse, Region,
-  RegionManifest, RegionsResponse, RouteRequest, RouteResult,
+  PreventiveSupportRequest, PreventiveSupportResponse, RegionManifest, RegionsResponse,
+  RouteRequest, RouteResult,
 } from '../types/contracts';
 import { MarsApiError } from './errors';
 import { mockApi } from './mockAdapter';
@@ -86,6 +87,14 @@ export const marsApi = {
 
   triggerContingency: (missionId: string, req: ContingencyRequest): Promise<Mission> =>
     USE_MOCK ? mocked(() => mockApi.contingency(req)) : post(`/missions/${enc(missionId)}/contingencies`, req),
+
+  comparePreventiveSupport: (
+    missionId: string,
+    req: PreventiveSupportRequest,
+  ): Promise<PreventiveSupportResponse> =>
+    USE_MOCK
+      ? mocked(() => mockApi.preventiveSupport(req))
+      : post(`/missions/${enc(missionId)}/preventive-support-options`, req),
 
   getMissionPackage: (missionId: string): Promise<MissionPackage> =>
     USE_MOCK ? mocked(mockApi.package) : request(`/missions/${enc(missionId)}/package`),
