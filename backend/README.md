@@ -1,7 +1,7 @@
 # Backend de Mapte
 
 Una aplicación FastAPI con módulos separados para catálogo (Backend 1) y misiones
-(Backend 2). Esta entrega implementa únicamente la base y el endpoint de salud.
+(Backend 2). La región piloto actual es Monte Sharp, en el cráter Gale.
 
 ## Entorno y ejecución (PowerShell)
 
@@ -15,6 +15,14 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
+El arranque carga una sola vez el terreno de `MAPTE_ACTIVE_REGION`. Si la variable no
+está definida y existe exactamente una región publicada en `data/regions`, se utiliza
+esa región. `MAPTE_DATA_ROOT` permite indicar otra carpeta de regiones.
+
+```powershell
+$env:MAPTE_ACTIVE_REGION = "mc23-gale-mount-sharp"
+```
+
 Si aún no está instalado Python 3.14, se puede crear el entorno con `py -3.12`.
 El entorno virtual es local y no se comparte. No es necesario activar scripts de
 PowerShell: los comandos usan directamente su intérprete.
@@ -24,6 +32,8 @@ La instalación y las pruebas en Python 3.14 deben verificarse al actualizar el
 intérprete. Los cambios de dependencias y de este archivo se coordinan entre ambos backend.
 
 - Salud: http://127.0.0.1:8000/api/v1/health
+- Regiones: http://127.0.0.1:8000/api/v1/regions
+- Cálculo de ruta: `POST http://127.0.0.1:8000/api/v1/routes/compute`
 - Swagger: http://127.0.0.1:8000/docs
 - Esquema de lo implementado: http://127.0.0.1:8000/openapi.json
 
@@ -43,22 +53,23 @@ responde; no afirma que el terreno, catálogo o motor de misiones estén listos.
 - Backend 1: `app/modules/catalog/` y sus futuras pruebas en `tests/catalog/`.
 - Backend 2: `app/modules/missions/` y sus futuras pruebas en `tests/missions/`.
 - Backend 2 coordina `app/main.py`, `app/core/` y dependencias compartidas.
-- Cada módulo expondrá un `router` de FastAPI. Se registrará en `create_app()`
+- Cada módulo expone un `router` de FastAPI. Se registra en `create_app()`
   con prefijo `/api/v1`; las rutas internas no repetirán ese prefijo.
 - Los módulos se comunican mediante interfaces Python acordadas; no por HTTP.
-- No se han creado endpoints ficticios de catálogo ni de misiones.
+- Catálogo y misiones comparten el mismo repositorio de terreno cargado en memoria.
 
 ## Integración con frontend
 
 El proxy existente de Vite envía `/api` a `http://127.0.0.1:8000`. No requiere
 cambios para esta base ni CORS abierto. Frontend conserva su entorno y dependencias.
 Su cliente usa mocks por defecto; `VITE_USE_MOCK=false` activa HTTP real y requiere
-reiniciar Vite. No activar para todo el flujo hasta implementar los endpoints.
+reiniciar Vite. Catálogo y rutas ya tienen endpoints; los demás flujos de misión siguen
+pendientes.
 
-Tharsis y los formatos actuales acordados del frontend guiarán las próximas tareas.
+Monte Sharp y los formatos actuales acordados del frontend guían las próximas tareas.
 El archivo raíz `contracts/openapi.yaml` todavía corresponde a la propuesta anterior:
 su actualización y la de los ejemplos están pendientes de una tarea compartida.
-El OpenAPI generado por esta aplicación describe solo lo ya implementado.
+El OpenAPI generado por la aplicación describe lo implementado actualmente.
 
 ## Errores
 

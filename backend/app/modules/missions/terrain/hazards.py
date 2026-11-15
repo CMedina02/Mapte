@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
-from math import isfinite
+from math import floor, isfinite
 
 from app.modules.catalog.domain import DataQuality, TerrainRepository
 from app.modules.missions.terrain.models import (
@@ -85,6 +85,34 @@ class MissionHazardOverlay:
     def version(self) -> str:
         report_ids = ",".join(report.report_id for report in self._reports) or "none"
         return f"{self.terrain_version}+reports:{report_ids}"
+
+    @property
+    def width(self) -> int:
+        return self._grid.width_px
+
+    @property
+    def height(self) -> int:
+        return self._grid.height_px
+
+    def position_to_cell(self, position: LocalPosition) -> GridCell | None:
+        if position.frame_id != self.frame_id:
+            raise FrameMismatchError(
+                f"Se esperaba frame_id={self.frame_id}, se recibió {position.frame_id}"
+            )
+        if not self._grid.contains_xy(position.x_m, position.y_m):
+            return None
+
+        bounds = self._grid.bounds_pixel_edges_m()
+        column = floor((position.x_m - bounds.x_min_m) / self._grid.pixel_size_x_m)
+        row = floor((bounds.y_max_m - position.y_m) / self._grid.pixel_size_y_m)
+        return GridCell(
+            row=min(max(row, 0), self.height - 1),
+            column=min(max(column, 0), self.width - 1),
+        )
+
+    def cell_position(self, cell: GridCell) -> LocalPosition:
+        x_m, y_m = self._grid.index_to_center_xy(cell.row, cell.column)
+        return LocalPosition(x_m=x_m, y_m=y_m, frame_id=self.frame_id)
 
     def sample_cell(self, cell: GridCell) -> RoutingTerrainSample:
         if not (0 <= cell.row < self._grid.height_px and 0 <= cell.column < self._grid.width_px):
