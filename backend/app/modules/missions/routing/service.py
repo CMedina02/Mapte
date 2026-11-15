@@ -88,12 +88,12 @@ class RouteApplicationService:
                 unknown_segments=0,
                 warnings=(
                     "NO_ROUTE_WITHIN_CONSTRAINTS",
-                    "STATIC_HAZARDS_NOT_AVAILABLE",
+                    *self._hazard_warnings(terrain),
                 ),
                 evidence_ids=metadata.consistency.evidence_ids,
                 assumptions=(
                     "No se encontró una ruta ni siquiera permitiendo datos de calidad desconocida",
-                    "Los peligros estáticos del catálogo aún no están publicados",
+                    self._hazard_assumption(terrain),
                 ),
             )
 
@@ -103,7 +103,7 @@ class RouteApplicationService:
             if used_unknown_fallback or unknown_segments > 0
             else RouteOutcomeStatus.VIABLE
         )
-        warnings = ["STATIC_HAZARDS_NOT_AVAILABLE"]
+        warnings = list(self._hazard_warnings(terrain))
         if status is RouteOutcomeStatus.UNKNOWN:
             warnings.append("ROUTE_CROSSES_UNKNOWN_TERRAIN")
         if self._endpoints_were_snapped(start, end, route):
@@ -121,8 +121,20 @@ class RouteApplicationService:
             evidence_ids=metadata.consistency.evidence_ids,
             assumptions=(
                 *route.assumptions,
-                "Los peligros estáticos del catálogo aún no están publicados",
+                self._hazard_assumption(terrain),
             ),
+        )
+
+    @staticmethod
+    def _hazard_warnings(terrain: MissionHazardOverlay) -> tuple[str, ...]:
+        return () if terrain.has_static_hazards else ("STATIC_HAZARDS_NOT_AVAILABLE",)
+
+    @staticmethod
+    def _hazard_assumption(terrain: MissionHazardOverlay) -> str:
+        return (
+            "Zonas de exclusión del catálogo bloqueadas; zonas de precaución con costo mayor"
+            if terrain.has_static_hazards
+            else "Los peligros estáticos del catálogo aún no están publicados"
         )
 
     @staticmethod

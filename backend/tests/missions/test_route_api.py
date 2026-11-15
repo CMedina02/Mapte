@@ -94,7 +94,8 @@ def test_route_endpoint_returns_viable_3d_traceable_route() -> None:
     assert result["path"][0]["z_m"] is not None
     assert result["distance_m"] == 20
     assert result["unknown_segments"] == 0
-    assert "STATIC_HAZARDS_NOT_AVAILABLE" in result["warnings"]
+    # la región publica sus zonas de riesgo: el A* las usa y ya no avisa que faltan
+    assert "STATIC_HAZARDS_NOT_AVAILABLE" not in result["warnings"]
 
 
 def test_route_endpoint_distinguishes_unknown_from_not_viable() -> None:

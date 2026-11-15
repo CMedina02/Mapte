@@ -1,9 +1,12 @@
 """Mission hazard reports layered over the immutable catalog terrain."""
 
+import json
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import lru_cache
 from math import floor, isfinite
+from pathlib import Path
 
 from app.modules.catalog.domain import DataQuality, TerrainRepository
 from app.modules.missions.terrain.models import (
@@ -18,6 +21,59 @@ from app.modules.missions.terrain.models import (
 )
 
 _CELL_CACHE_LIMIT = 100_000
+_CATALOG_DATA = Path(__file__).resolve().parents[2] / "catalog" / "data"
+
+
+@dataclass(frozen=True, slots=True)
+class StaticHazardZone:
+    """Catalog hazard polygon: exclusion blocks the cell, caution raises its cost."""
+
+    hazard_id: str
+    kind: str  # "exclusion" | "caution"
+    risk_factor: str
+    polygon: tuple[tuple[float, float], ...]
+    cost_multiplier: float = 1.0
+
+    def contains(self, x: float, y: float) -> bool:
+        inside = False
+        points = self.polygon
+        j = len(points) - 1
+        for i, (xi, yi) in enumerate(points):
+            xj, yj = points[j]
+            if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+                inside = not inside
+            j = i
+        return inside
+
+    @property
+    def bbox(self) -> tuple[float, float, float, float]:
+        xs = [p[0] for p in self.polygon]
+        ys = [p[1] for p in self.polygon]
+        return min(xs), min(ys), max(xs), max(ys)
+
+
+@lru_cache(maxsize=16)
+def load_static_hazards(region_id: str) -> tuple[StaticHazardZone, ...]:
+    """Hazard zones published with the region catalog (empty if the region has none)."""
+    # ponytail: lee el JSON del catálogo directamente; pasar por el repositorio de catálogo si se versiona aparte
+    path = _CATALOG_DATA / region_id / "hazards.json"
+    if not path.exists():
+        return ()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    zones = []
+    for item in data["hazards"]:
+        if item["kind"] not in ("exclusion", "caution"):
+            raise ValueError(f"{item['hazard_id']}: kind desconocido {item['kind']!r}")
+        zones.append(
+            StaticHazardZone(
+                hazard_id=item["hazard_id"],
+                kind=item["kind"],
+                risk_factor=item["risk_factor"],
+                polygon=tuple((float(x), float(y)) for x, y in item["polygon"]),
+                cost_multiplier=float(item.get("cost_multiplier", 1.0)),
+            )
+        )
+    return tuple(zones)
 
 
 class HazardEffect(StrEnum):
@@ -74,6 +130,11 @@ class MissionHazardOverlay:
             if not self._grid.contains_xy(report.position.x_m, report.position.y_m):
                 raise ValueError(f"El reporte {report.report_id} está fuera de la región")
         self._reports = reports
+        self._static_zones = tuple((zone, zone.bbox) for zone in load_static_hazards(region_id))
+
+    @property
+    def has_static_hazards(self) -> bool:
+        return bool(self._static_zones)
 
     @property
     def region_id(self) -> str:
@@ -174,12 +235,34 @@ class MissionHazardOverlay:
             self._restriction_for(report)
             for report in self._reports
             if self._report_affects_cell(report, cell)
-        )
+        ) + self._static_restrictions(cell)
         result = apply_restrictions(sample, restrictions)
         if len(self._sample_cache) >= _CELL_CACHE_LIMIT:
             self._sample_cache.popitem(last=False)
         self._sample_cache[cell] = result
         return result
+
+    def _static_restrictions(self, cell: GridCell) -> tuple[TerrainRestriction, ...]:
+        if not self._static_zones:
+            return ()
+        x, y = self._grid.index_to_center_xy(cell.row, cell.column)
+        restrictions = []
+        for zone, (x0, y0, x1, y1) in self._static_zones:
+            if not (x0 <= x <= x1 and y0 <= y <= y1) or not zone.contains(x, y):
+                continue
+            if zone.kind == "exclusion":
+                restrictions.append(
+                    TerrainRestriction(f"STATIC_HAZARD:{zone.hazard_id}", TraversalStatus.BLOCKED)
+                )
+            else:
+                restrictions.append(
+                    TerrainRestriction(
+                        f"STATIC_HAZARD:{zone.hazard_id}",
+                        TraversalStatus.TRAVERSABLE,
+                        cost_multiplier=max(zone.cost_multiplier, 1.0),
+                    )
+                )
+        return tuple(restrictions)
 
     @staticmethod
     def _restriction_for(report: EnvironmentalHazardReport) -> TerrainRestriction:
