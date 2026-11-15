@@ -21,7 +21,7 @@ interface Props {
   manifest: RegionManifest;
   terrain: Terrain;
   route: RouteResult | null;
-  base: Position;
+  base: Position | null; // sin misión no hay base
   objectives: Objective[];
   targetId: string | null;
   here: Position; // posición actual del astronauta
@@ -510,7 +510,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
           />
         )}
 
-        <Marker position={frame.placePoint(base)} label="BASE" color="#ffffff" />
+        {base && <Marker position={frame.placePoint(base)} label="BASE" color="#ffffff" />}
         {objectives.map((o) => (
           <Marker
             key={o.objective_id}
