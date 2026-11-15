@@ -374,6 +374,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 // Gira la órbita alrededor del astronauta hasta mirar hacia `heading`, con suavizado (filtra el temblor del sensor).
 // Mantiene la inclinación y la distancia que eligió el usuario.
+// Inclinación de la cámara de la vista inicial (detrás del astronauta: atrás 1, arriba 0.6)
+const VIEW_POLAR = Math.atan2(1, 0.6);
+
 function HeadingDriver({ heading }: { heading: number | null }) {
   const controls = useThree((s) => s.controls) as unknown as { getAzimuthalAngle(): number; target: THREE.Vector3; update(): void } | null;
   const camera = useThree((s) => s.camera);
@@ -477,8 +480,9 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
 
   const target = objectives.find((o) => o.objective_id === targetId);
   const span = view.span;
-  // Visibilidad de 2–4.5 km según el tramo: se ve la ruta, pero el borde del modelo queda en la bruma
-  const fogFar = Math.min(Math.max(view.back * 6, 2000), 4500);
+  // Visibilidad de 3–5.5 km según el tramo: se ve el camino por delante, pero el borde del modelo
+  // (10 km + 2 km de espejo) sigue quedando en la bruma
+  const fogFar = Math.min(Math.max(view.back * 8, 3000), 5500);
 
   return (
     <div className="relative h-full w-full">
@@ -490,7 +494,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
         camera={{ fov: 50, near: 1, far: span * 10, position: view.camera }}
       >
         {/* Truco de videojuego: la niebla del color del horizonte esconde el borde de la zona de 10 km */}
-        <fog attach="fog" args={[SKY_HORIZON, fogFar * 0.3, fogFar]} />
+        <fog attach="fog" args={[SKY_HORIZON, fogFar * 0.5, fogFar]} />
         <hemisphereLight args={['#dfe8ff', '#3a1d10', 1.2]} />
         <directionalLight position={SUN_DIR.clone().multiplyScalar(span).toArray()} intensity={1.6} />
         <SkyDome radius={span * 4} sunDir={SUN_DIR} />
@@ -526,7 +530,9 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
           makeDefault
           target={view.target}
           enableDamping={false}
-          maxPolarAngle={Math.PI / 2.15}
+          // Solo giro horizontal (ratón, brújula o arrastre): la inclinación queda fija en la de la vista inicial
+          minPolarAngle={VIEW_POLAR}
+          maxPolarAngle={VIEW_POLAR}
           minDistance={120}
           maxDistance={fogFar * 0.55} // nunca tan lejos como para ver la losa de terreno flotando
           onChange={(e) => {
