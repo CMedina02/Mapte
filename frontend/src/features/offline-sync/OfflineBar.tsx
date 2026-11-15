@@ -86,7 +86,7 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
 
       {mission && (
         <span className={`${badge} ${upToDate ? 'bg-primary-900 text-primary-200' : 'bg-space-800 text-space-300'}`} title="Paquete que usa el visor del astronauta">
-          Visor {upToDate ? `al día · v${synced?.version}` : 'sincronizando…'}
+          Visor {upToDate ? 'al día' : 'sincronizando…'}
         </span>
       )}
 

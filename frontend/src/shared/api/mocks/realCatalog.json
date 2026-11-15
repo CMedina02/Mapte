@@ -1,0 +1,343 @@
+{
+  "generated_from": [
+    "https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints.json",
+    "https://mars.nasa.gov/msl/multimedia/raw-images/"
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-nasa-msl-localized-waypoints",
+      "title": "Curiosity (MSL) localized rover waypoints",
+      "mission": "MSL",
+      "instrument": "Rover localization (site/drive)",
+      "source_url": "https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints.json",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": [
+        "Posición del rover al final de cada drive (RMC site_drive), no del blanco exacto; el blanco queda al alcance del brazo (~2 m).",
+        "Lat/lon planetocéntricas sobre la esfera Mars 2000; proyectadas al marco local con la definición PROJ de MARS_GALE_MS_LOCAL_V1 (verificado con gdaltransform)."
+      ]
+    },
+    {
+      "evidence_id": "ev-nasa-msl-raw-images",
+      "title": "Curiosity (MSL) raw images",
+      "mission": "MSL",
+      "instrument": "Navcam / Hazcam",
+      "source_url": "https://mars.nasa.gov/msl/multimedia/raw-images/",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": [
+        "Imágenes crudas (EDR JPEG) sin calibrar; no son productos PDS calibrados."
+      ]
+    },
+    {
+      "evidence_id": "ev-nasa-msl-blog-sol-2224-highfield",
+      "title": "Sol 2224: Go for Drilling at Highfield!",
+      "mission": "MSL",
+      "instrument": "Drill / CheMin / SAM",
+      "source_url": "https://science.nasa.gov/blog/sol-2224-go-for-drilling-at-highfield/",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": "2018-11-08",
+      "resolution_m": null,
+      "caveats": []
+    },
+    {
+      "evidence_id": "ev-fraeman-2020-vera-rubin-ridge",
+      "title": "Evidence for a Diagenetic Origin of Vera Rubin Ridge, Gale Crater, Mars (Fraeman et al., 2020, JGR Planets)",
+      "mission": "MSL",
+      "instrument": "CheMin / ChemCam / Mastcam",
+      "source_url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7818385/",
+      "credit": "Fraeman et al. (2020), JGR Planets",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": []
+    },
+    {
+      "evidence_id": "ev-planetary-msl-sols-2313-2387",
+      "title": "Curiosity Update, Sols 2313-2387: Two New Drill Holes (Aberlady, Kilmarie)",
+      "mission": "MSL",
+      "instrument": "Drill / CheMin",
+      "source_url": "https://www.planetary.org/articles/curiosity-update-sols-2313-2387",
+      "credit": "The Planetary Society",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": [
+        "Fuente secundaria (resumen de la misión); fechas de perforación: Aberlady sol 2370, Kilmarie sol 2384."
+      ]
+    },
+    {
+      "evidence_id": "ev-jpl-2024-gediz-vallis-sulfur",
+      "title": "NASA's Curiosity Rover Discovers a Surprise in a Martian Rock (elemental sulfur, Gediz Vallis)",
+      "mission": "MSL",
+      "instrument": "Drill / APXS / Mastcam",
+      "source_url": "https://www.jpl.nasa.gov/news/nasas-curiosity-rover-discovers-a-surprise-in-a-martian-rock/",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": "2024-07-18",
+      "resolution_m": null,
+      "caveats": []
+    },
+    {
+      "evidence_id": "ev-nasa-msl-blog-sols-4219-4221",
+      "title": "Sols 4219-4221: It's a Complex Morning",
+      "mission": "MSL",
+      "instrument": "Drill / ChemCam",
+      "source_url": "https://science.nasa.gov/blog/sols-4219-4221-its-a-complex-morning",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": "2024-06-18",
+      "resolution_m": null,
+      "caveats": [
+        "El blog planifica la perforación de Mammoth Lakes en el sol 4219; NASA indica que el primer agujero limpio fue 'Mammoth Lakes 2' (sol 4222) tras mover ligeramente el rover."
+      ]
+    }
+  ],
+  "objectives": [
+    {
+      "objective_id": "obj-vrr-highfield",
+      "region_id": "mc23-gale-mount-sharp",
+      "title": "Vera Rubin Ridge — sitio de perforación Highfield",
+      "description": "Afloramiento gris de la cresta Vera Rubin, perforado por Curiosity en el sol 2224 (8 nov 2018) tras el intento fallido en Inverness por la dureza de la roca.",
+      "position": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      },
+      "science_question": "¿La resistencia de Vera Rubin Ridge y su hematita se deben a alteración diagenética por agua subterránea y no a una capa de composición distinta?",
+      "priority_weight": 2.0,
+      "activities": [
+        "Raspado con el DRT (Dust Removal Tool)",
+        "Perforación y toma de muestra",
+        "Mineralogía con CheMin",
+        "Análisis de gases con SAM",
+        "Imágenes de contexto Mastcam/MAHLI"
+      ],
+      "possible_findings": [
+        "HEMATITE_DETECTED",
+        "COARSE_HEMATITE_ONLY",
+        "DIAGENETIC_ALTERATION_OBSERVED",
+        "NO_HEMATITE_DETECTED"
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-localized-waypoints",
+        "ev-nasa-msl-blog-sol-2224-highfield",
+        "ev-fraeman-2020-vera-rubin-ridge"
+      ]
+    },
+    {
+      "objective_id": "obj-glen-torridon-aberlady",
+      "region_id": "mc23-gale-mount-sharp",
+      "title": "Glen Torridon (unidad con arcillas) — Aberlady y Kilmarie",
+      "description": "Unidad con arcillas al sur de Vera Rubin Ridge; Aberlady se perforó en el sol 2370 y Kilmarie, a ~80 cm, en el sol 2384. CheMin midió las mayores abundancias de arcilla de la misión hasta ese momento.",
+      "position": {
+        "x_m": 4034.4,
+        "y_m": 6417.9,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      },
+      "science_question": "¿Qué abundancia de minerales arcillosos conserva la unidad de Glen Torridon y qué indica sobre la persistencia del antiguo lago de Gale?",
+      "priority_weight": 3.0,
+      "activities": [
+        "Perforación y toma de muestra",
+        "Mineralogía con CheMin",
+        "Prueba de gases desprendidos con SAM",
+        "Química con ChemCam/APXS"
+      ],
+      "possible_findings": [
+        "CLAY_MINERALS_DETECTED",
+        "FE_CARBONATE_DETECTED",
+        "NO_CLAY_ENRICHMENT"
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-localized-waypoints",
+        "ev-planetary-msl-sols-2313-2387"
+      ]
+    },
+    {
+      "objective_id": "obj-gediz-vallis-mammoth-lakes",
+      "region_id": "mc23-gale-mount-sharp",
+      "title": "Canal Gediz Vallis — perforación Mammoth Lakes (azufre elemental)",
+      "description": "Campo de rocas claras en el canal Gediz Vallis donde Curiosity rompió una roca (30 may 2024) y expuso cristales de azufre elemental; la perforación se hizo en la roca cercana 'Mammoth Lakes' (18 jun 2024).",
+      "position": {
+        "x_m": 5523.3,
+        "y_m": 2882.8,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      },
+      "science_question": "¿Cómo se formó el azufre elemental del canal Gediz Vallis, en condiciones que no se asociaban con la historia de este lugar?",
+      "priority_weight": 3.0,
+      "activities": [
+        "Perforación y toma de muestra",
+        "Química con APXS/ChemCam",
+        "Mineralogía con CheMin",
+        "Panorámica Mastcam del campo de rocas"
+      ],
+      "possible_findings": [
+        "ELEMENTAL_SULFUR_DETECTED",
+        "SULFATE_ONLY",
+        "NO_SULFUR_PHASE"
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-localized-waypoints",
+        "ev-jpl-2024-gediz-vallis-sulfur",
+        "ev-nasa-msl-blog-sols-4219-4221"
+      ]
+    }
+  ],
+  "photos": [
+    {
+      "photo_id": "photo-msl-2224-543711",
+      "objective_id": "obj-vrr-highfield",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/ncam/NLA_594936581EDR_F0730550NCAM00309M_.JPG",
+      "camera": "Navcam izquierda (RCE-A)",
+      "sol": 2224,
+      "captured_at": "2018-11-08T08:42:51Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/543711/",
+      "location_quality": "verified",
+      "limitations": [
+        "Navcam del sol de perforación de Highfield.",
+        "La ubicación es la del rover (site/drive 73_550 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    },
+    {
+      "photo_id": "photo-msl-2224-543723",
+      "objective_id": "obj-vrr-highfield",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/fcam/FLA_594936755EDR_F0730550FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-A)",
+      "sol": 2224,
+      "captured_at": "2018-11-08T08:45:46Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/543723/",
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal: espacio de trabajo del brazo en Highfield.",
+        "La ubicación es la del rover (site/drive 73_550 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    },
+    {
+      "photo_id": "photo-msl-2370-580044",
+      "objective_id": "obj-glen-torridon-aberlady",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02370/opgs/edr/ncam/NLB_607886379EDR_F0751386NCAM00309M_.JPG",
+      "camera": "Navcam izquierda (RCE-B)",
+      "sol": 2370,
+      "captured_at": "2019-04-07T05:54:52Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/580044/",
+      "location_quality": "verified",
+      "limitations": [
+        "Navcam del sol de perforación de Aberlady.",
+        "La ubicación es la del rover (site/drive 75_1386 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 4034.4,
+        "y_m": 6417.9,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    },
+    {
+      "photo_id": "photo-msl-2370-580059",
+      "objective_id": "obj-glen-torridon-aberlady",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02370/opgs/edr/fcam/FLB_607886624EDR_F0751386FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "sol": 2370,
+      "captured_at": "2019-04-07T05:58:57Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/580059/",
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal: espacio de trabajo en Aberlady.",
+        "La ubicación es la del rover (site/drive 75_1386 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 4034.4,
+        "y_m": 6417.9,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    },
+    {
+      "photo_id": "photo-msl-2384-582595",
+      "objective_id": "obj-glen-torridon-aberlady",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02384/opgs/edr/fcam/FLB_609132715EDR_F0751398FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "sol": 2384,
+      "captured_at": "2019-04-21T16:07:20Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/582595/",
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal del sol de perforación de Kilmarie.",
+        "La ubicación es la del rover (site/drive 75_1398 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 4034.4,
+        "y_m": 6418.2,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    },
+    {
+      "photo_id": "photo-msl-4219-1346655",
+      "objective_id": "obj-gediz-vallis-mammoth-lakes",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/04219/opgs/edr/ncam/NLB_772032056EDR_F1072496NCAM00309M_.JPG",
+      "camera": "Navcam izquierda (RCE-B)",
+      "sol": 4219,
+      "captured_at": "2024-06-19T02:21:53Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/1346655/",
+      "location_quality": "verified",
+      "limitations": [
+        "Navcam del sol planificado para perforar Mammoth Lakes.",
+        "La ubicación es la del rover (site/drive 107_2496 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 5523.3,
+        "y_m": 2882.8,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    },
+    {
+      "photo_id": "photo-msl-4219-1346664",
+      "objective_id": "obj-gediz-vallis-mammoth-lakes",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/04219/opgs/edr/fcam/FLB_772034139EDR_F1072496FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "sol": 4219,
+      "captured_at": "2024-06-19T02:56:36Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/1346664/",
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal: espacio de trabajo en Mammoth Lakes.",
+        "La ubicación es la del rover (site/drive 107_2496 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 5523.3,
+        "y_m": 2882.8,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    }
+  ]
+}

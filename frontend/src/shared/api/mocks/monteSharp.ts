@@ -6,6 +6,7 @@ import type {
   Evidence, Frame, Hazard, Layer, Objective, Photo, Position, Region,
 } from '../../types/contracts';
 import realTerrain from './realTerrain.json' with { type: 'json' };
+import realCatalog from './realCatalog.json' with { type: 'json' };
 
 export const REAL_TERRAIN = realTerrain;
 
@@ -60,7 +61,7 @@ export const REGIONS: Region[] = [
     name: 'Monte Sharp (Aeolis Mons) · Cráter Gale',
     body: 'Mars',
     description:
-      'Aeolis Quadrangle (MC-23). Zona de 10 × 10 km centrada en −4.75°, 137.40°E; sector de caminata de 2 × 2 km al centro. DEM y ortofoto USGS; objetivos y riesgos simulados.',
+      'Aeolis Quadrangle (MC-23). Zona de 10 × 10 km centrada en −4.75°, 137.40°E; sector de caminata de 2 × 2 km al centro. DEM y ortofoto USGS; objetivos en sitios reales de Curiosity; riesgos simulados.',
     available: true,
   },
 ];
@@ -99,6 +100,7 @@ export const EVIDENCE: Evidence[] = [
     resolution_m: 18,
     caveats: ['Simulación: mapa mineral sintético (arcillas abajo, sulfatos arriba).'],
   },
+  ...(realCatalog.evidence as Evidence[]),
 ];
 
 // La ortofoto es real (reducida a 2048 px); la capa mineral la dibuja el mock en el navegador
@@ -146,44 +148,8 @@ export const HAZARDS: Hazard[] = [
   },
 ];
 
-export const OBJECTIVES: Objective[] = [
-  {
-    objective_id: 'obj-clay-sulfate',
-    region_id: REGION_ID,
-    title: 'Contacto arcillas–sulfatos',
-    position: P(900, 1000),
-    science_question:
-      'Transición estratigráfica de arcillas (lagos antiguos) a sulfatos (clima árido): ¿el contacto es gradual o abrupto?',
-    priority_weight: 2,
-    activities: ['Fotografía del contacto (Mastcam)', 'Lectura espectral (ChemCam)', 'Muestreo de ambas unidades'],
-    possible_findings: ['CLAY_SULFATE_CONTACT', 'GRADUAL_TRANSITION', 'NO_CONTACT_VISIBLE'],
-    evidence_ids: ['ev-crism', realTerrain.evidence_ids[0]],
-  },
-  {
-    objective_id: 'obj-boxwork',
-    region_id: REGION_ID,
-    title: 'Crestas reticulares (Boxwork)',
-    position: P(1550, 520),
-    science_question:
-      'Análisis geoquímico de crestas boxwork: ¿hay vetas minerales por filtración de agua subterránea?',
-    priority_weight: 3,
-    activities: ['Inspección de vetas desde la base de la cresta', 'Análisis geoquímico (ChemCam)'],
-    possible_findings: ['MINERAL_VEINS_OBSERVED', 'NO_VEINS', 'UNSAFE_TO_APPROACH'],
-    evidence_ids: [realTerrain.evidence_ids[0], 'ev-crism'],
-  },
-];
-
-// Gale es zona de Curiosity (Mastcam/Navcam); Mastcam-Z es de Perseverance (Jezero).
-export const PHOTOS: Photo[] = OBJECTIVES.map((o) => ({
-  photo_id: `ph-${o.objective_id}`,
-  objective_id: o.objective_id,
-  image_url: '',
-  camera: 'Mastcam (Curiosity)',
-  sol: null,
-  captured_at: null,
-  credit: 'Pendiente: imagen raw de Curiosity',
-  source_url: 'https://mars.nasa.gov/msl/multimedia/raw-images/',
-  location: null,
-  location_quality: 'unknown',
-  limitations: ['Simulación: falta elegir una imagen real con ubicación verificada.'],
-}));
+// Objetivos y fotos REALES del catálogo del backend: sitios de perforación de Curiosity (waypoints
+// localizados de NASA/JPL) e imágenes raw de esos soles. z_m llega vacío: el mock lo toma del DEM.
+// Se actualizan con: python scripts/import_backend_terrain.py
+export const OBJECTIVES = realCatalog.objectives as Objective[];
+export const PHOTOS = realCatalog.photos as Photo[];

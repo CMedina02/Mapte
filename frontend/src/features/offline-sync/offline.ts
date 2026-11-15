@@ -3,7 +3,7 @@ import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
 import type { Mission, MissionPackage, ObservationRequest } from '../../shared/types/contracts';
 
-const PKG_KEY = 'mars.package.v1';
+const PKG_KEY = 'mars.package.v2'; // v2: objetivos reales del catálogo
 const QUEUE_KEY = 'mars.pending.v1';
 
 export function loadPackage(): MissionPackage | null {

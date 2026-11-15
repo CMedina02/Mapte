@@ -1,6 +1,6 @@
 // Radar del visor: norte arriba, centrado en la posición actual (inicio de la ruta restante).
 // Solo dibuja geometría del backend: ruta, base, destino y zonas de riesgo.
-import type { Bounds, Hazard, Position } from '../../../shared/types/contracts';
+import type { Bounds, Hazard, Position, QualityZone } from '../../../shared/types/contracts';
 
 interface Props {
   center: Position;
@@ -10,12 +10,13 @@ interface Props {
   hazards: Hazard[];
   heading: number | null; // hacia dónde mira el astronauta (null = desconocido)
   imagery?: { url: string; bounds: Bounds } | null; // ortofoto de fondo (minimapa)
+  unknownZones?: QualityZone[]; // DEM de calidad desconocida (gris)
 }
 
 const R = 92; // radio útil en unidades del viewBox (200 × 200)
 const RANGES = [250, 500, 1000, 2000, 3000, 5000, 10000];
 
-export default function Radar({ center, target, base, path, hazards, heading, imagery }: Props) {
+export default function Radar({ center, target, base, path, hazards, heading, imagery, unknownZones = [] }: Props) {
   // Alcance: el menor anillo "redondo" que contiene el siguiente destino con margen (o toda la ruta si no hay destino).
   // Lo que queda fuera del alcance se recorta en el borde del radar.
   const dist = (p: Position) => Math.hypot(p.x_m - center.x_m, p.y_m - center.y_m);
@@ -81,6 +82,19 @@ export default function Radar({ center, target, base, path, hazards, heading, im
         <line x1="100" y1="8" x2="100" y2="192" stroke="#5182d8" strokeOpacity="0.25" />
         <line x1="8" y1="100" x2="192" y2="100" stroke="#5182d8" strokeOpacity="0.25" />
 
+        {unknownZones.map((z) => (
+          <rect
+            key={z.zone_id}
+            x={sx({ x_m: z.extent_m.x_min_m })}
+            y={sy({ y_m: z.extent_m.y_max_m })}
+            width={((z.extent_m.x_max_m - z.extent_m.x_min_m) / range) * R}
+            height={((z.extent_m.y_max_m - z.extent_m.y_min_m) / range) * R}
+            fill="#94a3b8"
+            fillOpacity="0.25"
+            stroke="#94a3b8"
+            strokeDasharray="2 4"
+          />
+        ))}
         {hazards.map((hz) => (
           <polygon
             key={hz.hazard_id}

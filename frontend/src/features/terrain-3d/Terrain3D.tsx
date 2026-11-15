@@ -12,11 +12,9 @@ THREE.Cache.enabled = true;
 // Exageración vertical: solo en terrenos casi planos; con relieve real fuerte, 1×
 const exaggerationFor = (terrain: Terrain, spanM: number) =>
   (terrain.elevation_max_m - terrain.elevation_min_m) / spanM > 0.05 ? 1 : 1.5;
-const LIFT_M = 6; // separa líneas y marcadores del suelo para que no se hundan
-// Cielo marciano diurno (polvo en suspensión): ocre pálido en el horizonte, pardo oscuro arriba.
-// La niebla usa el color del horizonte para que el terreno lejano se funda con el polvo.
+const LIFT_M = 6;
 const SKY_HORIZON = '#b88a63';
-const MARS_TINT = '#f6bf96'; // tinte sobre la ortofoto en gris; no es el color real medido
+const MARS_TINT = '#f6bf96'; 
 const ROUTE_COLOR: Record<RouteStatus, string> = { viable: '#22c55e', not_viable: '#fc3d21', unknown: '#f59e0b' };
 
 interface Props {
@@ -41,6 +39,47 @@ type Vec3 = [number, number, number];
 const PAD = 100; // celdas (2 km con el DEM de 20 m)
 const mirrorF = (f: number, n: number) => (f < 0 ? -f : f > n ? 2 * n - f : f);
 const mirrorI = (i: number, n: number) => Math.min(Math.max(i < 0 ? -i : i > n - 1 ? 2 * (n - 1) - i : i, 0), n - 1);
+
+// El backend publica el DEM completo (2500² a 4 m = 6 M de vértices): demasiado para dibujar en una tableta.
+// Para la GEOMETRÍA se promedian bloques k×k (ignorando NaN) hasta ~600 px; las métricas siguen siendo del backend.
+const MAX_MESH_PX = 600;
+function decimateForMesh(terrain: Terrain, data: Float32Array): { terrain: Terrain; heights: Float32Array } {
+  const { width_px: w, height_px: h, grid: g } = terrain;
+  const k = Math.ceil(Math.max(w, h) / MAX_MESH_PX);
+  if (k <= 1) return { terrain, heights: data };
+  const nw = Math.floor(w / k), nh = Math.floor(h / k);
+  const out = new Float32Array(nw * nh);
+  for (let r = 0; r < nh; r++) {
+    for (let c = 0; c < nw; c++) {
+      let sum = 0, n = 0;
+      for (let dr = 0; dr < k; dr++) {
+        const row = (r * k + dr) * w + c * k;
+        for (let dc = 0; dc < k; dc++) {
+          const v = data[row + dc];
+          if (!Number.isNaN(v)) { sum += v; n++; }
+        }
+      }
+      out[r * nw + c] = n ? sum / n : NaN; // bloque sin ningún dato: sigue siendo "sin dato"
+    }
+  }
+  const px = g.pixel_size_x_m * k, py = g.pixel_size_y_m * k;
+  return {
+    heights: out,
+    terrain: {
+      ...terrain,
+      width_px: nw,
+      height_px: nh,
+      grid: {
+        ...g,
+        pixel_size_x_m: px,
+        pixel_size_y_m: py,
+        // centro de la primera celda gruesa = esquina NO + medio píxel grueso
+        origin_center_x_m: g.origin_center_x_m - g.pixel_size_x_m / 2 + px / 2,
+        origin_center_y_m: g.origin_center_y_m + g.pixel_size_y_m / 2 - py / 2,
+      },
+    },
+  };
+}
 
 // Marco de la escena: X = este, Y = arriba, Z = sur (el norte queda hacia el fondo)
 function makeFrame(terrain: Terrain, heights: Float32Array) {
@@ -357,7 +396,13 @@ function HeadingDriver({ heading }: { heading: number | null }) {
 }
 
 function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here, destination, onHeading, lookHeading = null, onError }: Props) {
-  const [heights, setHeights] = useState<Float32Array | null>(null);
+  const [dem, setDem] = useState<{ terrain: Terrain; heights: Float32Array } | null>(null);
+  // Último bloque terrain recibido: el efecto de carga lo lee sin depender de su identidad
+  // (la sincronización en vivo entrega un objeto nuevo aunque el heightmap no cambie)
+  const terrainRef = useRef(terrain);
+  useEffect(() => {
+    terrainRef.current = terrain;
+  });
   const onErrorRef = useRef(onError);
   const onHeadingRef = useRef(onHeading);
   useEffect(() => {
@@ -378,7 +423,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
         if (data.length !== terrain.width_px * terrain.height_px) {
           throw new Error(`tamaño inesperado (${data.length} valores)`);
         }
-        if (alive) setHeights(data);
+        if (alive) setDem(decimateForMesh(terrainRef.current, data));
       })
       .catch((e) => {
         if (alive) onErrorRef.current(`No se pudo cargar el terreno 3D (${e instanceof Error ? e.message : e}). Mostrando mapa 2D.`);
@@ -388,7 +433,9 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
     };
   }, [terrain.heightmap_url, terrain.header_bytes, terrain.width_px, terrain.height_px]);
 
-  const frame = useMemo(() => (heights ? makeFrame(terrain, heights) : null), [terrain, heights]);
+  const heights = dem?.heights ?? null;
+  const meshTerrain = dem?.terrain ?? terrain; // rejilla reducida si el DEM era muy grande
+  const frame = useMemo(() => (dem ? makeFrame(dem.terrain, dem.heights) : null), [dem]);
   const routePoints = useMemo(
     () => (frame && route && route.path.length > 1 ? route.path.map(frame.placePoint) : null),
     [frame, route],
@@ -448,7 +495,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
         <directionalLight position={SUN_DIR.clone().multiplyScalar(span).toArray()} intensity={1.6} />
         <SkyDome radius={span * 4} sunDir={SUN_DIR} />
 
-        <TerrainMesh manifest={manifest} terrain={terrain} heights={heights} frame={frame} />
+        <TerrainMesh manifest={manifest} terrain={meshTerrain} heights={heights} frame={frame} />
 
         {manifest.hazards?.map((hz) => <HazardOutline key={hz.hazard_id} hazard={hz} frame={frame} />)}
 
