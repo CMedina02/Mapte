@@ -1,6 +1,6 @@
 // Radar del visor: norte arriba, centrado en la posición actual (inicio de la ruta restante).
 // Solo dibuja geometría del backend: ruta, base, destino y zonas de riesgo.
-import type { Hazard, Position } from '../../../shared/types/contracts';
+import type { Bounds, Hazard, Position } from '../../../shared/types/contracts';
 
 interface Props {
   center: Position;
@@ -9,20 +9,22 @@ interface Props {
   path: Position[];
   hazards: Hazard[];
   heading: number | null; // hacia dónde mira el astronauta (null = desconocido)
+  imagery?: { url: string; bounds: Bounds } | null; // ortofoto de fondo (minimapa)
 }
 
 const R = 92; // radio útil en unidades del viewBox (200 × 200)
 const RANGES = [250, 500, 1000, 2000, 3000, 5000, 10000];
 
-export default function Radar({ center, target, base, path, hazards, heading }: Props) {
+export default function Radar({ center, target, base, path, hazards, heading, imagery }: Props) {
   // Alcance: el menor anillo "redondo" que contiene el siguiente destino con margen (o toda la ruta si no hay destino).
   // Lo que queda fuera del alcance se recorta en el borde del radar.
   const dist = (p: Position) => Math.hypot(p.x_m - center.x_m, p.y_m - center.y_m);
   const far = target ? dist(target) * 1.4 : Math.max(1, ...path.map(dist));
   const range = RANGES.find((r) => r >= far) ?? RANGES[RANGES.length - 1];
 
-  const sx = (p: Position) => 100 + ((p.x_m - center.x_m) / range) * R;
-  const sy = (p: Position) => 100 - ((p.y_m - center.y_m) / range) * R; // norte arriba
+  const sx = (p: Pick<Position, 'x_m'>) => 100 + ((p.x_m - center.x_m) / range) * R;
+  const sy = (p: Pick<Position, 'y_m'>) => 100 - ((p.y_m - center.y_m) / range) * R; // norte arriba
+  const km = (m: number) => (m >= 1000 ? `${+(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
   const pts = (ps: Position[]) => ps.map((p) => `${sx(p).toFixed(1)},${sy(p).toFixed(1)}`).join(' ');
 
   return (
@@ -44,6 +46,21 @@ export default function Radar({ center, target, base, path, hazards, heading }: 
       <circle cx="100" cy="100" r={R} fill="url(#radar-bg)" stroke="#5182d8" strokeOpacity="0.7" />
 
       <g clipPath="url(#radar-clip)">
+        {/* Minimapa: ortofoto real, oscurecida para que la geometría resalte */}
+        {imagery && (
+          <>
+            <image
+              href={imagery.url}
+              x={sx({ x_m: imagery.bounds.min_x })}
+              y={sy({ y_m: imagery.bounds.max_y })}
+              width={((imagery.bounds.max_x - imagery.bounds.min_x) / range) * R}
+              height={((imagery.bounds.max_y - imagery.bounds.min_y) / range) * R}
+              preserveAspectRatio="none"
+              opacity="0.75"
+            />
+            <circle cx="100" cy="100" r={R} fill="#070d1f" fillOpacity="0.35" />
+          </>
+        )}
         {/* Anillos a 1/3 y 2/3 del alcance y ejes */}
         {[1 / 3, 2 / 3].map((f) => (
           <circle key={f} cx="100" cy="100" r={R * f} fill="none" stroke="#5182d8" strokeOpacity="0.35" />
@@ -92,7 +109,8 @@ export default function Radar({ center, target, base, path, hazards, heading }: 
       )}
 
       <text x="100" y="20" textAnchor="middle" className="fill-alert-400 text-[13px] font-bold">N</text>
-      <text x="100" y="196" textAnchor="middle" className="fill-primary-200 text-[10px]">{range >= 1000 ? `${range / 1000} km` : `${range} m`}</text>
+      {/* Escala: radio del anillo exterior (la distancia de ruta la da el backend en el panel) */}
+      <text x="100" y="197" textAnchor="middle" className="fill-primary-200 text-[10px]">{km(range)}</text>
     </svg>
   );
 }

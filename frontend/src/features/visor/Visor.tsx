@@ -4,7 +4,9 @@ import { fmt, ROUTE_STATUS } from '../../shared/format';
 import { marsApi } from '../../shared/api/client';
 import MarsMap from '../mars-map/MarsMap';
 import { initialLayerState } from '../mars-map/mapUtils';
-import { loadPackage, sendQueue, updatePackageMission, useOnline, usePendingQueue } from '../offline-sync/offline';
+import {
+  isNewerMission, loadPackage, sendQueue, updatePackageMission, useOnline, usePackageUpdates, usePendingQueue,
+} from '../offline-sync/offline';
 import ErrorBoundary from '../../shared/ui/ErrorBoundary';
 import ResourceCheck from './ResourceCheck';
 import FindingPad from './FindingPad';
@@ -13,7 +15,8 @@ import PositionCard from './PositionCard';
 import Radar from './nav/Radar';
 import CompassTape from './nav/CompassTape';
 import ElevationProfile from './nav/ElevationProfile';
-import { bearingDeg, samePlace } from './nav/geo';
+import { bearingDeg, norm360, samePlace } from './nav/geo';
+import { compassAvailable, useDeviceCompass } from './nav/useDeviceCompass';
 
 // three.js pesa: se descarga solo al abrir la vista 3D
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
@@ -27,12 +30,32 @@ const EVA_CONSTRAINTS: Constraints = { max_slope_deg: 15, speed_m_per_min: 20, a
 const bigButton = 'btn min-h-14 px-5 text-base sm:text-lg';
 
 export default function Visor() {
-  const [pkg] = useState(loadPackage);
+  const [pkg, setPkg] = useState(loadPackage);
   const [mission, setMission] = useState<Mission | null>(() => pkg?.mission ?? null);
+  const online = useOnline();
+  const missionId = mission?.mission_id ?? null;
 
   useEffect(() => {
     if (mission) updatePackageMission(mission);
   }, [mission]);
+
+  // En vivo desde el panel de control: el panel guarda el paquete y esta pestaña lo recibe al instante
+  usePackageUpdates((p) => {
+    setPkg(p);
+    setMission((m) => (isNewerMission(m, p.mission) ? p.mission : m));
+  });
+
+  // Entre dispositivos (casco ↔ centro de control) no hay evento 'storage': se consulta la misión cada 5 s
+  useEffect(() => {
+    if (!online || !missionId) return;
+    const id = setInterval(() => {
+      marsApi
+        .getMission(missionId)
+        .then((m) => setMission((cur) => (cur?.mission_id === m.mission_id && isNewerMission(cur, m) ? m : cur)))
+        .catch(() => {}); // sin enlace: se sigue con el paquete local
+    }, 5000);
+    return () => clearInterval(id);
+  }, [online, missionId]);
 
   if (!pkg || !mission) {
     return (
@@ -45,7 +68,8 @@ export default function Visor() {
       </div>
     );
   }
-  return <VisorHud pkg={pkg} mission={mission} setMission={setMission} />;
+  // key: una misión nueva desde el panel reinicia el flujo del visor (destino, fase)
+  return <VisorHud key={mission.mission_id} pkg={pkg} mission={mission} setMission={setMission} />;
 }
 
 function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: Mission; setMission: (m: Mission) => void }) {
@@ -53,9 +77,16 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const [layerState] = useState(() => initialLayerState(manifest.layers));
   const [phase, setPhase] = useState<Phase>('select');
   const [notice, setNotice] = useState<string | null>(null);
-  const [view3d, setView3d] = useState(() => !!manifest.terrain); // 3D por defecto si hay terreno
+  // 3D siempre que haya terreno; el 2D a pantalla completa queda solo como respaldo si el 3D falla
+  const [view3d, setView3d] = useState(() => !!manifest.terrain);
   const [heading, setHeading] = useState<number | null>(null);
   const [chosenId, setChosenId] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false); // mapa de selección (se abre tocando el radar)
+  // Hacia dónde mira el astronauta: brújula del dispositivo (casco/brazo) o, en escritorio, la posición del ratón
+  const compass = useDeviceCompass();
+  const [hasCompass] = useState(compassAvailable);
+  const [mouseLook, setMouseLook] = useState<number | null>(null);
+  const lookHeading = compass.heading ?? mouseLook;
   const [previews, setPreviews] = useState<Record<string, RouteResult | 'error'>>({});
   const [queue, setQueue] = usePendingQueue();
   const online = useOnline();
@@ -119,6 +150,11 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const { oxygen_available_min: o2, return_reserve_min: reserve } = mission.resources;
   const reservePct = o2 > 0 ? Math.min(100, (reserve / o2) * 100) : 100;
 
+  const imageryLayer =
+    manifest.layers.find((l) => l.layer_id === manifest.terrain?.texture_layer_id) ??
+    manifest.layers.find((l) => l.kind === 'optical');
+  const imagery = imageryLayer?.asset_url ? { url: imageryLayer.asset_url, bounds: manifest.bounds_local_m } : null;
+
   const on3dError = useCallback((msg: string) => {
     setNotice(msg);
     setView3d(false);
@@ -130,7 +166,31 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     setPhase('select');
   };
 
-  const map2d = (
+  // Tocar el mapa elige el destino más cercano al toque (si está a menos de 400 m)
+  const pickNear = (p: { x_m: number; y_m: number }) => {
+    const near = destinations
+      .map((d) => ({ d, m: Math.hypot(d.position.x_m - p.x_m, d.position.y_m - p.y_m) }))
+      .sort((a, b) => a.m - b.m)[0];
+    if (near && near.m < 400) {
+      setNotice(null);
+      setChosenId(near.d.id);
+    }
+  };
+
+  const status = legRoute ? (ROUTE_STATUS[legRoute.status] ?? ROUTE_STATUS.unknown) : null;
+  const legSummary = (
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+      {status && <span className={`chip border ${status.cls}`}>{status.label}</span>}
+      {legRoute && (
+        <span className="font-mono">
+          {fmt(legRoute.distance_m, 'm')} · {fmt(legRoute.duration_min, 'min')}
+        </span>
+      )}
+      {routeNote && <span className="text-xs text-space-300">{routeNote}</span>}
+    </span>
+  );
+
+  const map2d = (picker = false) => (
     <MarsMap
       manifest={manifest}
       objectives={pkg.objectives}
@@ -139,15 +199,26 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       layerState={layerState}
       route={shownRoute}
       focus={[here, dest.position, ...shownRoute.path]}
+      onMapClick={picker ? pickNear : undefined}
     />
   );
 
   return (
     <div className="relative h-dvh overflow-hidden bg-space-950 text-space-50">
       {/* Mapa a pantalla completa; los instrumentos flotan encima */}
-      <div className="absolute inset-0">
+      <div
+        className="absolute inset-0"
+        // Ratón sin pulsar: el centro de la pantalla mira al destino y cada borde gira 180° hacia su lado.
+        // Al arrastrar (inclinar/acercar) el ratón deja de mandar hasta que se suelta.
+        onPointerDown={() => setMouseLook(null)}
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'mouse' || e.buttons !== 0 || compass.enabled || !view3d) return;
+          const x = e.clientX / e.currentTarget.clientWidth - 0.5;
+          setMouseLook(Math.round(norm360(bearing + x * 360)));
+        }}
+      >
         {view3d && manifest.terrain ? (
-          <ErrorBoundary fallback={map2d}>
+          <ErrorBoundary fallback={map2d()}>
             <Suspense fallback={<p className="flex h-full items-center justify-center text-sm">Cargando terreno 3D…</p>}>
               <Terrain3D
                 manifest={manifest}
@@ -159,57 +230,77 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                 here={here}
                 destination={dest.position}
                 onHeading={setHeading}
+                lookHeading={lookHeading}
                 onError={on3dError}
               />
             </Suspense>
           </ErrorBoundary>
         ) : (
-          map2d
+          map2d()
         )}
       </div>
 
-      {/* ---------- Franja superior ---------- */}
+      {/* ---------- Franja superior: posición · estado, compás, alertas ---------- */}
       <div className="pointer-events-none absolute inset-x-2 top-2 z-20 flex flex-col gap-2 sm:inset-x-3 sm:top-3">
-        <div className="flex items-start justify-between gap-2">
-          <PositionCard frame={manifest.frame} here={here} label={hereLabel} />
-          <div className="hud pointer-events-auto flex flex-wrap items-center justify-end gap-2 px-2 py-1.5 text-[11px] tracking-widest uppercase">
-            {manifest.terrain && (
-              <button
-                type="button"
-                className="btn min-h-9 border border-primary-400 px-2 py-1 text-xs text-primary-200"
-                aria-pressed={view3d}
-                onClick={() => setView3d((v) => !v)}
-              >
-                {view3d ? 'Ver 2D' : 'Ver 3D'}
-              </button>
-            )}
-            {queue.length > 0 && <span>{queue.length} pendiente(s)</span>}
-            {online && queue.length > 0 && (
-              <button
-                type="button"
-                className="btn min-h-9 border border-primary-500 px-2 py-1 text-xs text-primary-300"
-                onClick={async () => setNotice(await sendQueue(mission, queue, setMission, setQueue))}
-              >
-                Enviar
-              </button>
-            )}
-            <span className={online ? 'text-green-400' : 'text-amber-300'}>● {online ? 'Enlace' : 'Sin enlace'}</span>
-          </div>
+        {/* md+: 3 columnas iguales a los lados → el compás queda centrado en pantalla, igual que la alerta.
+            En móvil el compás baja a su propia línea. */}
+        <div className="grid grid-cols-[1fr_auto] items-start gap-x-2 gap-y-1 md:grid-cols-[1fr_minmax(0,300px)_1fr]">
+          <PositionCard frame={manifest.frame} here={here} label={hereLabel} online={online} />
+          {!picking && phase !== 'confirm' && (
+            <div className="col-span-2 row-start-2 md:col-span-1 md:col-start-2 md:row-start-1">
+              <CompassTape heading={view3d ? heading : null} bearing={bearing} />
+            </div>
+          )}
+          {/* Controles solo cuando hacen falta: brújula del dispositivo y cola sin enviar */}
+          {((hasCompass && view3d) || queue.length > 0) && (
+            <div className="hud pointer-events-auto col-start-2 row-start-1 flex min-h-9 items-center gap-2 justify-self-end px-2 py-1 text-[11px] tracking-widest uppercase md:col-start-3">
+              {hasCompass && view3d && (
+                <button
+                  type="button"
+                  className={`btn min-h-7 border px-2 py-0.5 text-[11px] ${compass.enabled ? 'border-green-500 text-green-300' : 'border-primary-400 text-primary-200'}`}
+                  aria-pressed={compass.enabled}
+                  aria-label="Orientar la vista con la brújula del dispositivo"
+                  onClick={async () => {
+                    if (compass.enabled) compass.disable();
+                    else if (!(await compass.enable())) setNotice('Sin permiso para usar la brújula del dispositivo.');
+                  }}
+                >
+                  🧭{compass.enabled && compass.heading === null ? '…' : ''}
+                </button>
+              )}
+              {queue.length > 0 && <span>{queue.length} pend.</span>}
+              {online && queue.length > 0 && (
+                <button
+                  type="button"
+                  className="btn min-h-7 border border-primary-500 px-2 py-0.5 text-[11px] text-primary-300"
+                  onClick={async () => setNotice(await sendQueue(mission, queue, setMission, setQueue))}
+                >
+                  Enviar
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {phase !== 'confirm' && <CompassTape heading={view3d ? heading : null} bearing={bearing} />}
-
         {mission.alerts.length > 0 && (
-          <div role="alert" className="mx-auto max-w-xl rounded-md border border-alert-500 bg-alert-950/90 px-3 py-2 text-sm font-bold text-alert-100">
+          <div role="alert" className="mx-auto max-w-md rounded border border-alert-500 bg-alert-950/85 px-2 py-0.5 text-[11px] font-semibold text-alert-100">
             ⚠ {mission.alerts.join(' · ')}
           </div>
         )}
       </div>
 
-      {/* ---------- Franja inferior: radar + panel de acción ---------- */}
-      <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex flex-col items-start gap-2 sm:inset-x-3 sm:bottom-3 sm:flex-row sm:items-end">
-        {phase !== 'confirm' && (
-          <div className="aspect-square w-28 shrink-0 sm:w-40 lg:w-48">
+      {/* ---------- Franja inferior: radar (abre el mapa) + panel esencial ---------- */}
+      {!picking && phase !== 'confirm' && (
+        <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex items-end gap-2 sm:inset-x-3 sm:bottom-3">
+          <button
+            type="button"
+            className="group pointer-events-auto relative aspect-square w-28 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-primary-300 sm:w-44 lg:w-52"
+            aria-label="Abrir mapa para elegir destino y verificar ruta"
+            onClick={() => {
+              setNotice(null);
+              setPicking(true);
+            }}
+          >
             <Radar
               center={here}
               target={dest.position}
@@ -217,131 +308,137 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
               path={shownRoute.path}
               hazards={manifest.hazards ?? []}
               heading={view3d ? heading : null}
+              imagery={imagery}
             />
-          </div>
-        )}
-
-        <section className="hud pointer-events-auto w-full space-y-3 p-3 backdrop-blur-sm sm:ml-auto sm:max-w-xl sm:p-4">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs sm:flex-nowrap sm:text-sm">
-            <span>O₂ {fmt(o2, 'min')}</span>
-            <div
-              className="order-last flex h-2.5 basis-full overflow-hidden rounded bg-primary-950 sm:order-none sm:flex-1 sm:basis-auto"
-              role="img"
-              aria-label={`Reserva de retorno ${reserve} de ${o2} minutos de O₂`}
-              title="Rojo: reserva de retorno"
+            <span
+              aria-hidden="true"
+              className="absolute top-0 right-0 flex size-7 items-center justify-center rounded-full border border-primary-400 bg-primary-700 text-sm text-white group-hover:bg-primary-600"
             >
-              <div className="bg-alert-600" style={{ width: `${reservePct}%` }} />
-              <div className="flex-1 bg-primary-500" />
-            </div>
-            <span>Reserva {fmt(reserve, 'min')}</span>
-          </div>
+              ⤢
+            </span>
+          </button>
 
-          {phase === 'select' && (
-            <>
-              <p className="eyebrow">¿A dónde vas?</p>
-              <DestinationPicker
-                destinations={destinations}
-                selectedId={dest.id}
-                here={here}
-                onSelect={(id) => {
-                  setNotice(null);
-                  setChosenId(id);
-                }}
-              />
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm">
-                  {legRoute ? (
-                    <>
-                      <span className={`chip border ${(ROUTE_STATUS[legRoute.status] ?? ROUTE_STATUS.unknown).cls}`}>
-                        {(ROUTE_STATUS[legRoute.status] ?? ROUTE_STATUS.unknown).label}
-                      </span>{' '}
-                      {fmt(legRoute.distance_m, 'm')} · {fmt(legRoute.duration_min, 'min')}
-                    </>
-                  ) : null}
-                  {routeNote && <p className="mt-1 text-xs text-space-300">{routeNote}</p>}
-                </div>
-                <button
-                  type="button"
-                  disabled={!legRoute}
-                  className={`${bigButton} w-full bg-primary-600 text-white enabled:hover:bg-primary-500 sm:w-auto`}
-                  onClick={() => {
-                    setNotice(null);
-                    setPhase('confirm');
-                  }}
-                >
-                  Verificar ruta
-                </button>
+          <section className="hud pointer-events-auto ml-auto w-full min-w-0 space-y-2 p-3 backdrop-blur-sm sm:max-w-md">
+            <div className="flex items-center gap-2 text-[11px]" title="Rojo: reserva de retorno">
+              <span className="font-mono">O₂ {fmt(o2, 'min')}</span>
+              <div
+                className="flex h-2 flex-1 overflow-hidden rounded bg-primary-950"
+                role="img"
+                aria-label={`Reserva de retorno ${reserve} de ${o2} minutos de O₂`}
+              >
+                <div className="bg-alert-600" style={{ width: `${reservePct}%` }} />
+                <div className="flex-1 bg-primary-500" />
               </div>
-            </>
-          )}
+              <span className="font-mono text-alert-300">Res. {fmt(reserve, 'min')}</span>
+            </div>
 
-          {phase === 'navigate' && legRoute && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="eyebrow">Navegando a</p>
-                <p className="text-lg font-bold">{dest.title}</p>
-                <p className="text-sm">
-                  Distancia {fmt(legRoute.distance_m, 'm')} · Tiempo {fmt(legRoute.duration_min, 'min')}
+            {phase === 'select' && (
+              <div className="space-y-1">
+                <p className="truncate font-bold">
+                  <span className="eyebrow mr-2">Destino</span>
+                  {dest.title}
                 </p>
-                <div className="mt-2">
-                  <ElevationProfile path={legRoute.path} datum={manifest.terrain?.vertical_datum} />
-                </div>
-                {legRoute.warnings.length > 0 && (
-                  // Plegado para no tapar el terreno; se abre con un toque
-                  <details className="text-xs text-amber-300">
-                    <summary className="cursor-pointer font-semibold">⚠ {legRoute.warnings.length} aviso(s) de ruta</summary>
+                {legSummary}
+              </div>
+            )}
+
+            {phase === 'navigate' && legRoute && (
+              <div className="flex items-end gap-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="eyebrow">Navegando a</p>
+                  <p className="truncate font-bold">{dest.title}</p>
+                  {legSummary}
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-primary-200">
+                      Perfil
+                      {legRoute.warnings.length > 0 && <span className="text-amber-300"> · ⚠ {legRoute.warnings.length} aviso(s)</span>}
+                    </summary>
+                    <div className="mt-2">
+                      <ElevationProfile path={legRoute.path} datum={manifest.terrain?.vertical_datum} />
+                    </div>
                     {legRoute.warnings.map((w) => (
-                      <p key={w} className="mt-1">
+                      <p key={w} className="mt-1 text-amber-300">
                         {w}
                       </p>
                     ))}
                   </details>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">
-                <button type="button" className={`${bigButton} border border-primary-500`} onClick={() => setPhase('select')}>
-                  Cambiar
-                </button>
-                <button type="button" className={`${bigButton} bg-green-700 text-white`} onClick={() => setPhase('arrived')}>
+                </div>
+                <button type="button" className={`${bigButton} shrink-0 bg-green-700 text-white`} onClick={() => setPhase('arrived')}>
                   Llegué
                 </button>
               </div>
+            )}
+
+            {phase === 'arrived' &&
+              (objective ? (
+                <FindingPad
+                  onBack={() => setPhase('navigate')}
+                  mission={mission}
+                  objective={objective}
+                  onMission={setMission}
+                  onQueue={(o) => setQueue((q) => [...q, o])}
+                  onDone={backToSelect}
+                />
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-bold">Llegaste a la base.</p>
+                  <button type="button" className={`${bigButton} bg-primary-600 text-white`} onClick={() => backToSelect()}>
+                    Listo
+                  </button>
+                </div>
+              ))}
+
+            {notice && (
+              <p role="status" className="text-xs text-primary-200">
+                {notice}
+              </p>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* ---------- Mapa de selección: elegir destino y verificar ruta ---------- */}
+      {picking && phase !== 'confirm' && (
+        <div role="dialog" aria-modal="true" aria-label="Elegir destino" className="absolute inset-0 z-20 flex flex-col bg-space-950 lg:flex-row">
+          <div className="relative min-h-0 flex-1">{map2d(true)}</div>
+          <aside className="hud m-2 space-y-3 p-3 sm:p-4 lg:w-96 lg:self-end">
+            <div className="flex items-center justify-between gap-2">
+              <p className="eyebrow">¿A dónde vas? · toca un punto o elige</p>
+              <button type="button" className="btn min-h-9 px-3 text-lg" aria-label="Cerrar mapa" onClick={() => setPicking(false)}>
+                ✕
+              </button>
             </div>
-          )}
-
-          {phase === 'arrived' &&
-            (objective ? (
-              <FindingPad
-                onBack={() => setPhase('navigate')}
-                mission={mission}
-                objective={objective}
-                onMission={setMission}
-                onQueue={(o) => setQueue((q) => [...q, o])}
-                onDone={backToSelect}
-              />
-            ) : (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-lg font-bold">Llegaste a la base.</p>
-                <button type="button" className={`${bigButton} bg-primary-600 text-white`} onClick={() => backToSelect()}>
-                  Listo
-                </button>
-              </div>
-            ))}
-
-          {notice && (
-            <p role="status" className="text-sm text-primary-200">
-              {notice}
-            </p>
-          )}
-        </section>
-      </div>
+            <DestinationPicker
+              destinations={destinations}
+              selectedId={dest.id}
+              here={here}
+              onSelect={(id) => {
+                setNotice(null);
+                setChosenId(id);
+              }}
+            />
+            {legSummary}
+            <button
+              type="button"
+              disabled={!legRoute}
+              className={`${bigButton} w-full bg-primary-600 text-white enabled:hover:bg-primary-500`}
+              onClick={() => setPhase('confirm')}
+            >
+              Verificar ruta
+            </button>
+          </aside>
+        </div>
+      )}
 
       {phase === 'confirm' && legRoute && (
         <ResourceCheck
           route={legRoute}
           resources={mission.resources}
           targetTitle={dest.title}
-          onConfirm={() => setPhase('navigate')} // ponytail: local hasta que exista el endpoint de navegación
+          onConfirm={() => {
+            setPicking(false);
+            setPhase('navigate'); // ponytail: local hasta que exista el endpoint de navegación
+          }}
           onCancel={() => setPhase('select')}
         />
       )}

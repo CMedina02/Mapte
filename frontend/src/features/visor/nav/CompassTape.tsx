@@ -18,7 +18,7 @@ export default function CompassTape({ heading, bearing }: { heading: number | nu
   const offTape = Math.abs(turn) > HALF_SPAN;
 
   return (
-    <div className="mx-auto w-full max-w-lg">
+    <div className="mx-auto w-full max-w-[300px]">
       <svg viewBox="0 0 240 36" className="h-auto w-full" role="img" aria-label={`Vista ${pad(center)} grados ${cardinal(center)}`}>
         <defs>
           <linearGradient id="tape-fade" x1="0" x2="1">
@@ -32,7 +32,7 @@ export default function CompassTape({ heading, bearing }: { heading: number | nu
           </mask>
         </defs>
         <g mask="url(#tape-mask)">
-          <rect x="0" y="0" width="240" height="24" fill="#070d1f" fillOpacity="0.7" />
+          <rect x="0" y="0" width="240" height="24" fill="#070d1f" fillOpacity="0.9" />
           <line x1="0" y1="24" x2="240" y2="24" stroke="#5182d8" strokeOpacity="0.8" />
           {ticks.map((d) => {
             const x = 120 + (d - center) * PX_PER_DEG;
@@ -61,10 +61,10 @@ export default function CompassTape({ heading, bearing }: { heading: number | nu
             <path d={`M${markerX} 25 L${markerX - 5} 34 L${markerX + 5} 34 Z`} fill="#22c55e" />
           ))}
       </svg>
-      <p className="text-center">
-        <span className="rounded bg-space-950/75 px-2 py-0.5 text-[11px] font-semibold tracking-widest text-primary-100 uppercase">
-          {heading !== null ? `Vista ${pad(heading)}° ${cardinal(heading)}` : 'Norte arriba'}
-          {bearing !== null && ` · Destino ${pad(bearing)}° ${cardinal(bearing)}`}
+      <p className="-mt-1 text-center">
+        <span className="rounded bg-space-950/75 px-1.5 py-px font-mono text-[10px] text-primary-100">
+          {heading !== null ? `Vista ${pad(heading)}° ${cardinal(heading)}` : 'N arriba'}
+          {bearing !== null && ` · Dest. ${pad(bearing)}° ${cardinal(bearing)}`}
           {heading !== null && bearing !== null && Math.abs(turn) >= 5 && (
             <span className="text-green-400"> · gira {Math.abs(Math.round(turn))}° {turn > 0 ? '→' : '←'}</span>
           )}
