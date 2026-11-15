@@ -45,8 +45,8 @@ export default function DestinationPicker({ destinations, selectedId, here, onSe
             <span className="block text-[11px] text-space-300">
               Rumbo {Math.round(b)}° {cardinal(b)}
               {d.recommended && <span className="text-green-400"> · plan</span>}
-              {d.reach === 'ok' && <span className="text-green-400"> · ✓ regreso</span>}
-              {blocked && <span className="block text-alert-300">✕ {d.note}</span>}
+              {d.reach === 'ok' && <span className="text-green-400"> · con regreso seguro</span>}
+              {blocked && <span className="block text-alert-300">{d.note}</span>}
             </span>
           </button>
         );

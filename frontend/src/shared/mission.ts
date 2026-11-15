@@ -119,17 +119,17 @@ export function decisionPoints(mission: Mission): DecisionPoint[] {
 // Motivos del backend en pocas palabras
 export const shortReason = (r: string) =>
   r.includes('recursos')
-    ? 'sin O₂ para volver con reserva'
+    ? 'no alcanza el oxígeno para volver con reserva'
     : r.includes('anterior excluido')
-      ? 'depende del anterior'
+      ? 'depende de un objetivo anterior'
       : r.includes('no es viable')
-        ? 'sin ruta viable'
+        ? 'no hay un camino seguro'
         : r.includes('desconocido')
-          ? 'cruza terreno sin datos'
+          ? 'el camino cruza terreno sin datos'
           : r.includes('consumo')
-            ? 'consumo sin confirmar'
+            ? 'falta el tiempo de trabajo'
             : r.includes('límite')
-              ? 'cálculo sin terminar'
+              ? 'el cálculo no terminó'
               : r;
 
 // Punto dentro de polígono (ray casting) en el marco local

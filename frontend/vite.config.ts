@@ -14,8 +14,8 @@ export default defineConfig({
         short_name: 'Mapte',
         start_url: '/visor',
         display: 'standalone',
-        background_color: '#0a0a0a',
-        theme_color: '#ea580c',
+        background_color: '#131314',
+        theme_color: '#131314',
         icons: [{ src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' }],
       },
       workbox: {
@@ -25,6 +25,12 @@ export default defineConfig({
             urlPattern: ({ url }) => url.pathname.startsWith('/assets/'),
             handler: 'CacheFirst',
             options: { cacheName: 'mission-assets' },
+          },
+          {
+            // Tipografías de Google: el visor las conserva sin red
+            urlPattern: ({ url }) => /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'google-fonts', expiration: { maxEntries: 20 } },
           },
         ],
       },

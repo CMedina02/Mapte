@@ -1,5 +1,6 @@
 import type { Resources, RouteResult } from '../../shared/types/contracts';
 import { fmt, ROUTE_STATUS, warningText } from '../../shared/format';
+import Icon from '../../shared/ui/Icon';
 
 interface Props {
   route: RouteResult;
@@ -29,38 +30,37 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
         role="dialog"
         aria-modal="true"
         aria-labelledby="rc-title"
-        className="max-h-full w-full max-w-lg space-y-4 overflow-y-auto rounded-lg border border-primary-500 bg-space-950/95 p-4 sm:p-6"
+        className="max-h-full w-full max-w-lg space-y-5 overflow-y-auto rounded-3xl bg-space-900 p-6 shadow-2xl"
       >
-        <div className="text-center">
-          <h2 id="rc-title" className="text-xl font-bold uppercase tracking-widest">
-            Verificación de recursos
+        <div className="space-y-1">
+          <h2 id="rc-title" className="text-2xl font-normal text-space-50">
+            Antes de salir
           </h2>
-          <p className="text-sm">
-            Destino: <span className="text-primary-300">{targetTitle}</span>
-          </p>
+          <p className="text-sm text-space-300">Rumbo a {targetTitle.split(' — ')[0]}</p>
         </div>
 
-        <p className={`rounded border px-3 py-2 text-center font-bold ${s.cls}`}>Ruta {s.label}</p>
+        <span className={`chip ${s.cls}`}>Ruta {s.label.toLowerCase()}</span>
 
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
           {rows.map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-2">
-              <dt className="text-primary-500">{k}</dt>
-              <dd>{v}</dd>
+            <div key={k}>
+              <dt className="text-xs text-space-400">{k}</dt>
+              <dd className="font-medium text-space-50">{v}</dd>
             </div>
           ))}
         </dl>
 
         {r.warnings.map((w) => (
-          <p key={w} className="text-sm text-amber-300">
-            ⚠ {warningText(w)}
+          <p key={w} className="flex gap-2 text-sm text-amber-300">
+            <Icon name="warning" size={18} />
+            {warningText(w)}
           </p>
         ))}
         {blocked && (
-          <p className="text-sm font-bold text-alert-400">Ruta no viable.</p>
+          <p className="text-sm font-medium text-alert-400">No es seguro salir por esta ruta.</p>
         )}
         {r.status === 'unknown' && (
-          <p className="text-sm text-amber-300">Ruta sin confirmar.</p>
+          <p className="text-sm text-amber-300">La ruta aún no está confirmada como segura.</p>
         )}
 
         <div className="grid grid-cols-2 gap-3">

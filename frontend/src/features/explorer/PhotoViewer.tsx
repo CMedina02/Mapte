@@ -64,10 +64,10 @@ export default function PhotoViewer({ photos }: { photos: Photo[] }) {
       {n > 1 && (
         <div className="flex gap-2">
           <button type="button" className="btn-ghost flex-1" onClick={() => setI((idx - 1 + n) % n)}>
-            ◀ Anterior
+            Anterior
           </button>
           <button type="button" className="btn-ghost flex-1" onClick={() => setI((idx + 1) % n)}>
-            Siguiente ▶
+            Siguiente
           </button>
         </div>
       )}

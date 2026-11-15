@@ -9,17 +9,12 @@ import DecisionLog from './DecisionLog';
 import RouteDetails from './RouteDetails';
 import LegTimeline from './LegTimeline';
 import { missionRoute, stopLetters } from '../../shared/mission';
+import Icon, { type IconName } from '../../shared/ui/Icon';
 
 type Tab = 'plan' | 'layers';
-// Íconos en línea (trazo 24×24): lucide-react rompía el pre-empaquetado de Vite (dos copias de React)
-const icon = (d: string) => () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d={d} />
-  </svg>
-);
-const TABS: { id: Tab; label: string; icon: () => React.JSX.Element }[] = [
-  { id: 'plan', label: 'Plan', icon: icon('M4 22V4m0 0h12l-2 4 2 4H4') },
-  { id: 'layers', label: 'Capas', icon: icon('M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5') },
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: 'plan', label: 'Plan', icon: 'flag' },
+  { id: 'layers', label: 'Capas', icon: 'layers' },
 ];
 
 interface Props {
@@ -73,8 +68,9 @@ export default function MissionControl({ mission, onMission }: Props) {
   return (
     // Móvil y tableta vertical: mapa arriba, pestañas y panel debajo. Desde lg: opciones a la izquierda, mapa al centro, información a la derecha.
     <div className="flex flex-col lg:h-full lg:flex-row">
-      <nav className="order-2 flex shrink-0 border-b border-space-800 lg:order-1 lg:w-16 lg:flex-col lg:border-r lg:border-b-0 lg:py-2">
-        {TABS.map(({ id, label, icon: Icon }) => {
+      {/* Riel de navegación (Material 3): el ícono activo va dentro de una píldora */}
+      <nav className="order-2 flex shrink-0 justify-center gap-2 border-b border-space-800 bg-space-900 py-2 lg:order-1 lg:w-20 lg:flex-col lg:justify-start lg:gap-4 lg:border-r lg:border-b-0 lg:py-4">
+        {TABS.map(({ id, label, icon }) => {
           const on = tab === id;
           return (
             <button
@@ -82,18 +78,22 @@ export default function MissionControl({ mission, onMission }: Props) {
               type="button"
               onClick={() => setTab(id)}
               aria-current={on ? 'page' : undefined}
-              className={`relative flex flex-1 flex-col items-center gap-1 py-2 text-[10px] lg:flex-none lg:py-3 ${
-                on ? 'text-primary-300' : 'text-space-400 hover:text-space-200'
-              }`}
+              className="group flex flex-col items-center gap-1 px-3 text-xs font-medium"
             >
-              <Icon />
-              {label}
+              <span
+                className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
+                  on ? 'bg-primary-950 text-primary-200' : 'text-space-400 group-hover:bg-space-800'
+                }`}
+              >
+                <Icon name={icon} />
+              </span>
+              <span className={on ? 'text-space-50' : 'text-space-400'}>{label}</span>
             </button>
           );
         })}
       </nav>
 
-      <aside className="order-3 w-full space-y-6 p-3 sm:p-4 lg:order-2 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-space-800 xl:w-96">
+      <aside className="order-3 w-full space-y-6 p-4 sm:p-5 lg:order-2 lg:w-64 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-space-800 xl:w-72">
         {tab === 'plan' && (
           <>
             <section>
@@ -160,13 +160,13 @@ export default function MissionControl({ mission, onMission }: Props) {
             here={mission?.current_position}
           />
         ) : (
-          <p className="p-6">Cargando región…</p>
+          <p className="p-6 text-space-400">Cargando mapa…</p>
         )}
       </main>
 
       {/* Derecha: información de la misión planificada (ruta + bitácora) */}
       {mission && (
-        <aside className="order-4 w-full space-y-6 border-t border-space-800 p-3 sm:p-4 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-96">
+        <aside className="order-4 w-full space-y-6 border-t border-space-800 p-4 sm:p-5 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-96">
           <RouteDetails mission={mission} hazards={manifest?.hazards} />
           <LegTimeline mission={mission} objectives={objectives} hazards={manifest?.hazards} onFailedPaths={(paths) => setFailed({ id: mission.mission_id, paths })} request={planReq?.id === mission.mission_id ? planReq.req : null} />
           <DecisionLog mission={mission} objectives={objectives} />

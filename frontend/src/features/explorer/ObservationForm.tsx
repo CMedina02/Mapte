@@ -60,9 +60,8 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
     setLoading(false);
   }
 
-  if (pending.length === 0) {
-    return <section className="card">Todos los objetivos completados.</section>;
-  }
+  // Sin objetivos pendientes no hay nada que registrar (la tarjeta de progreso ya lo dice)
+  if (pending.length === 0) return null;
 
   return (
     <section className="card">

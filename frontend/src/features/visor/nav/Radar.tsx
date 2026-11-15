@@ -36,16 +36,16 @@ export default function Radar({ center, target, base, path, hazards, heading, im
           <circle cx="100" cy="100" r={R} />
         </clipPath>
         <radialGradient id="radar-bg">
-          <stop offset="0%" stopColor="#0b3d91" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#070d1f" stopOpacity="0.85" />
+          <stop offset="0%" stopColor="#2d2f31" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#131314" stopOpacity="0.85" />
         </radialGradient>
         <radialGradient id="radar-cone" cx="100" cy="100" r={R} gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#82a5e5" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#82a5e5" stopOpacity="0" />
+          <stop offset="0%" stopColor="#8ab4f8" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#8ab4f8" stopOpacity="0" />
         </radialGradient>
       </defs>
 
-      <circle cx="100" cy="100" r={R} fill="url(#radar-bg)" stroke="#5182d8" strokeOpacity="0.7" />
+      <circle cx="100" cy="100" r={R} fill="url(#radar-bg)" stroke="#9aa0a6" strokeOpacity="0.7" />
 
       <g clipPath="url(#radar-clip)">
         {/* Minimapa: ortofoto real, oscurecida para que la geometría resalte */}
@@ -70,18 +70,18 @@ export default function Radar({ center, target, base, path, hazards, heading, im
                     </g>
                   )),
                 )}
-                <circle cx="100" cy="100" r={R} fill="#070d1f" fillOpacity="0.35" />
+                <circle cx="100" cy="100" r={R} fill="#131314" fillOpacity="0.35" />
                 {/* Límite de los datos */}
-                <rect x={x0} y={y0} width={w} height={h} fill="none" stroke="#b3c8f0" strokeOpacity="0.5" strokeDasharray="3 3" />
+                <rect x={x0} y={y0} width={w} height={h} fill="none" stroke="#e8eaed" strokeOpacity="0.5" strokeDasharray="3 3" />
               </>
             );
           })()}
         {/* Anillos a 1/3 y 2/3 del alcance y ejes */}
         {[1 / 3, 2 / 3].map((f) => (
-          <circle key={f} cx="100" cy="100" r={R * f} fill="none" stroke="#5182d8" strokeOpacity="0.35" />
+          <circle key={f} cx="100" cy="100" r={R * f} fill="none" stroke="#9aa0a6" strokeOpacity="0.35" />
         ))}
-        <line x1="100" y1="8" x2="100" y2="192" stroke="#5182d8" strokeOpacity="0.25" />
-        <line x1="8" y1="100" x2="192" y2="100" stroke="#5182d8" strokeOpacity="0.25" />
+        <line x1="100" y1="8" x2="100" y2="192" stroke="#9aa0a6" strokeOpacity="0.25" />
+        <line x1="8" y1="100" x2="192" y2="100" stroke="#9aa0a6" strokeOpacity="0.25" />
 
         {unknownZones.map((z) => (
           <rect
@@ -90,9 +90,9 @@ export default function Radar({ center, target, base, path, hazards, heading, im
             y={sy({ y_m: z.extent_m.y_max_m })}
             width={((z.extent_m.x_max_m - z.extent_m.x_min_m) / range) * R}
             height={((z.extent_m.y_max_m - z.extent_m.y_min_m) / range) * R}
-            fill="#94a3b8"
+            fill="#9aa0a6"
             fillOpacity="0.25"
-            stroke="#94a3b8"
+            stroke="#9aa0a6"
             strokeDasharray="2 4"
           />
         ))}
@@ -100,25 +100,25 @@ export default function Radar({ center, target, base, path, hazards, heading, im
           <polygon
             key={hz.hazard_id}
             points={pts(hz.polygon)}
-            fill={hz.kind === 'exclusion' ? '#fc3d21' : '#f59e0b'}
+            fill={hz.kind === 'exclusion' ? '#f28b82' : '#fdd663'}
             fillOpacity="0.25"
-            stroke={hz.kind === 'exclusion' ? '#fc3d21' : '#f59e0b'}
+            stroke={hz.kind === 'exclusion' ? '#f28b82' : '#fdd663'}
             strokeDasharray={hz.kind === 'exclusion' ? undefined : '4 3'}
           />
         ))}
 
         {failedPaths.map((fp, i) => (
-          <polyline key={i} points={pts(fp)} fill="none" stroke="#fc3d21" strokeWidth="2" strokeDasharray="5 3" strokeLinejoin="round" />
+          <polyline key={i} points={pts(fp)} fill="none" stroke="#f28b82" strokeWidth="2" strokeDasharray="5 3" strokeLinejoin="round" />
         ))}
         {path.length > 1 && (
-          <polyline points={pts(path)} fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinejoin="round" />
+          <polyline points={pts(path)} fill="none" stroke="#81c995" strokeWidth="2.5" strokeLinejoin="round" />
         )}
 
         <circle cx={sx(base)} cy={sy(base)} r="4.5" fill="#ffffff" />
         {target && (
           <g>
-            <circle cx={sx(target)} cy={sy(target)} r="9" fill="none" stroke="#22c55e" strokeWidth="1.5" />
-            <circle cx={sx(target)} cy={sy(target)} r="4.5" fill="#22c55e" />
+            <circle cx={sx(target)} cy={sy(target)} r="9" fill="none" stroke="#81c995" strokeWidth="1.5" />
+            <circle cx={sx(target)} cy={sy(target)} r="4.5" fill="#81c995" />
           </g>
         )}
 
@@ -133,8 +133,8 @@ export default function Radar({ center, target, base, path, hazards, heading, im
       </g>
 
       {/* Posición actual: punto GPS con pulso (el pulso se detiene con "reducir movimiento") */}
-      <circle cx="100" cy="100" r="9" fill="#2c63c4" fillOpacity="0.35" className="motion-safe:animate-ping" style={{ transformOrigin: '100px 100px' }} />
-      <circle cx="100" cy="100" r="6" fill="#2c63c4" stroke="#ffffff" strokeWidth="2.5" />
+      <circle cx="100" cy="100" r="9" fill="#1a73e8" fillOpacity="0.35" className="motion-safe:animate-ping" style={{ transformOrigin: '100px 100px' }} />
+      <circle cx="100" cy="100" r="6" fill="#1a73e8" stroke="#ffffff" strokeWidth="2.5" />
       {heading !== null && (
         <path d="M100 84 L105 93 L95 93 Z" fill="#ffffff" transform={`rotate(${heading} 100 100)`} />
       )}

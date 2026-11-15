@@ -23,8 +23,8 @@ export default function ElevationProfile({ path, datum }: { path: Position[]; da
         </span>
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-12 w-full" role="img" aria-label={`Perfil de elevación de ${Math.round(min)} a ${Math.round(max)} metros`}>
-        <polygon points={`0,${H} ${line.join(' ')} ${W},${H}`} fill="#2c63c4" fillOpacity="0.25" />
-        <polyline points={line.join(' ')} fill="none" stroke="#82a5e5" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        <polygon points={`0,${H} ${line.join(' ')} ${W},${H}`} fill="#1a73e8" fillOpacity="0.25" />
+        <polyline points={line.join(' ')} fill="none" stroke="#8ab4f8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
         <circle cx="0" cy={line[0].split(',')[1]} r="3.5" fill="#ffffff" />
       </svg>
     </figure>

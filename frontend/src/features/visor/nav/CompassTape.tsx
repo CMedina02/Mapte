@@ -32,16 +32,16 @@ export default function CompassTape({ heading, bearing }: { heading: number | nu
           </mask>
         </defs>
         <g mask="url(#tape-mask)">
-          <rect x="0" y="0" width="240" height="24" fill="#070d1f" fillOpacity="0.9" />
-          <line x1="0" y1="24" x2="240" y2="24" stroke="#5182d8" strokeOpacity="0.8" />
+          <rect x="0" y="0" width="240" height="24" fill="#1f1f1f" fillOpacity="0.85" />
+          <line x1="0" y1="24" x2="240" y2="24" stroke="#ffffff" strokeOpacity="0.25" />
           {ticks.map((d) => {
             const x = 120 + (d - center) * PX_PER_DEG;
             const major = norm360(d) % 30 === 0;
             return (
               <g key={d}>
-                <line x1={x} y1={major ? 14 : 18} x2={x} y2="24" stroke="#b3c8f0" strokeOpacity={major ? 1 : 0.5} />
+                <line x1={x} y1={major ? 14 : 18} x2={x} y2="24" stroke="#e3e3e3" strokeOpacity={major ? 0.9 : 0.4} />
                 {major && (
-                  <text x={x} y="11" textAnchor="middle" className={`text-[9px] font-bold ${norm360(d) === 0 ? 'fill-alert-400' : 'fill-primary-100'}`}>
+                  <text x={x} y="11" textAnchor="middle" className={`text-[9px] font-medium ${norm360(d) === 0 ? 'fill-alert-400' : 'fill-space-100'}`}>
                     {tickLabel(norm360(d))}
                   </text>
                 )}
@@ -56,17 +56,17 @@ export default function CompassTape({ heading, bearing }: { heading: number | nu
         {/* Destino */}
         {bearing !== null &&
           (offTape ? (
-            <path d={turn > 0 ? 'M232 18 L222 12 L222 24 Z' : 'M8 18 L18 12 L18 24 Z'} fill="#22c55e" />
+            <path d={turn > 0 ? 'M232 18 L222 12 L222 24 Z' : 'M8 18 L18 12 L18 24 Z'} fill="#81c995" />
           ) : (
-            <path d={`M${markerX} 25 L${markerX - 5} 34 L${markerX + 5} 34 Z`} fill="#22c55e" />
+            <path d={`M${markerX} 25 L${markerX - 5} 34 L${markerX + 5} 34 Z`} fill="#81c995" />
           ))}
       </svg>
       <p className="-mt-1 text-center">
-        <span className="rounded bg-space-950/75 px-1.5 py-px font-mono text-[10px] text-primary-100">
-          {heading !== null ? `Vista ${pad(heading)}° ${cardinal(heading)}` : 'N arriba'}
-          {bearing !== null && ` · Dest. ${pad(bearing)}° ${cardinal(bearing)}`}
+        <span className="rounded-full bg-space-900/80 px-3 py-0.5 text-[11px] text-space-100">
+          {heading !== null ? `Miras al ${cardinal(heading)} ${pad(heading)}°` : 'Norte arriba'}
+          {bearing !== null && ` · destino al ${cardinal(bearing)}`}
           {heading !== null && bearing !== null && Math.abs(turn) >= 5 && (
-            <span className="text-green-400"> · gira {Math.abs(Math.round(turn))}° {turn > 0 ? '→' : '←'}</span>
+            <span className="text-green-400"> · gira {Math.abs(Math.round(turn))}° a la {turn > 0 ? 'derecha' : 'izquierda'}</span>
           )}
         </span>
       </p>
