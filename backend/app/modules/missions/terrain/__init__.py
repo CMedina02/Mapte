@@ -1,4 +1,4 @@
-"""Contrato interno de terreno para el módulo de misiones."""
+"""Mission-specific routing rules over the shared catalog terrain."""
 
 from app.modules.missions.terrain.hazards import (
     EnvironmentalHazardReport,
@@ -8,28 +8,22 @@ from app.modules.missions.terrain.hazards import (
 from app.modules.missions.terrain.models import (
     FrameMismatchError,
     GridCell,
-    GridGeometry,
     LocalPosition,
+    RoutingTerrainSample,
     TerrainDataStatus,
     TerrainRestriction,
-    TerrainSample,
     TraversalStatus,
 )
-from app.modules.missions.terrain.provider import TerrainProvider
-from app.modules.missions.terrain.synthetic import SyntheticTerrainProvider
 
 __all__ = [
     "EnvironmentalHazardReport",
     "FrameMismatchError",
     "GridCell",
-    "GridGeometry",
     "HazardEffect",
     "LocalPosition",
     "MissionHazardOverlay",
-    "SyntheticTerrainProvider",
+    "RoutingTerrainSample",
     "TerrainDataStatus",
-    "TerrainProvider",
     "TerrainRestriction",
-    "TerrainSample",
     "TraversalStatus",
 ]

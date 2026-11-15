@@ -1,4 +1,13 @@
-# C02 — Propuesta para alinear contratos
+# C02 — Propuesta histórica para alinear contratos
+
+> [!WARNING]
+> **Documento obsoleto: no usar para implementar.** Fue redactado antes del cambio de Tharsis a
+> Monte Sharp y antes de la implementación del contrato de terreno actual. Hasta completar C02,
+> la forma operativa de `terrain` es la que comparten
+> `backend/app/modules/catalog/api/schemas.py` y
+> `frontend/src/shared/types/contracts.ts`. La región activa es
+> `mc23-gale-mount-sharp`, el marco es `MARS_GALE_MS_LOCAL_V1` y el terreno es
+> `gale-ms-v1`.
 
 > **Estado:** propuesta para revisión de Frontend, Backend 1 y Backend 2.  
 > Este documento no convierte por sí solo ninguna opción en contrato aprobado.
