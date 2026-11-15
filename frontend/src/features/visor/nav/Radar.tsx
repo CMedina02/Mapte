@@ -47,20 +47,33 @@ export default function Radar({ center, target, base, path, hazards, heading, im
 
       <g clipPath="url(#radar-clip)">
         {/* Minimapa: ortofoto real, oscurecida para que la geometría resalte */}
-        {imagery && (
-          <>
-            <image
-              href={imagery.url}
-              x={sx({ x_m: imagery.bounds.min_x })}
-              y={sy({ y_m: imagery.bounds.max_y })}
-              width={((imagery.bounds.max_x - imagery.bounds.min_x) / range) * R}
-              height={((imagery.bounds.max_y - imagery.bounds.min_y) / range) * R}
-              preserveAspectRatio="none"
-              opacity="0.75"
-            />
-            <circle cx="100" cy="100" r={R} fill="#070d1f" fillOpacity="0.35" />
-          </>
-        )}
+        {imagery &&
+          (() => {
+            const x0 = sx({ x_m: imagery.bounds.min_x });
+            const y0 = sy({ y_m: imagery.bounds.max_y });
+            const w = ((imagery.bounds.max_x - imagery.bounds.min_x) / range) * R;
+            const h = ((imagery.bounds.max_y - imagery.bounds.min_y) / range) * R;
+            return (
+              <>
+                {/* Minimapa: ortofoto real al centro; alrededor, copias reflejadas y tenues (no son datos)
+                    para que el borde de la zona no corte el radar en seco, igual que el terreno 3D */}
+                {[-1, 0, 1].flatMap((i) =>
+                  [-1, 0, 1].map((j) => (
+                    <g
+                      key={`${i},${j}`}
+                      transform={`translate(${x0 + (i + 0.5) * w} ${y0 + (j + 0.5) * h}) scale(${i ? -1 : 1} ${j ? -1 : 1})`}
+                      opacity={i || j ? 0.35 : 0.75}
+                    >
+                      <image href={imagery.url} x={-w / 2} y={-h / 2} width={w} height={h} preserveAspectRatio="none" />
+                    </g>
+                  )),
+                )}
+                <circle cx="100" cy="100" r={R} fill="#070d1f" fillOpacity="0.35" />
+                {/* Límite de los datos */}
+                <rect x={x0} y={y0} width={w} height={h} fill="none" stroke="#b3c8f0" strokeOpacity="0.5" strokeDasharray="3 3" />
+              </>
+            );
+          })()}
         {/* Anillos a 1/3 y 2/3 del alcance y ejes */}
         {[1 / 3, 2 / 3].map((f) => (
           <circle key={f} cx="100" cy="100" r={R * f} fill="none" stroke="#5182d8" strokeOpacity="0.35" />
