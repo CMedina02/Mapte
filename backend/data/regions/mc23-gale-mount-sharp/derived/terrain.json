@@ -1,9 +1,30 @@
 {
-  "schema_version": 1,
-  "generated_at": "2026-11-14T23:48:41Z",
+  "schema_version": 2,
+  "generated_at": "2026-11-15T01:07:44Z",
   "generator": "backend/scripts/terrain/build_gale_mount_sharp.sh",
+  "region": {
+    "region_id": "mc23-gale-mount-sharp",
+    "name": "Monte Sharp (Aeolis Mons), cráter Gale",
+    "body": "Mars",
+    "description": "AOI de 10 km en Monte Sharp, cráter Gale, cuadrángulo Aeolis (MC-23), Marte"
+  },
+  "frame": {
+    "frame_id": "MARS_GALE_MS_LOCAL_V1",
+    "units": "m",
+    "origin_east_lon_deg": 137.315346,
+    "origin_planetocentric_lat_deg": -4.834348,
+    "projection_definition": "+proj=tmerc +lat_0=-4.75 +lon_0=137.4 +k=1 +x_0=5000 +y_0=5000 +R=3396190 +units=m +no_defs",
+    "longitude_direction": "east",
+    "latitude_type": "planetocentric",
+    "aoi_lonlat_bounds_deg": {
+      "min_east_lon": 137.315346,
+      "max_east_lon": 137.484654,
+      "min_lat": -4.834348,
+      "max_lat": -4.665642
+    }
+  },
   "terrain_manifest": {
-    "heightmap_url": "/api/v1/assets/gale-mount-sharp/heightmap_4m.f32",
+    "heightmap_url": "/api/v1/assets/mc23-gale-mount-sharp/heightmap_4m.f32",
     "width_px": 2500,
     "height_px": 2500,
     "elevation_min_m": -4486.09765625,
@@ -29,10 +50,42 @@
       "pixel_size_x_m": 4.0,
       "pixel_size_y_m": 4.0,
       "row_order": "north_to_south"
-    }
+    },
+    "texture_url": "/api/v1/assets/mc23-gale-mount-sharp/ortho_2m.png",
+    "texture_grid": {
+      "origin_center_x_m": 1.0,
+      "origin_center_y_m": 9999.0,
+      "pixel_size_x_m": 2.0,
+      "pixel_size_y_m": 2.0,
+      "row_order": "north_to_south",
+      "width_px": 5000,
+      "height_px": 5000
+    },
+    "blocked_mask_url": null,
+    "dataset_checksum_sha256": "5c41971e4a25e1ae58ad4836f4a3d91af832632c144b0929898bf93e26825d2d",
+    "sector_id": "mc23-gale-mount-sharp-aoi-10km",
+    "extent_m": {
+      "x_min_m": 0.0,
+      "x_max_m": 10000.0,
+      "y_min_m": 0.0,
+      "y_max_m": 10000.0
+    },
+    "quality_zones": [
+      {
+        "zone_id": "east-dem-grid-artifacts",
+        "quality": "unknown",
+        "extent_m": {
+          "x_min_m": 6600.0,
+          "x_max_m": 10000.0,
+          "y_min_m": 0.0,
+          "y_max_m": 10000.0
+        },
+        "reason": "Artefactos en rejilla del DEM USGS (relleno de menor resolución); pendientes no fiables"
+      }
+    ]
   },
   "sector": {
-    "sector_id": "gale-mount-sharp-aoi-10km",
+    "sector_id": "mc23-gale-mount-sharp-aoi-10km",
     "extent_m": {
       "x_min_m": 0.0,
       "x_max_m": 10000.0,
@@ -43,7 +96,7 @@
     "body_radius_m": 3396190.0
   },
   "texture": {
-    "url": "/api/v1/assets/gale-mount-sharp/ortho_2m.png",
+    "url": "/api/v1/assets/mc23-gale-mount-sharp/ortho_2m.png",
     "format": "png",
     "bands": "gray8",
     "nodata_value": 0,
@@ -69,6 +122,9 @@
       "evidence_id": "ev-usgs-msl-gale-dem-1m-v3",
       "title": "MSL Gale Merged DEM Mosaic 1 m v3",
       "provider": "USGS Astrogeology Science Center",
+      "mission": "MRO",
+      "instrument": "HiRISE (DEM estéreo)",
+      "credit": "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center",
       "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_DEM_Mosaic_1m_v3.tif",
       "local_raw_sha256": "c481ae885b4827af68fbdb428e9fac8a824d6828aebfba492577ba39bf55e42e",
       "local_raw_size_bytes": 3868256546,
@@ -79,6 +135,9 @@
       "evidence_id": "ev-usgs-msl-gale-ortho-25cm-v3",
       "title": "MSL Gale Merged Orthophoto Mosaic 25 cm v3",
       "provider": "USGS Astrogeology Science Center",
+      "mission": "MRO",
+      "instrument": "HiRISE",
+      "credit": "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center",
       "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_Orthophoto_Mosaic_25cm_v3.tif",
       "resolution_m": 0.25,
       "note": "Solo se leyó el recorte del AOI vía HTTP Range (no el archivo completo)."

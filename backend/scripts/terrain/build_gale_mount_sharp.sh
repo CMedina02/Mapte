@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # D02 — Pipeline repetible del terreno de Monte Sharp (cráter Gale, MC-23).
 #
-# Genera en data/regions/gale-mount-sharp/derived/ los activos que sí se commitean:
+# Genera en data/regions/mc23-gale-mount-sharp/derived/ los activos que sí se commitean:
 #   heightmap_4m.f32  DEM 4 m, float32 LE, row-major norte->sur, NoData = NaN (contrato C02)
 #   ortho_2m.png      Ortofoto gris 8 bit a 2 m, alineada al mismo AOI
 #   terrain.json      Metadata del contrato + transformaciones + procedencia + checksums
@@ -13,7 +13,13 @@
 # Requiere: GDAL >= 3.6 (gdalwarp, gdal_translate, gdaltransform), curl, python3 + pydantic.
 set -euo pipefail
 
-REGION_ID="gale-mount-sharp"
+REGION_ID="mc23-gale-mount-sharp"
+REGION_NAME="Monte Sharp (Aeolis Mons), cráter Gale"
+REGION_DESCRIPTION="AOI de 10 km en Monte Sharp, cráter Gale, cuadrángulo Aeolis (MC-23), Marte"
+# Zonas de calidad (zone_id:quality:x_min:x_max:y_min:y_max:motivo), en metros del marco local.
+QUALITY_ZONES=(
+  "east-dem-grid-artifacts:unknown:6600:10000:0:10000:Artefactos en rejilla del DEM USGS (relleno de menor resolución); pendientes no fiables"
+)
 BACKEND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 R="$BACKEND_DIR/data/regions/$REGION_ID"
 
@@ -103,6 +109,8 @@ step "terrain.json y SHA256SUMS"
 cd "$BACKEND_DIR"
 PYTHONPATH="$BACKEND_DIR" python3 scripts/terrain/write_terrain_metadata.py \
   --region-dir "$R" --region-id "$REGION_ID" \
+  --region-name "$REGION_NAME" --region-description "$REGION_DESCRIPTION" \
+  "${QUALITY_ZONES[@]/#/--quality-zone=}" \
   --heightmap "heightmap_${DEM_RES_M}m.f32" --heightmap-res "$DEM_RES_M" \
   --texture "ortho_${TEX_RES_M}m.png" --texture-res "$TEX_RES_M" \
   --size-m "$SIZE_M" --local-crs "$LOCAL" \

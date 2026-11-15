@@ -20,18 +20,65 @@ from pathlib import Path
 
 from app.modules.catalog.api.schemas import TerrainManifestSchema
 from app.modules.catalog.domain.terrain_contract import (
+    DataQuality,
+    LocalExtentM,
     RegionSectorSpec,
     TerrainAssetPaths,
     TerrainConsistencySpec,
     TerrainGridSpec,
     TerrainMetadata,
+    TerrainQualityZone,
     VerticalReferenceSpec,
     build_asset_url,
 )
 from app.modules.catalog.infrastructure.source_inventory import compute_sha256
 
+SCHEMA_VERSION = 2
+FRAME_ID = "MARS_GALE_MS_LOCAL_V1"
 EVIDENCE_DEM = "ev-usgs-msl-gale-dem-1m-v3"
 EVIDENCE_ORTHO = "ev-usgs-msl-gale-ortho-25cm-v3"
+SOURCE_CREDIT = "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center"
+
+
+def parse_proj(definition: str) -> dict[str, float]:
+    """Numeric ``+key=value`` parameters of a PROJ string."""
+    params: dict[str, float] = {}
+    for token in definition.split():
+        key, sep, value = token.lstrip("+").partition("=")
+        if sep:
+            try:
+                params[key] = float(value)
+            except ValueError:
+                pass
+    return params
+
+
+def local_xy_to_lonlat(definition: str, x_m: float, y_m: float) -> tuple[float, float]:
+    """Inverse spherical transverse Mercator (Snyder 1987, eq. 8-6/8-7)."""
+    if "+proj=tmerc" not in definition:
+        raise SystemExit("Solo se soporta un marco local +proj=tmerc esférico.")
+    p = parse_proj(definition)
+    radius, k0 = p["R"], p.get("k", 1.0)
+    lat0, lon0 = math.radians(p["lat_0"]), math.radians(p["lon_0"])
+    xp = (x_m - p.get("x_0", 0.0)) / (radius * k0)
+    d = (y_m - p.get("y_0", 0.0)) / (radius * k0) + lat0
+    lat = math.asin(math.sin(d) / math.cosh(xp))
+    lon = lon0 + math.atan2(math.sinh(xp), math.cos(d))
+    return math.degrees(lon), math.degrees(lat)
+
+
+def parse_quality_zone(spec: str) -> TerrainQualityZone:
+    """``zone_id:quality:x_min:x_max:y_min:y_max:reason``."""
+    parts = spec.split(":", 6)
+    if len(parts) != 7:
+        raise SystemExit(f"--quality-zone mal formado: {spec!r}")
+    zone_id, quality, x_min, x_max, y_min, y_max, reason = parts
+    return TerrainQualityZone(
+        zone_id=zone_id,
+        quality=DataQuality(quality),
+        extent_m=LocalExtentM(float(x_min), float(x_max), float(y_min), float(y_max)),
+        reason=reason,
+    )
 
 
 def grid_for(size_m: float, res_m: float) -> TerrainGridSpec:
@@ -83,6 +130,9 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--region-dir", type=Path, required=True)
     p.add_argument("--region-id", required=True)
+    p.add_argument("--region-name", required=True)
+    p.add_argument("--region-description", required=True)
+    p.add_argument("--quality-zone", action="append", default=[])
     p.add_argument("--heightmap", required=True)
     p.add_argument("--heightmap-res", type=float, required=True)
     p.add_argument("--texture", required=True)
@@ -111,9 +161,9 @@ def main() -> int:
     metadata = TerrainMetadata(
         sector=RegionSectorSpec(
             region_id=args.region_id,
-            region_name="Monte Sharp (Aeolis Mons), cráter Gale",
+            region_name=args.region_name,
             sector_id=f"{args.region_id}-aoi-10km",
-            frame_id="MARS_GALE_MS_LOCAL_V1",
+            frame_id=FRAME_ID,
             extent_m=grid.bounds_pixel_edges_m(),
         ),
         grid=grid,
@@ -134,14 +184,43 @@ def main() -> int:
             heightmap_url=build_asset_url(args.region_id, args.heightmap),
             texture_url=build_asset_url(args.region_id, args.texture),
         ),
+        quality_zones=tuple(parse_quality_zone(spec) for spec in args.quality_zone),
     )
     manifest = TerrainManifestSchema.from_terrain_metadata(metadata)
 
     dem_sha = cached_sha256(args.dem_raw, args.region_dir / "work" / "dem_raw.sha256")
+    extent = metadata.sector.extent_m
+    origin_lon, origin_lat = local_xy_to_lonlat(args.local_crs, 0.0, 0.0)
+    corners = [
+        local_xy_to_lonlat(args.local_crs, x, y)
+        for x in (extent.x_min_m, extent.x_max_m)
+        for y in (extent.y_min_m, extent.y_max_m)
+    ]
     document = {
-        "schema_version": 1,
+        "schema_version": SCHEMA_VERSION,
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "generator": "backend/scripts/terrain/build_gale_mount_sharp.sh",
+        "region": {
+            "region_id": args.region_id,
+            "name": args.region_name,
+            "body": "Mars",
+            "description": args.region_description,
+        },
+        "frame": {
+            "frame_id": FRAME_ID,
+            "units": "m",
+            "origin_east_lon_deg": round(origin_lon, 6),
+            "origin_planetocentric_lat_deg": round(origin_lat, 6),
+            "projection_definition": args.local_crs,
+            "longitude_direction": "east",
+            "latitude_type": "planetocentric",
+            "aoi_lonlat_bounds_deg": {
+                "min_east_lon": round(min(c[0] for c in corners), 6),
+                "max_east_lon": round(max(c[0] for c in corners), 6),
+                "min_lat": round(min(c[1] for c in corners), 6),
+                "max_lat": round(max(c[1] for c in corners), 6),
+            },
+        },
         "terrain_manifest": manifest.model_dump(mode="json"),
         "sector": {
             "sector_id": metadata.sector.sector_id,
@@ -184,6 +263,9 @@ def main() -> int:
                 "evidence_id": EVIDENCE_DEM,
                 "title": "MSL Gale Merged DEM Mosaic 1 m v3",
                 "provider": "USGS Astrogeology Science Center",
+                "mission": "MRO",
+                "instrument": "HiRISE (DEM estéreo)",
+                "credit": SOURCE_CREDIT,
                 "download_url": args.dem_url,
                 "local_raw_sha256": dem_sha,
                 "local_raw_size_bytes": args.dem_raw.stat().st_size,
@@ -194,6 +276,9 @@ def main() -> int:
                 "evidence_id": EVIDENCE_ORTHO,
                 "title": "MSL Gale Merged Orthophoto Mosaic 25 cm v3",
                 "provider": "USGS Astrogeology Science Center",
+                "mission": "MRO",
+                "instrument": "HiRISE",
+                "credit": SOURCE_CREDIT,
                 "download_url": args.ortho_url,
                 "resolution_m": 0.25,
                 "note": "Solo se leyó el recorte del AOI vía HTTP Range (no el archivo completo).",

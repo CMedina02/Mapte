@@ -163,12 +163,14 @@ class TerrainContractTests(unittest.TestCase):
         synthetic = build_synthetic_terrain()
         repo = InMemoryTerrainRepository([synthetic])
 
-        meta = repo.get_metadata("MC-09")
-        self.assertEqual(meta.sector.region_id, "MC-09")
-        self.assertTrue(meta.assets.heightmap_url.startswith(f"{ASSETS_URL_PREFIX}/MC-09/"))
+        meta = repo.get_metadata("mc23-gale-mount-sharp")
+        self.assertEqual(meta.sector.region_id, "mc23-gale-mount-sharp")
+        self.assertTrue(
+            meta.assets.heightmap_url.startswith(f"{ASSETS_URL_PREFIX}/mc23-gale-mount-sharp/")
+        )
         self.assertTrue(meta.consistency.texture_aligned_to_terrain)
 
-        raw = repo.get_terrain("MC-09").to_f32_bytes()
+        raw = repo.get_terrain("mc23-gale-mount-sharp").to_f32_bytes()
         self.assertEqual(len(raw), meta.grid.expected_f32_byte_size)
 
     def test_asset_url_must_stay_under_api_v1_assets(self) -> None:
