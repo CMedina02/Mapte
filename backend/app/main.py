@@ -13,9 +13,11 @@ from app.core.errors import register_error_handlers
 from app.modules.catalog.api.router import catalog_router
 from app.modules.catalog.infrastructure.terrain_loader import CatalogStore, load_catalog
 from app.modules.missions.api import missions_router
+from app.modules.missions.persistence import SQLiteMissionRepository
 
 DATA_ROOT_ENV = "MAPTE_DATA_ROOT"
 ACTIVE_REGION_ENV = "MAPTE_ACTIVE_REGION"
+DATABASE_PATH_ENV = "MAPTE_DB_PATH"
 
 
 class HealthResponse(BaseModel):
@@ -47,12 +49,18 @@ def _load_configured_catalog() -> CatalogStore:
     return load_catalog(data_root, [_active_region(data_root)])
 
 
+def _mission_database_path() -> Path:
+    default = Path(__file__).resolve().parents[1] / "data" / "runtime" / "mapte.sqlite3"
+    return Path(os.environ.get(DATABASE_PATH_ENV, default)).resolve()
+
+
 def create_app(catalog_store: CatalogStore | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         store = catalog_store or _load_configured_catalog()
         application.state.catalog_store = store
         application.state.terrain_repository = store.terrain_repository
+        application.state.mission_repository = SQLiteMissionRepository(_mission_database_path())
         yield
 
     application = FastAPI(title="Mapte API", version="0.1.0", lifespan=lifespan)

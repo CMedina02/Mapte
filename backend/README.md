@@ -23,6 +23,11 @@ esa región. `MAPTE_DATA_ROOT` permite indicar otra carpeta de regiones.
 $env:MAPTE_ACTIVE_REGION = "mc23-gale-mount-sharp"
 ```
 
+Las misiones se guardan por defecto en `data/runtime/mapte.sqlite3`. La variable
+`MAPTE_DB_PATH` permite usar otra ubicación. Esta base local no se versiona en Git:
+conserva snapshots inmutables, rutas y eventos para que Control de Misión, la tableta
+del astronauta y el HUD lean la misma versión de la misión.
+
 Si aún no está instalado Python 3.14, se puede crear el entorno con `py -3.12`.
 El entorno virtual es local y no se comparte. No es necesario activar scripts de
 PowerShell: los comandos usan directamente su intérprete.

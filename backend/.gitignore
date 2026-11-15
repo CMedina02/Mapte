@@ -8,6 +8,8 @@ __pycache__/
 htmlcov/
 build/
 dist/
+.data/
+data/runtime/
 .env
 .env.*
 !.env.example
