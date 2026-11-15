@@ -1,4 +1,4 @@
-import type { Hazard, Mission, MissionPlanRequest, Objective } from '../../shared/types/contracts';
+import type { Hazard, Mission, MissionPlanRequest, Objective, Position } from '../../shared/types/contracts';
 import ExclusionHint from './ExclusionHint';
 import { fmt, ROUTE_STATUS } from '../../shared/format';
 import { decisionPoints, excludedObjectives, exclusionsCrossed, shortReason, stopLetters } from '../../shared/mission';
@@ -13,10 +13,12 @@ export default function LegTimeline({
   objectives,
   request,
   hazards = [],
+  onFailedPaths = () => {},
 }: {
   mission: Mission;
   objectives: Objective[];
   hazards?: Hazard[];
+  onFailedPaths?: (paths: Position[][]) => void; // ruta que haría falta para un objetivo excluido (se dibuja en rojo)
   request?: MissionPlanRequest | null; // la solicitud del plan, si se hizo desde este panel
 }) {
   const letters = stopLetters(mission);
@@ -63,6 +65,7 @@ export default function LegTimeline({
                   excluded={x}
                   objective={objectives.find((o) => o.objective_id === x.objective_id)}
                   request={request}
+                  onPaths={onFailedPaths}
                 />
               )}
             </li>
