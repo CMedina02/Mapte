@@ -1,4 +1,5 @@
 import type { Position } from '../../shared/types/contracts';
+import Icon from '../../shared/ui/Icon';
 import { bearingDeg, cardinal } from './nav/geo';
 
 export interface Destination {
@@ -14,43 +15,52 @@ interface Props {
   destinations: Destination[];
   selectedId: string;
   here: Position;
+  letters?: Record<string, string>; // letra de cada parada del plan (A = base)
   onSelect: (id: string) => void;
 }
 
-// El astronauta elige a dónde ir; el destino del plan viene marcado y preseleccionado
-export default function DestinationPicker({ destinations, selectedId, here, onSelect }: Props) {
+// Lista de destinos con el mismo diseño que el panel de control: letra de parada, nombre y estado
+export default function DestinationPicker({ destinations, selectedId, here, letters = {}, onSelect }: Props) {
   return (
-    <div role="radiogroup" aria-label="Destino" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
-      {destinations.map((d) => {
+    <ul role="radiogroup" aria-label="Destino" className="overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-space-900/70">
+      {destinations.map((d, i) => {
         const b = bearingDeg(here, d.position);
         const selected = d.id === selectedId;
         const blocked = d.reach === 'no';
+        const letter = letters[d.id === 'custom' ? '' : d.id];
+        const [name, detail] = d.title.split(' — ');
         return (
-          <button
-            key={d.id}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            disabled={blocked}
-            onClick={() => onSelect(d.id)}
-            className={`min-h-14 min-w-40 shrink-0 snap-start rounded-lg border px-3 py-2 text-left transition-colors ${
-              blocked
-                ? 'border-alert-800 bg-alert-950/40 opacity-70'
-                : selected
-                  ? 'border-green-500 bg-green-950/60'
-                  : 'border-space-700 bg-space-900/70 hover:border-primary-400'
-            }`}
-          >
-            <span className="block text-sm font-bold">{d.title}</span>
-            <span className="block text-[11px] text-space-300">
-              Rumbo {Math.round(b)}° {cardinal(b)}
-              {d.recommended && <span className="text-green-400"> · plan</span>}
-              {d.reach === 'ok' && <span className="text-green-400"> · con regreso seguro</span>}
-              {blocked && <span className="block text-alert-300">{d.note}</span>}
-            </span>
-          </button>
+          <li key={d.id} className={i ? 'border-t border-white/10' : undefined}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              disabled={blocked}
+              onClick={() => onSelect(d.id)}
+              className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors disabled:cursor-not-allowed ${
+                selected ? 'bg-primary-600/20' : 'enabled:hover:bg-white/5'
+              } ${blocked ? 'opacity-60' : ''}`}
+            >
+              <span
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
+                  blocked ? 'bg-alert-950 text-alert-300' : selected ? 'bg-primary-600 text-white' : 'bg-space-800 text-space-200'
+                }`}
+              >
+                {blocked ? <Icon name="block" size={16} /> : d.id === 'custom' ? <Icon name="flag" size={16} /> : (letter ?? '')}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block leading-snug font-medium text-space-50">{name}</span>
+                {detail && <span className="block truncate text-xs text-space-400">{detail}</span>}
+                <span className={`block text-xs ${blocked ? 'text-alert-300' : 'text-space-300'}`}>
+                  {blocked
+                    ? d.note
+                    : `${Math.round(b)}° ${cardinal(b)}${d.recommended ? ' · siguiente en el plan' : ''}${d.reach === 'ok' ? ' · regreso seguro' : ''}`}
+                </span>
+              </span>
+            </button>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
