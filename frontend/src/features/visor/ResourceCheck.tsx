@@ -1,15 +1,15 @@
-import type { Mission } from '../../shared/types/contracts';
+import type { Resources, RouteResult } from '../../shared/types/contracts';
 import { fmt, ROUTE_STATUS } from '../../shared/format';
 
 interface Props {
-  mission: Mission;
+  route: RouteResult;
+  resources: Resources;
   targetTitle: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export default function ResourceCheck({ mission, targetTitle, onConfirm, onCancel }: Props) {
-  const r = mission.route;
+export default function ResourceCheck({ route: r, resources, targetTitle, onConfirm, onCancel }: Props) {
   const s = ROUTE_STATUS[r.status] ?? ROUTE_STATUS.unknown;
   const blocked = r.status === 'not_viable';
 
@@ -19,8 +19,8 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
     ['Tiempo estimado', fmt(r.duration_min, 'min')],
     ['Pendiente máx.', fmt(r.max_slope_deg, '°')],
     ['Ascenso', fmt(r.ascent_m, 'm')],
-    ['O₂ disponible', fmt(mission.resources.oxygen_available_min, 'min')],
-    ['Reserva de retorno', fmt(mission.resources.return_reserve_min, 'min')],
+    ['O₂ disponible', fmt(resources.oxygen_available_min, 'min')],
+    ['Reserva de retorno', fmt(resources.return_reserve_min, 'min')],
   ];
 
   return (
@@ -78,7 +78,7 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
         </div>
 
         <p className="text-xs text-space-400">
-          Valores del modelo del backend{mission.sample_only ? ' · datos de muestra' : ''}.
+          Valores del modelo del backend{r.sample_only ? ' · datos de muestra' : ''}.
         </p>
       </div>
     </div>
