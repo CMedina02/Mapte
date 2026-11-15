@@ -108,13 +108,16 @@ if (catalog_dir / 'objectives.json').exists():
     photos = json.loads((catalog_dir / 'photos.json').read_text(encoding='utf-8'))
     photo_keys = ('photo_id', 'objective_id', 'image_url', 'camera', 'sol', 'captured_at', 'credit',
                   'source_url', 'location_quality', 'limitations')
+    # 'active: false' = objetivo retirado del catálogo (el backend no lo publica ni sus fotos)
+    active = {o['objective_id'] for o in objs['objectives'] if o.get('active', True)}
     catalog = {
         'generated_from': objs.get('generated_from', []),
         'evidence': objs['evidence'] + [e for e in photos.get('evidence', []) if e['evidence_id'] not in
                                         {x['evidence_id'] for x in objs['evidence']}],
-        'objectives': [{**o, 'position': pos(o['position'])} for o in objs['objectives']],
+        'objectives': [{**{k: v for k, v in o.items() if k not in ('active', 'inactive_reason')}, 'position': pos(o['position'])}
+                       for o in objs['objectives'] if o['objective_id'] in active],
         'photos': [{**{k: p[k] for k in photo_keys}, 'location': pos(p['location']) if p.get('location') else None}
-                   for p in photos['photos']],
+                   for p in photos['photos'] if p['objective_id'] in active],
     }
     CATALOG_OUT.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(f"catálogo: {len(catalog['objectives'])} objetivos, {len(catalog['photos'])} fotos")
