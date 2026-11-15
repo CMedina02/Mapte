@@ -9,8 +9,20 @@ from app.modules.catalog.domain import (
     VerticalReferenceSpec,
     build_synthetic_terrain,
 )
-from app.modules.missions.api.router import get_mission, plan_mission, report_hazard_and_replan
-from app.modules.missions.api.schemas import MissionPlanRequestSchema, MissionReplanRequestSchema
+from app.modules.missions.api.router import (
+    change_mission_status,
+    get_mission,
+    get_mission_events,
+    plan_mission,
+    report_hazard_and_replan,
+    update_mission_progress,
+)
+from app.modules.missions.api.schemas import (
+    MissionPlanRequestSchema,
+    MissionProgressRequestSchema,
+    MissionReplanRequestSchema,
+    MissionStatusRequestSchema,
+)
 from app.modules.missions.persistence import SQLiteMissionRepository, StoredRouteKind
 from app.modules.missions.planning import (
     InMemoryObjectiveRepository,
@@ -257,3 +269,102 @@ def test_plan_and_get_api_functions_share_persisted_mission(tmp_path) -> None:
         "LOOSE_ROCKS",
         "SOFT_SOIL",
     ]
+
+    started = change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema(expected_version=3, action="start"),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    progressed = update_mission_progress(
+        created.mission_id,
+        MissionProgressRequestSchema.model_validate(
+            {
+                "expected_version": 4,
+                "current_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                "completed_objective_ids": ["obj-a"],
+                "resources": {"oxygen_available_min": 120, "return_reserve_min": 30},
+            }
+        ),
+        repository,
+    )
+    aborted = change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema.model_validate(
+            {
+                "expected_version": 5,
+                "action": "abort",
+                "current_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                "resources": {"oxygen_available_min": 120, "return_reserve_min": 30},
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    events = get_mission_events(created.mission_id, repository)
+
+    assert started.lifecycle_status == "active"
+    assert progressed.viability_status == "unknown"
+    assert progressed.next_objective_id == "obj-b"
+    assert aborted.lifecycle_status == "aborted"
+    assert aborted.legs[-1]["end_label"] == "base"
+    assert events.events[-1].event_type == "mission_aborted"
+
+
+def test_active_mission_can_complete_after_all_objectives(tmp_path) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "complete.sqlite3")
+    created = plan_mission(
+        MissionPlanRequestSchema.model_validate(
+            {
+                "region_id": REGION_ID,
+                "base_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+                "objective_ids": ["obj-a", "obj-b"],
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+                "resources": {"oxygen_available_min": 200, "return_reserve_min": 30},
+                "activity_durations_min": {"obj-a": 10, "obj-b": 20},
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema(expected_version=1, action="start"),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    update_mission_progress(
+        created.mission_id,
+        MissionProgressRequestSchema.model_validate(
+            {
+                "expected_version": 2,
+                "current_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+                "completed_objective_ids": ["obj-a", "obj-b"],
+                "resources": {"oxygen_available_min": 100, "return_reserve_min": 30},
+            }
+        ),
+        repository,
+    )
+    completed = change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema(expected_version=3, action="complete"),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+
+    assert completed.mission_version == 4
+    assert completed.lifecycle_status == "completed"

@@ -73,6 +73,7 @@ class MissionPlanResponseSchema(BaseModel):
     lifecycle_status: Literal["draft", "active", "completed", "aborted"]
     viability_status: Literal["viable", "not_viable", "unknown"]
     start_position: PositionSchema
+    current_position: PositionSchema | None = None
     return_position: PositionSchema
     objective_ids: list[str]
     completed_objective_ids: list[str] = Field(default_factory=list)
@@ -106,3 +107,39 @@ class MissionReplanRequestSchema(BaseModel):
     constraints: RouteConstraintsSchema
     resources: MissionResourcesSchema
     activity_durations_min: dict[str, float] = Field(default_factory=dict)
+
+
+class MissionProgressRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    current_position: PositionSchema
+    completed_objective_ids: list[str]
+    resources: MissionResourcesSchema
+
+
+class MissionStatusRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    action: Literal["start", "complete", "abort"]
+    current_position: PositionSchema | None = None
+    resources: MissionResourcesSchema | None = None
+    constraints: RouteConstraintsSchema | None = None
+
+
+class MissionEventSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str
+    mission_id: str
+    mission_version: int
+    event_type: str
+    payload: dict
+    created_at: str
+
+
+class MissionEventsResponseSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    events: list[MissionEventSchema]
