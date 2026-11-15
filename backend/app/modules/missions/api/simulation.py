@@ -25,9 +25,7 @@ from app.modules.missions.terrain import FrameMismatchError, LocalPosition
 
 simulation_router = APIRouter(prefix="/sim", tags=["Simulation"])
 
-# Escenario preestablecido (Monte Sharp): hacia Gediz Vallis. El destino está a ~800 m en línea
-# recta, pero la pendiente obliga al A* a rodear el relieve: ~3.9 km de trayecto con ~270 m de
-# desnivel, para que se note que la ruta no es una recta.
+# Escenario de Monte Sharp con destino en Gediz Vallis.
 PRESET_REGION_ID = "mc23-gale-mount-sharp"
 PRESET_FRAME_ID = "MARS_GALE_MS_LOCAL_V1"
 PRESET_START = (5123.0, 2190.0)
@@ -40,7 +38,6 @@ DEFAULT_SPEED_FACTOR = 120.0
 MAX_SPEED_FACTOR = 600.0
 
 
-# --- schemas ----------------------------------------------------------------
 
 
 class DeviationSchema(BaseModel):
@@ -125,7 +122,6 @@ class SimulationDemoSchema(BaseModel):
     final: SimulationStateSchema
 
 
-# --- dependencies -----------------------------------------------------------
 
 
 def get_simulation_registry(request: Request) -> SimulationRegistry:
@@ -140,7 +136,6 @@ TerrainDep = Annotated[TerrainRepository, Depends(get_terrain_repository)]
 RegistryDep = Annotated[SimulationRegistry, Depends(get_simulation_registry)]
 
 
-# --- endpoints --------------------------------------------------------------
 
 
 @simulation_router.post("", response_model=SimulationStateSchema, status_code=201)
@@ -197,7 +192,6 @@ def delete_simulation(sim_id: str, registry: RegistryDep) -> Response:
     return Response(status_code=204)
 
 
-# --- helpers ----------------------------------------------------------------
 
 
 def _build(terrain: TerrainRepository, payload: SimulationCreateSchema) -> EvaSimulation:

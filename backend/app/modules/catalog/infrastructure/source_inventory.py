@@ -37,9 +37,6 @@ _ENUM_FIELDS: dict[str, type] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# JSON <-> dominio
-# ---------------------------------------------------------------------------
 
 
 def product_from_dict(data: dict[str, Any]) -> SourceProduct:
@@ -112,9 +109,6 @@ def save_inventory(inventory: SourceInventory, path: Path) -> None:
     path.write_text(text + "\n", encoding="utf-8")
 
 
-# ---------------------------------------------------------------------------
-# Checksums
-# ---------------------------------------------------------------------------
 
 
 def compute_sha256(path: Path) -> str:
@@ -140,7 +134,7 @@ def verify_checksums(inventory: SourceInventory, raw_dir: Path) -> tuple[Checksu
     for product in inventory.products:
         if product.status is ProductStatus.CANDIDATE:
             continue
-        assert product.local_filename is not None  # garantizado por el dominio
+        assert product.local_filename is not None
         path = raw_dir / product.local_filename
         if not path.is_file():
             results.append(ChecksumResult(product.product_id, path, False, "archivo no encontrado"))
@@ -163,9 +157,6 @@ def verify_checksums(inventory: SourceInventory, raw_dir: Path) -> tuple[Checksu
     return tuple(results)
 
 
-# ---------------------------------------------------------------------------
-# DATA_SOURCES.md
-# ---------------------------------------------------------------------------
 
 
 def _md(value: object) -> str:
@@ -218,9 +209,6 @@ def render_data_sources_markdown(inventory: SourceInventory) -> str:
     return "\n".join(lines) + "\n"
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 
 def main(argv: list[str] | None = None) -> int:

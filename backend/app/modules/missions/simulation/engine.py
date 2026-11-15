@@ -163,7 +163,7 @@ class EvaSimulation:
         self._routes = RouteApplicationService(terrain_repository)
         self._terrain = MissionHazardOverlay(terrain_repository, region_id)
 
-        computation = self._compute(start)  # InvalidRouteEndpointError -> caller (400)
+        computation = self._compute(start)
         if computation is None:
             raise SimulationRouteError(
                 "No hay ruta viable entre el inicio y el destino con estas restricciones."
@@ -188,7 +188,6 @@ class EvaSimulation:
             f"Ruta A* de {self._path.length_m:.0f} m hacia el destino.",
         )
 
-    # --- public state -------------------------------------------------------
 
     @property
     def finished(self) -> bool:
@@ -215,7 +214,6 @@ class EvaSimulation:
         remaining = self.remaining_m
         return None if remaining is None else remaining / self.constraints.speed_m_per_min
 
-    # --- simulation ---------------------------------------------------------
 
     def step(self, dt_s: float) -> StepOutcome:
         """Advance ``dt_s`` real seconds (× speed_factor simulated seconds)."""
@@ -328,7 +326,6 @@ class EvaSimulation:
         raise_to(SimulationAction.REROUTED, message)
         return budget
 
-    # --- helpers ------------------------------------------------------------
 
     def _compute(self, start: LocalPosition) -> RouteComputation | None:
         computation = self._routes.compute(

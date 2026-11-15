@@ -12,7 +12,7 @@ class SimulationRegistry:
     def __init__(self, limit: int = MAX_SIMULATIONS) -> None:
         self._items: OrderedDict[str, EvaSimulation] = OrderedDict()
         self._limit = limit
-        self.lock = Lock()  # serializa creación y pasos; las peticiones sync corren en hilos
+        self.lock = Lock()  # Serializa la creación y los pasos entre peticiones concurrentes.
 
     def add(self, simulation: EvaSimulation) -> None:
         with self.lock:

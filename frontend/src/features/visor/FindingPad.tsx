@@ -8,14 +8,13 @@ import type { PendingObservation } from '../offline-sync/offline';
 interface Props {
   mission: Mission;
   objective: Objective;
-  photo?: Photo; // foto real de Curiosity en este sitio, como referencia
+  photo?: Photo; // Imagen de Curiosity como referencia del sitio.
   onMission: (m: Mission) => void;
   onQueue: (o: PendingObservation) => void;
   onDone: (message: string) => void;
   onBack: () => void;
 }
 
-// En el objetivo: el astronauta elige lo que observa, puede dejar una nota y la misión sigue al siguiente
 export default function FindingPad({ mission, objective, photo, onMission, onQueue, onDone, onBack }: Props) {
   const [code, setCode] = useState<string | null>(null);
   const [notes, setNotes] = useState('');

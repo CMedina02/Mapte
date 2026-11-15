@@ -20,8 +20,7 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
   const missionId = mission?.mission_id ?? null;
   const version = mission?.mission_version ?? null;
 
-  // Transferencia automática al visor: cada misión nueva o versión nueva se empaqueta sin pulsar nada.
-  // El visor (otra pestaña) recibe el cambio por el evento 'storage'; en otro dispositivo, por sondeo.
+  // El visor recibe el paquete por storage en el mismo navegador y por sondeo entre dispositivos.
   useEffect(() => {
     if (!online || !missionId) return;
     let alive = true;
@@ -69,7 +68,6 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
         </span>
       )}
 
-      {/* Solo lo que pide atención: sin conexión. 'En línea' y 'visor al día' son el estado normal. */}
       {!online && <span className={`${badge} bg-amber-900 text-amber-300`}>Sin conexión</span>}
 
       {queue.length > 0 && (

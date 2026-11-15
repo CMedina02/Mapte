@@ -41,7 +41,7 @@ class RouteComputation:
     assumptions: tuple[str, ...]
 
 
-# Rutas repetidas (panel y visor piden la misma, replanes, tramos de regreso) se sirven de caché
+# La caché reutiliza rutas entre el panel y el visor.
 _ROUTE_CACHE_LIMIT = 256
 _LIMIT_ASSUMPTION = "La búsqueda alcanzó su límite de cálculo sin confirmar si existe una ruta"
 _NO_ROUTE_ASSUMPTION = (
@@ -60,7 +60,7 @@ class RouteApplicationService:
         self._overlays: dict[str, MissionHazardOverlay] = {}
 
     def _overlay(self, region_id: str) -> MissionHazardOverlay:
-        # Una vista por región y servicio: un plan calcula varios tramos sobre los mismos reportes
+        # Todos los tramos del plan comparten los mismos reportes de riesgo.
         overlay = self._overlays.get(region_id)
         if overlay is None:
             overlay = MissionHazardOverlay(self._repository, region_id, self._reports)
@@ -128,7 +128,7 @@ class RouteApplicationService:
         if route is None:
             if isinstance(strict_failure, InvalidRouteEndpointError):
                 raise strict_failure
-            # Tope de búsqueda: no se probó que no exista ruta → desconocido, nunca "no viable"
+            # El límite de búsqueda deja la viabilidad sin confirmar.
             return RouteComputation(
                 route_id=str(uuid4()),
                 region_id=region_id,

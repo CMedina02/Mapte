@@ -3,16 +3,14 @@ import { fmt, fmtDistance, fmtDuration, notices, ROUTE_STATUS } from '../../shar
 import { exclusionsCrossed, missionRoute, stopLetters } from '../../shared/mission';
 import Icon from '../../shared/ui/Icon';
 
-// Panel derecho: resumen de la ruta (estilo Google Maps) y avisos
 export default function RouteDetails({ mission, hazards = [] }: { mission: Mission; hazards?: Hazard[] }) {
   const route = missionRoute(mission);
   const items = notices(route.warnings, mission.alerts);
-  // Tramos que cruzan una zona de exclusión: la ruta no se presenta como viable aunque el backend lo diga
+  // Un cruce de exclusión prevalece sobre el estado informado de la ruta.
   const letters = stopLetters(mission);
   const crossings = mission.legs.flatMap((leg) =>
     exclusionsCrossed(leg.path, hazards).map((z) => `${letters[leg.start_label]} a ${letters[leg.end_label]} cruza ${z}`),
   );
-  // Un estado no reconocido se trata como desconocido, nunca como seguro
   const s = crossings.length ? ROUTE_STATUS.not_viable : (ROUTE_STATUS[route.status] ?? ROUTE_STATUS.unknown);
   if (mission.objective_ids.length === 0) {
     return (

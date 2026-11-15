@@ -73,7 +73,7 @@ def test_grid_matches_per_cell_rules_including_zones_and_reports(repository):
     overlay = MissionHazardOverlay(repository, REGION_ID, (report,))
     rng = random.Random(7)
     cells = [GridCell(rng.randrange(2500), rng.randrange(2500)) for _ in range(4000)]
-    # celdas dentro y alrededor de las dunas (exclusión), del boxwork (precaución) y del reporte
+    # Muestrea celdas dentro y fuera de cada tipo de zona de riesgo.
     for x, y in [(5400, 5350), (5080, 5450), (5540, 4520), (4500, 4500), (4640, 4500)]:
         cell = overlay.position_to_cell(LocalPosition(x, y, FRAME_ID))
         cells += [
@@ -177,7 +177,7 @@ def test_repeated_route_is_served_from_cache(repository):
     )
     first = service.compute(*args)
     second = RouteApplicationService(repository).compute(*args)
-    assert second.route is first.route  # mismo resultado, sin volver a buscar
+    assert second.route is first.route
     assert second.route_id != first.route_id
     other = service.compute(*args[:3], replace(args[3], max_slope_deg=14))
     assert other.route is not first.route
@@ -204,7 +204,7 @@ def test_two_level_search_stays_close_to_optimum(
     best = _route_cost(exact, exact.plan(start, end, constraints).cells, constraints)
     route = fast.plan(
         start, end, constraints
-    )  # _build_result revalida cada paso con la regla exacta
+    )  # _build_result vuelve a validar cada paso con el límite exacto.
     assert best <= _route_cost(fast, route.cells, constraints) <= best * 1.03
 
 

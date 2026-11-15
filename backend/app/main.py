@@ -73,8 +73,7 @@ def create_app(
         application.state.catalog_store = store
         application.state.terrain_repository = store.terrain_repository
         if catalog_store is None:
-            # Rejillas del buscador (4 m y 20 m): se precalculan al arrancar (~1.7 s/región),
-            # no en la primera ruta que pida un usuario
+            # Precalcula las rejillas de 4 m y 20 m al arrancar.
             for region_id in store.region_ids():
                 coarse_grid(
                     MissionHazardOverlay(store.terrain_repository, region_id).routing_grid()
@@ -104,7 +103,7 @@ def create_app(
 
     @application.get("/api/v1/health", response_model=HealthResponse, tags=["System"])
     async def health() -> HealthResponse:
-        # Confirma disponibilidad HTTP; no certifica datos ni motores científicos.
+        # Comprueba la disponibilidad de la API.
         return HealthResponse(status="ok", api_version="v1")
 
     application.include_router(catalog_router, prefix="/api/v1")

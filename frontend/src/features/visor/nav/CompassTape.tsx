@@ -1,6 +1,4 @@
-// Cinta de rumbo estilo visor, centrada en hacia dónde mira el astronauta (la cámara de la vista 3D).
-// El triángulo verde marca el rumbo al destino; si queda fuera de la cinta, una flecha indica hacia dónde girar.
-// Sin rumbo de vista (vista 2D) la cinta se centra en el destino.
+// En 2D, la cinta se centra en el rumbo al destino.
 import { cardinal, norm360, turnDeg } from './geo';
 
 const PX_PER_DEG = 2;
@@ -50,10 +48,8 @@ export default function CompassTape({ heading, bearing }: { heading: number | nu
           })}
         </g>
 
-        {/* Hacia dónde mira el astronauta */}
         <line x1="120" y1="2" x2="120" y2="24" stroke="#ffffff" strokeWidth="1.5" />
 
-        {/* Destino */}
         {bearing !== null &&
           (offTape ? (
             <path d={turn > 0 ? 'M232 18 L222 12 L222 24 Z' : 'M8 18 L18 12 L18 24 Z'} fill="#81c995" />

@@ -19,8 +19,7 @@ F32_BYTES_PER_SAMPLE: int = 4
 
 ASSETS_URL_PREFIX: str = "/api/v1/assets"
 
-# Tolerancia al comparar extensiones (m) y rangos de elevación declarados frente a los datos
-# cargados como float32 (m).
+# Tolerancia en metros al comparar extensión y elevación con los datos float32.
 EXTENT_TOLERANCE_M: float = 1e-6
 ELEVATION_RANGE_TOLERANCE_M: float = 0.01
 

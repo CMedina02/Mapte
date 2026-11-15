@@ -1,5 +1,3 @@
-// Geometría de presentación del visor (rumbos y coordenadas aproximadas).
-// No calcula métricas de ruta: distancias, tiempos y pendientes siempre vienen del backend.
 import type { Frame, Position } from '../../../shared/types/contracts';
 
 const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
@@ -17,7 +15,7 @@ export const cardinal = (deg: number) => CARDINALS[Math.round(norm360(deg) / 45)
 // Diferencia con signo más corta (−180..180): positivo = girar a la derecha
 export const turnDeg = (from: number, to: number) => ((to - from + 540) % 360) - 180;
 
-// ponytail: latitud/longitud APROXIMADAS (equirectangular desde el origen del marco); el valor oficial lo da el backend
+// Latitud y longitud aproximadas mediante proyección equirectangular local.
 export function approxLatLon(frame: Frame, p: Position) {
   const lat = frame.origin_planetocentric_lat_deg + p.y_m / M_PER_DEG;
   const lon = frame.origin_east_lon_deg + p.x_m / (M_PER_DEG * Math.cos((lat * Math.PI) / 180));

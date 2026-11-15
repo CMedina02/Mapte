@@ -14,7 +14,6 @@ const verdict = (ok: boolean | null, label: string) =>
     </span>
   );
 
-// Tramos de la multirruta con su color del mapa + en qué parada deja de ser viable seguir o regresar
 export default function LegTimeline({
   mission,
   objectives,
@@ -25,8 +24,8 @@ export default function LegTimeline({
   mission: Mission;
   objectives: Objective[];
   hazards?: Hazard[];
-  onFailedPaths?: (paths: Position[][]) => void; // ruta que haría falta para un objetivo excluido (se dibuja en rojo)
-  request?: MissionPlanRequest | null; // la solicitud del plan, si se hizo desde este panel
+  onFailedPaths?: (paths: Position[][]) => void;
+  request?: MissionPlanRequest | null;
 }) {
   const letters = stopLetters(mission);
   // En los tramos la base es destino ('Base'); en los puntos de decisión es el inicio ('Salida')
@@ -34,7 +33,7 @@ export default function LegTimeline({
     id === 'base' ? (start ? 'Salida' : 'Base') : (objectives.find((o) => o.objective_id === id)?.title.split(' — ')[0] ?? id);
   const points = decisionPoints(mission);
   const excluded = excludedObjectives(mission);
-  // Punto límite (lo decide el backend): última parada aceptada cuando quedaron objetivos fuera del plan
+  // Si hubo exclusiones, el límite es la última parada aceptada.
   const limit = points.find((p) => p.can_continue === false);
 
   return (

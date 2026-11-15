@@ -5,7 +5,6 @@ import OfflineBar from './features/offline-sync/OfflineBar';
 import { isNewerMission, loadPackage, updatePackageMission, usePackageUpdates, usePendingQueue } from './features/offline-sync/offline';
 
 export default function App() {
-  // Si hay paquete local, la misión arranca desde ahí (permite abrir la app sin red)
   const [mission, setMission] = useState<Mission | null>(() => loadPackage()?.mission ?? null);
   const [queue, setQueue] = usePendingQueue();
 
@@ -13,7 +12,6 @@ export default function App() {
     if (mission) updatePackageMission(mission);
   }, [mission]);
 
-  // Cambios hechos desde el visor (hallazgos, avance) llegan al panel sin recargar
   usePackageUpdates((pkg) => setMission((m) => (m?.mission_id === pkg.mission.mission_id && isNewerMission(m, pkg.mission) ? pkg.mission : m)));
 
   return (
@@ -27,9 +25,8 @@ export default function App() {
           <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
         </div>
       </header>
-      {/* Hasta lg la vista hace scroll completa; desde lg cada panel gestiona su scroll */}
+      {/* En pantallas grandes, cada panel controla su propio desplazamiento. */}
       <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
-        {/* Hallazgos, notas y avance los registra el astronauta desde su visor */}
         <MissionControl mission={mission} onMission={setMission} />
       </div>
     </div>

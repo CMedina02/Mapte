@@ -62,7 +62,6 @@ export function missionRoute(mission: Mission): RouteResult {
   };
 }
 
-// Letra de cada parada para identificar los tramos: base = A, objetivos en orden = B, C, …
 export function stopLetters(mission: Mission): Record<string, string> {
   return Object.fromEntries([
     ['base', 'A'],
@@ -71,9 +70,9 @@ export function stopLetters(mission: Mission): Record<string, string> {
 }
 
 export interface DecisionPoint {
-  stop: string; // 'base' u objective_id: dónde se decide
+  stop: string;
   oxygen_left_min: number | null; // O₂ al llegar ahí (minutos de caminata ya calculados por el backend)
-  can_continue: boolean | null; // seguir al siguiente objetivo conserva el regreso seguro (null: no hay siguiente)
+  can_continue: boolean | null; // null cuando no hay siguiente parada.
   can_return: boolean | null; // regresar a base desde aquí conserva la reserva
 }
 
@@ -82,7 +81,7 @@ export interface ExcludedObjective {
   reason: string;
 }
 
-// Objetivos que el backend dejó fuera del plan: alerta OBJECTIVE_EXCLUDED:<id> + motivo en la bitácora
+// El motivo de cada OBJECTIVE_EXCLUDED se obtiene de la bitácora.
 export function excludedObjectives(mission: Mission): ExcludedObjective[] {
   const prefix = 'OBJECTIVE_EXCLUDED:';
   return mission.alerts
@@ -94,9 +93,8 @@ export function excludedObjectives(mission: Mission): ExcludedObjective[] {
     });
 }
 
-// El planificador del backend solo acepta un objetivo si desde él el regreso a base conserva la reserva
-// (plan de prefijo seguro). Por eso, en un plan viable, cada parada aceptada permite regresar y seguir
-// a la siguiente; el límite es la última parada aceptada cuando hubo objetivos excluidos.
+// El planificador solo añade paradas compatibles con la reserva de regreso.
+// Si hubo exclusiones, el límite es la última parada aceptada.
 export function decisionPoints(mission: Mission): DecisionPoint[] {
   const viable = mission.viability_status === 'viable';
   const dur = mission.legs.map((l) => l.metrics.duration_min);
@@ -118,7 +116,6 @@ export function decisionPoints(mission: Mission): DecisionPoint[] {
   });
 }
 
-// Motivos del backend en pocas palabras
 export const shortReason = (r: string) =>
   r.includes('recursos')
     ? 'no alcanza el oxígeno para volver con reserva'
@@ -145,8 +142,7 @@ function insidePolygon(p: Position, poly: Position[]): boolean {
   return inside;
 }
 
-// Zonas de exclusión que pisa un camino. El A* del backend aún no las usa (STATIC_HAZARDS_NOT_AVAILABLE),
-// así que el cliente lo detecta para no presentar como segura una ruta que las cruza.
+// Comprueba cruces de exclusión antes de mostrar una ruta como viable.
 export function exclusionsCrossed(path: Position[], hazards: Hazard[]): string[] {
   return hazards
     .filter((h) => h.kind === 'exclusion' && path.some((p) => insidePolygon(p, h.polygon)))

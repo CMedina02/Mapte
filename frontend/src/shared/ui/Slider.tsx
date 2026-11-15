@@ -1,4 +1,3 @@
-// Barra deslizante estilo volumen (Material): etiqueta a la izquierda, valor a la derecha
 export default function Slider({
   label,
   value,

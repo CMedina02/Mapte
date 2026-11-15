@@ -23,8 +23,7 @@ from app.modules.missions.terrain.models import (
 
 _CELL_CACHE_LIMIT = 100_000
 
-# Estado de cada celda en la rejilla de búsqueda (mismo orden que la combinación conservadora de
-# apply_restrictions: bloqueado domina a desconocido, que domina a transitable)
+# Prioridad de estado: bloqueado, desconocido, transitable.
 GRID_TRAVERSABLE = 0
 GRID_UNKNOWN = 1
 GRID_BLOCKED = 2
@@ -42,14 +41,11 @@ class RoutingGrid:
     elevations: array  # 'f'; NaN/inf = sin dato
     status: bytearray  # GRID_TRAVERSABLE | GRID_UNKNOWN | GRID_BLOCKED
     multipliers: array  # 'f'; multiplicador de costo (>= 1)
-    # Cajas (fila0, col0, fila1, col1) fuera de las cuales el multiplicador es 1 (precaución
-    # y reportes): así la rejilla gruesa no recorre toda la fina.
+    # Cajas de búsqueda para celdas con costo adicional.
     cost_boxes: tuple[tuple[int, int, int, int], ...] = ()
 
 
-# Rejilla base por terreno (sin reportes del astronauta): se construye una vez por proceso y región.
-# Se guarda también el objeto terreno para que su id() no se reutilice mientras esté en caché, y la
-# caché de rutas calculadas sobre ese terreno (se descarta junto con la rejilla).
+# La caché conserva el terreno para que su id() siga siendo único.
 _BASE_GRIDS: dict[tuple[int, str, str], tuple[object, RoutingGrid, OrderedDict]] = {}
 _BASE_GRID_LIMIT = 4
 _CATALOG_DATA = Path(__file__).resolve().parents[2] / "catalog" / "data"
@@ -86,7 +82,6 @@ class StaticHazardZone:
 @lru_cache(maxsize=16)
 def load_static_hazards(region_id: str) -> tuple[StaticHazardZone, ...]:
     """Hazard zones published with the region catalog (empty if the region has none)."""
-    # ponytail: lee el JSON del catálogo directamente; usar el repositorio si se versiona aparte
     path = _CATALOG_DATA / region_id / "hazards.json"
     if not path.exists():
         return ()
@@ -150,8 +145,7 @@ class MissionHazardOverlay:
         self._metadata = base.get_metadata(region_id)
         self._terrain = base.get_terrain(region_id)
         self._grid = self._terrain.grid
-        # Route searches revisit the same cells many times. Cache the composed
-        # terrain + quality + hazard sample for the lifetime of this request.
+        # Reutiliza las muestras de terreno y riesgo durante la búsqueda.
         self._sample_cache: OrderedDict[GridCell, RoutingTerrainSample] = OrderedDict()
 
         frame_id = self._metadata.sector.frame_id
@@ -219,7 +213,6 @@ class MissionHazardOverlay:
         if not isinstance(elevations, array) or elevations.typecode != "f":
             elevations = array("f", elevations)
 
-        # Sin dato o bloqueado en el catálogo → bloqueado (igual que sample_cell: NODATA / BLOCKED)
         status = bytearray(n)
         if (
             getattr(terrain, "_explicit_valid", None) is None
@@ -233,7 +226,6 @@ class MissionHazardOverlay:
                 if terrain.is_blocked_at(i):
                     status[i] = GRID_BLOCKED
 
-        # Calidad desconocida (el centro de la celda dentro de la zona)
         for zone in self._metadata.quality_zones:
             if zone.quality is not DataQuality.UNKNOWN:
                 continue
@@ -243,7 +235,6 @@ class MissionHazardOverlay:
                 if status[i] == GRID_TRAVERSABLE and e.contains(x, y):
                     status[i] = GRID_UNKNOWN
 
-        # Zonas del catálogo: exclusión bloquea; precaución sube el costo
         multipliers = array("f", [1.0]) * n
         for zone, (x0, y0, x1, y1) in self._static_zones:
             for row, col, x, y in self._cells_in_box(x0, y0, x1, y1):

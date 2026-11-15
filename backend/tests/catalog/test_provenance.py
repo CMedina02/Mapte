@@ -157,7 +157,7 @@ class SourceInventoryIoTest(unittest.TestCase):
         (self.tmp / "test_dem.img").write_bytes(_PAYLOAD)
         self.assertEqual(compute_sha256(self.tmp / "test_dem.img"), _PAYLOAD_SHA)
         results = verify_checksums(self.inventory, self.tmp)
-        self.assertEqual(len(results), 1)  # el candidato se omite
+        self.assertEqual(len(results), 1)
         self.assertTrue(results[0].ok)
 
         (self.tmp / "test_dem.img").write_bytes(b"X" * len(_PAYLOAD))
@@ -179,7 +179,7 @@ class SourceInventoryIoTest(unittest.TestCase):
         out = self.tmp / "DATA_SOURCES.md"
         self.assertEqual(main(["render", str(inv_path), str(out)]), 0)
         self.assertTrue(out.read_text(encoding="utf-8").startswith("# Fuentes de datos"))
-        self.assertEqual(main(["verify", str(inv_path), str(self.tmp)]), 1)  # falta el archivo
+        self.assertEqual(main(["verify", str(inv_path), str(self.tmp)]), 1)
         (self.tmp / "test_dem.img").write_bytes(_PAYLOAD)
         self.assertEqual(main(["verify", str(inv_path), str(self.tmp)]), 0)
 

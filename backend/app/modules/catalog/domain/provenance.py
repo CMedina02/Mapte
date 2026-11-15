@@ -14,8 +14,7 @@ import math
 import re
 from urllib.parse import urlparse
 
-# Radios de Marte (IAU): polar ~3 376 200 m, ecuatorial 3 396 190 m.
-# El rango detecta errores como usar el radio terrestre (~6 378 137 m).
+# Rango que abarca los radios polar y ecuatorial de Marte.
 MARS_RADIUS_MIN_M: float = 3_370_000.0
 MARS_RADIUS_MAX_M: float = 3_400_000.0
 MARS_IAU_SPHERE_RADIUS_M: float = 3_396_190.0
@@ -23,10 +22,10 @@ MARS_IAU_SPHERE_RADIUS_M: float = 3_396_190.0
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# Exploradores visuales: útiles para elegir el sector, nunca como fuente de datos.
+# Los exploradores visuales orientan la selección del área.
 _FORBIDDEN_DATA_HOSTS: frozenset[str] = frozenset({"trek.nasa.gov"})
 
-# Marcas de sistemas de referencia terrestres que no deben describir datos marcianos.
+# Marcadores de marcos terrestres que el catálogo rechaza.
 _TERRESTRIAL_CRS_MARKERS: tuple[str, ...] = ("EPSG:4326", "WGS84", "WGS 84", "WGS_1984")
 
 
@@ -127,7 +126,6 @@ class SourceProduct:
             _ensure_non_empty(name, getattr(self, name))
         _ensure_https_url("source_url", self.source_url)
 
-        # Validaciones de formato para los campos presentes, sin importar el estado.
         if self.download_url is not None:
             _ensure_https_url("download_url", self.download_url)
         if self.local_filename is not None:

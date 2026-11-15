@@ -12,25 +12,22 @@ import Icon from '../../shared/ui/Icon';
 
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
 
-// Valores de EVA cuando el astronauta planifica solo (referencias NASA: ~8 h de traje, reserva de retorno,
-// paradas de geología de 30–60 min, pendiente segura a pie ≤ 15°)
+// Valores iniciales para planificar desde el visor.
 const EVA_PLAN = {
   constraints: { max_slope_deg: 15, speed_m_per_min: 20, avoid_unknown: true },
   resources: { oxygen_available_min: 480, return_reserve_min: 60 },
   activity_min: 45,
 };
 
-// Visor sin misión asignada: el astronauta ve el terreno 3D, su posición y su radar. Desde el radar puede
-// elegir objetivos y planificar su propia misión (desde donde está); también la puede recibir del panel.
 export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPackage) => void }) {
   const online = useOnline();
   const [region, setRegion] = useState<{ manifest: RegionManifest; objectives: Objective[]; layers: Record<string, LayerState> } | null>(null);
   const [failed, setFailed] = useState(false);
   const [here, setHere] = useState(loadLastPosition);
-  const [use3d, setUse3d] = useState(true); // 3D desde el inicio; el 2D solo si el 3D falla
+  const [use3d, setUse3d] = useState(true);
   const [heading, setHeading] = useState<number | null>(null);
   const [picking, setPicking] = useState(false);
-  const [chosen, setChosen] = useState<string[]>([]); // en el orden en que se eligen = orden de visita
+  const [chosen, setChosen] = useState<string[]>([]); // El orden de selección define el orden de visita.
   const [planning, setPlanning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -56,15 +53,14 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
 
   const { manifest, objectives } = region;
   const b = manifest.bounds_local_m;
-  // Sin posición conocida, la cámara 3D mira el centro de la zona (no se guarda como posición)
+  // Si falta la posición, centrar la cámara sin guardar un punto.
   const view = here ?? { x_m: (b.min_x + b.max_x) / 2, y_m: (b.min_y + b.max_y) / 2, frame_id: manifest.frame.frame_id };
   const imageryLayer =
     manifest.layers.find((l) => l.layer_id === manifest.terrain?.texture_layer_id) ?? manifest.layers.find((l) => l.kind === 'optical');
   const imagery = imageryLayer?.asset_url ? { url: imageryLayer.asset_url, bounds: manifest.bounds_local_m } : null;
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
 
-  // En el mapa: tocar cerca (< 300 m) de un objetivo lo agrega/quita; en otro punto, fija tu posición
-  // ponytail: sin localización del traje, la posición se fija tocando el mapa (simulación para la demo)
+  // Un toque a menos de 300 m alterna el objetivo. Fuera de ese radio fija la posición.
   const onMapClick = (p: Position) => {
     const near = objectives
       .map((o) => ({ o, m: Math.hypot(o.position.x_m - p.x_m, o.position.y_m - p.y_m) }))
@@ -138,7 +134,6 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
         <p className="hud mx-auto px-3 py-1.5 text-xs">Sin misión</p>
       </div>
 
-      {/* Radar: abre la selección de objetivos */}
       {!picking && (
         <button
           type="button"

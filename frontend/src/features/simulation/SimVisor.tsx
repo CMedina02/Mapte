@@ -1,8 +1,5 @@
-// /sim — demo automática: al entrar, el backend crea la caminata simulada y el visor la reproduce.
-// El astronauta sigue la ruta A*, se desvía a propósito y el backend avisa y recalcula. El cliente
-// solo interpola la posición entre dos respuestas para que el 3D se vea fluido; no calcula nada.
-//
-// Parámetros opcionales: ?speed=120 (×tiempo, máx. 600), ?side=left|right, ?at=0.4 (fracción de la ruta), ?deviate=0
+// /sim reproduce una marcha que el backend desvía y recalcula.
+// Opciones de /sim: speed (máx. 600), side (left|right), at (fracción de la ruta) y deviate (0 desactiva el desvío).
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { Objective, Position, RegionManifest } from '../../shared/types/contracts';
 import { marsApi } from '../../shared/api/client';
@@ -14,10 +11,10 @@ import Icon from '../../shared/ui/Icon';
 
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
 
-const STEP_MS = 500; // un paso del backend cada medio segundo real (avisos y recálculos no se pisan)
-const TICK_MS = 50; // refresco de la posición interpolada
-const ALERT_MS = 5000; // cuánto queda visible un aviso de recálculo o llegada
-const SPEEDS = [60, 120, 240] as const; // velocidades del botón (× tiempo real)
+const STEP_MS = 500;
+const TICK_MS = 50;
+const ALERT_MS = 5000;
+const SPEEDS = [60, 120, 240] as const; // Múltiplos del tiempo real.
 
 function requestFromUrl(): SimCreate {
   const q = new URLSearchParams(location.search);
@@ -72,7 +69,6 @@ export default function SimVisor() {
     const q = Number(new URLSearchParams(location.search).get('speed'));
     return (SPEEDS as readonly number[]).includes(q) ? q : 120;
   });
-  // Tramo de interpolación: de la posición mostrada a la última que dio el backend
   const anim = useRef<{ from: Position; to: Position; at: number } | null>(null);
   const inFlight = useRef(false);
 
@@ -86,7 +82,6 @@ export default function SimVisor() {
     }
   }, []);
 
-  // Al entrar (o al reiniciar): crear la simulación y cargar el terreno de su región
   useEffect(() => {
     let alive = true;
     let simId: string | null = null;
@@ -109,12 +104,10 @@ export default function SimVisor() {
     };
   }, [run, show]);
 
-  // Bucle automático: un paso cada STEP_MS mientras corre y no ha terminado
   const simId = sim?.sim_id ?? null;
   const finished = sim?.status === 'arrived' || sim?.status === 'stopped';
   const ready = !!region;
-  // El backend fija speed_factor al crear la simulación; para cambiar la velocidad en vivo se
-  // escala el tiempo real de cada paso (tiempo simulado = dt_s × speed_factor).
+  // Cambia la velocidad ajustando dt_s. El factor de la sesión permanece fijo.
   const baseSpeed = sim?.speed_factor ?? speed;
   const dtS = Math.min((STEP_MS / 1000) * (speed / baseSpeed), 60);
   useEffect(() => {
@@ -136,7 +129,7 @@ export default function SimVisor() {
     return () => clearInterval(id);
   }, [simId, running, finished, ready, show, dtS]);
 
-  // Posición mostrada: interpolación lineal entre respuestas (solo visual)
+  // La interpolación solo suaviza la posición mostrada.
   useEffect(() => {
     const id = setInterval(() => {
       const a = anim.current;
@@ -216,7 +209,6 @@ export default function SimVisor() {
         )}
       </div>
 
-      {/* Etiqueta fija: nada simulado se presenta como medido */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
         <p className="hud px-4 py-1.5 text-xs text-space-200">
           Simulación: terreno y rutas reales, caminata acelerada {speed} veces
@@ -231,7 +223,6 @@ export default function SimVisor() {
         </div>
       )}
 
-      {/* Estado de la caminata (lo que devuelve el backend) */}
       <section className="hud absolute top-14 left-3 w-64 p-4 text-sm max-sm:hidden">
         <p className={`text-sm font-medium ${sim.on_route ? 'text-green-400' : 'text-amber-300'}`}>
           {STATUS_LABEL[sim.status]}
@@ -257,7 +248,6 @@ export default function SimVisor() {
         </p>
       </section>
 
-      {/* Bitácora del backend */}
       <section className="hud absolute bottom-3 left-3 max-h-56 w-80 overflow-y-auto p-4 text-xs max-sm:inset-x-3 max-sm:w-auto">
         <p className="mb-2 text-sm font-medium text-space-200">Bitácora</p>
         <ol className="space-y-1">

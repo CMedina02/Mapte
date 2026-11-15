@@ -14,7 +14,7 @@ export async function mutateMission(
             try {
                 const latest = await marsApi.getMission(missionId);
                 onMission(latest);
-                return `${e.message} Estado recargado (v${latest.mission_version}).`; // el backend dice el motivo del 409
+                return `${e.message} Estado recargado (v${latest.mission_version}).`;
             } catch {
                 return 'Conflicto de versión y no se pudo recargar la misión.';
             }

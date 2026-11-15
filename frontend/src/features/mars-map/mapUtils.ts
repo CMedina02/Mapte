@@ -20,10 +20,9 @@ export function marsProjection(manifest: RegionManifest) {
   });
 }
 
-// ponytail: solo imágenes estáticas (archivo o data URL); .tif (GeoTIFF) y .json (vector) cuando el backend los entregue
+// El mapa admite imágenes estáticas en archivo o data URL.
 export const isImageLayer = (l: Layer) => /^data:image\/|\.(png|jpe?g|webp)$/i.test(l.asset_url);
 
-// Al inicio solo se ve la capa base (óptica o topográfica); las demás se encienden a mano
 export const initialLayerState = (layers: Layer[]): Record<string, LayerState> =>
   Object.fromEntries(
     layers.map((l) => [
@@ -31,5 +30,5 @@ export const initialLayerState = (layers: Layer[]): Record<string, LayerState> =
       { visible: isImageLayer(l) && (l.kind === 'optical' || l.kind === 'topographic'), opacity: l.opacity_default },
     ]),
   );
-// Colores de tramo: distintos del verde/ámbar/rojo de estado (el estado se marca con el trazo)
+// El color identifica el tramo. El trazo indica su estado.
 export const LEG_COLORS = ['#4285f4', '#a142f4', '#f538a0', '#24c1e0', '#e8eaed'];

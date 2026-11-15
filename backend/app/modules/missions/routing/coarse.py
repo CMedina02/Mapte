@@ -11,7 +11,7 @@ from math import ceil, nan
 from app.modules.missions.terrain.hazards import GRID_BLOCKED, GRID_TRAVERSABLE, RoutingGrid
 
 COARSE_FACTOR = 5  # 4 m → 20 m
-USABLE_FRACTION = 0.3  # permisivo: un paso estrecho no debe cerrar el bloque
+USABLE_FRACTION = 0.3  # Conserva bloques con pasos estrechos.
 
 _TRAVERSABLE = bytes(1 if value == 0 else 0 for value in range(256))
 _TRAVERSABLE_OR_UNKNOWN = bytes(1 if value <= 1 else 0 for value in range(256))
@@ -24,7 +24,7 @@ class CoarseGrid:
     loose: RoutingGrid  # permitiendo terreno desconocido
 
 
-# Una rejilla gruesa por rejilla fina (se guarda la fina para que su id() no se reutilice)
+# Mantiene una referencia a la rejilla fina para evitar reutilizar su id().
 _CACHE: dict[int, tuple[RoutingGrid, CoarseGrid]] = {}
 _CACHE_LIMIT = 8
 
@@ -68,7 +68,7 @@ def _build(fine: RoutingGrid, k: int) -> CoarseGrid:
                 strict[index] = GRID_TRAVERSABLE
             if u >= need:
                 loose[index] = GRID_TRAVERSABLE
-            # Elevación representativa: la celda central si es usable; si no, la primera usable
+            # Usa la elevación del centro o la primera celda utilizable.
             center = min(r0 + k // 2, r1 - 1) * width + min(c0 + k // 2, c1 - 1)
             if usable[center]:
                 coarse_z[index] = elevations[center]
@@ -80,7 +80,7 @@ def _build(fine: RoutingGrid, k: int) -> CoarseGrid:
                     if usable[row * width + col]
                 )
 
-    # Multiplicador de costo del bloque: el mayor de sus celdas (solo hay >1 dentro de las cajas)
+    # Solo las cajas pueden contener multiplicadores de costo mayores que 1.
     multipliers = array("f", [1.0]) * n
     for row0, col0, row1, col1 in fine.cost_boxes:
         for row in range(max(row0, 0), min(row1, height - 1) + 1):

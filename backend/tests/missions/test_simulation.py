@@ -27,7 +27,7 @@ from app.modules.missions.terrain import LocalPosition
 
 REGION_ID = "mc23-gale-mount-sharp"
 FRAME_ID = "MARS_GALE_MS_LOCAL_V1"
-SIZE = 60  # celdas
+SIZE = 60
 PIXEL_M = 5.0  # 300 × 300 m
 
 
@@ -164,7 +164,6 @@ def test_finished_simulation_does_not_move():
     assert (sim.x_m, sim.y_m) == (x, y)
 
 
-# --- HTTP ---------------------------------------------------------------------
 
 
 def client(terrain=None) -> TestClient:

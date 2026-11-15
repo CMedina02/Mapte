@@ -23,12 +23,11 @@ import { activeMissionLeg, excludedObjectives, exclusionsCrossed, missionRoute, 
 import { excludedPaths, useExcludedRoute } from '../../shared/useExcludedRoute';
 import Icon from '../../shared/ui/Icon';
 
-// three.js pesa: se descarga solo al abrir la vista 3D
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
 
 type Phase = 'select' | 'confirm' | 'navigate' | 'arrived';
 
-// Respaldo para paquetes históricos sin restricciones; los paquetes actuales llevan las del plan.
+// Restricciones de respaldo para paquetes antiguos.
 const EVA_CONSTRAINTS: Constraints = { max_slope_deg: 15, speed_m_per_min: 20, avoid_unknown: true };
 
 const bigButton = 'btn min-h-14 px-5 text-base sm:text-lg';
@@ -43,30 +42,28 @@ export default function Visor() {
     if (mission) updatePackageMission(mission);
   }, [mission]);
 
-  // En vivo desde el panel de control: el panel guarda el paquete y esta pestaña lo recibe al instante
+  // El evento storage recibe paquetes guardados por el panel.
   usePackageUpdates((p) => {
     setPkg(p);
     setMission((m) => (isNewerMission(m, p.mission) ? p.mission : m));
   });
 
-  // Entre dispositivos (casco ↔ centro de control) no hay evento 'storage': se consulta la misión cada 5 s
+  // Una vez cargado el paquete, consulta la misión cada 5 s.
   useEffect(() => {
     if (!online || !missionId) return;
     const id = setInterval(() => {
       marsApi
         .getMission(missionId)
         .then((m) => setMission((cur) => (cur?.mission_id === m.mission_id && isNewerMission(cur, m) ? m : cur)))
-        .catch(() => {}); // sin enlace: se sigue con el paquete local
+        .catch(() => {});
     }, 5000);
     return () => clearInterval(id);
   }, [online, missionId]);
 
-  // Sin misión: mapa con la posición del astronauta mientras el panel asigna una
   if (!pkg || !mission) {
     return (
       <IdleVisor
         onPackage={(p) => {
-          // El astronauta planificó su propia misión: se guarda como paquete y el visor pasa a navegar
           savePackage(p);
           setPkg(p);
           setMission(p.mission);
@@ -74,7 +71,7 @@ export default function Visor() {
       />
     );
   }
-  // key: una misión nueva desde el panel reinicia el flujo del visor (destino, fase)
+  // Un cambio de misión reinicia el estado del visor.
   return <VisorHud key={mission.mission_id} pkg={pkg} mission={mission} setMission={setMission} />;
 }
 
@@ -83,13 +80,13 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const [layerState] = useState(() => initialLayerState(manifest.layers));
   const [phase, setPhase] = useState<Phase>('select');
   const [notice, setNotice] = useState<string | null>(null);
-  // 3D siempre que haya terreno; el 2D a pantalla completa queda solo como respaldo si el 3D falla
+  // La vista 2D queda como respaldo si el 3D falla.
   const [view3d, setView3d] = useState(() => !!manifest.terrain);
   const [heading, setHeading] = useState<number | null>(null);
   const [chosenId, setChosenId] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false); // mapa de selección (se abre tocando el radar)
-  const [custom, setCustom] = useState<Position | null>(null); // punto libre que el astronauta marcó en el mapa
-  // Hacia dónde mira el astronauta: brújula del dispositivo (casco/brazo) o, en escritorio, la posición del ratón
+  const [picking, setPicking] = useState(false);
+  const [custom, setCustom] = useState<Position | null>(null);
+  // El rumbo viene de la brújula o del ratón.
   const compass = useDeviceCompass();
   const [hasCompass] = useState(compassAvailable);
   const [mouseLook, setMouseLook] = useState<number | null>(null);
@@ -102,13 +99,11 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const plannedRoute = missionRoute(mission);
   const activeLeg = activeMissionLeg(mission);
   const here = mission.current_position ?? activeLeg?.path[0] ?? mission.start_position;
-  // Se recuerda para mostrarla aunque después no haya misión
   useEffect(() => saveLastPosition(here), [here]);
   const hereLabel = samePlace(here, mission.return_position)
     ? 'Base'
     : (pkg.objectives.find((o) => samePlace(here, o.position))?.title ?? 'En ruta');
 
-  // Destinos posibles: objetivos pendientes + regreso a base. Por defecto, el que marca el plan.
   const pending = pkg.objectives.filter(
     (o) => mission.objective_ids.includes(o.objective_id) && !mission.completed_objective_ids.includes(o.objective_id),
   );
@@ -118,16 +113,14 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       title: o.title,
       position: o.position,
       recommended: o.objective_id === mission.next_objective_id,
-      // el backend solo acepta un objetivo si desde él se puede volver con reserva
       reach: mission.viability_status === 'viable' ? ('ok' as const) : undefined,
     })),
-    // Regresar a base solo tiene sentido si no estás ya en ella (o si no queda nada pendiente)
     ...(hereLabel !== 'Base' || pending.length === 0
       ? [{ id: 'base', title: 'Regresar a base', position: mission.return_position, recommended: pending.length === 0 }]
       : []),
     ...(custom ? [{ id: 'custom', title: 'Punto marcado', position: custom, recommended: false }] : []),
   ];
-  // Ruta que haría falta para el primer objetivo fuera del plan: en rojo en el radar y en el mapa
+  // Traza en rojo la alternativa del primer objetivo excluido.
   const firstExcluded = excludedObjectives(mission)[0];
   const excludedObj = firstExcluded && pkg.objectives.find((o) => o.objective_id === firstExcluded.objective_id);
   const failedPaths = excludedPaths(
@@ -142,7 +135,6 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const done = mission.completed_objective_ids.length;
   const total = mission.objective_ids.length;
 
-  // Objetivos que el plan dejó fuera: se muestran bloqueados con su motivo, como en el panel
   const unreachable: Destination[] = excludedObjectives(mission).flatMap((x) => {
     const o = pkg.objectives.find((ob) => ob.objective_id === x.objective_id);
     return o ? [{ id: o.objective_id, title: o.title, position: o.position, recommended: false, reach: 'no' as const, note: shortReason(x.reason) }] : [];
@@ -151,7 +143,6 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const dest = destinations.find((d) => d.id === chosenId) ?? destinations.find((d) => d.id === defaultId)!;
   const objective = pkg.objectives.find((o) => o.objective_id === dest.id) ?? null;
 
-  // Ruta del tramo actual → destino elegido (la calcula el backend)
   const previewKey = `${dest.id}@${Math.round(here.x_m)},${Math.round(here.y_m)}`;
   const preview = previews[previewKey];
   useEffect(() => {
@@ -181,9 +172,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const bearing = bearingDeg(here, dest.position);
 
   const { oxygen_available_min: o2, return_reserve_min: reserve } = mission.resources;
-  // Al astronauta solo lo accionable (sin avisos implícitos ni del modelo)
   const alerts = [
-    // el A* del backend aún no evita estas zonas: al astronauta se le avisa primero
     ...exclusionsCrossed(shownRoute.path, manifest.hazards ?? []).map((z) => `La ruta cruza ${z}`),
     ...notices([], mission.alerts),
   ];
@@ -205,7 +194,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     setPhase('select');
   };
 
-  // Tocar el mapa: cerca (< 150 m) de un objetivo o la base lo elige; en cualquier otro punto, ese punto es el destino
+  // Un toque a menos de 150 m selecciona una parada. Fuera de ese radio fija un destino libre.
   const pickNear = (p: Position) => {
     const near = destinations
       .filter((d) => d.id !== 'custom')
@@ -230,7 +219,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     </span>
   );
 
-  // Globo sobre el destino con los recursos que costaría llegar (métricas del backend; O₂ = minutos de caminata)
+  // Para llegar al destino, el modelo usa minutos de marcha como consumo de O₂.
   const o2Left = legRoute?.duration_min == null ? null : o2 - legRoute.duration_min;
   const pin = {
     position: dest.position,
@@ -278,11 +267,9 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
 
   return (
     <div className="relative h-dvh overflow-hidden bg-space-950 text-space-50">
-      {/* Mapa a pantalla completa; los instrumentos flotan encima */}
       <div
         className="absolute inset-0"
-        // Ratón sin pulsar: el centro de la pantalla mira al destino y cada borde gira 180° hacia su lado.
-        // Al arrastrar (inclinar/acercar) el ratón deja de mandar hasta que se suelta.
+        // El ratón controla el rumbo mientras no se arrastra la cámara.
         onPointerDown={() => {
           setMouseLook(null);
           setMousePitch(null);
@@ -291,7 +278,6 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
           if (e.pointerType !== 'mouse' || e.buttons !== 0 || compass.enabled || !view3d) return;
           const x = e.clientX / e.currentTarget.clientWidth - 0.5;
           setMouseLook(Math.round(norm360(bearing + x * 360)));
-          // Vertical: arriba = mirar al horizonte (cámara baja), abajo = mirar el suelo desde arriba
           const y = e.clientY / e.currentTarget.clientHeight;
           setMousePitch(1.45 - y * 1.0);
         }}
@@ -320,10 +306,8 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
         )}
       </div>
 
-      {/* ---------- Franja superior: posición · estado, compás, alertas ---------- */}
       <div className="pointer-events-none absolute inset-x-2 top-2 z-20 flex flex-col gap-2 sm:inset-x-3 sm:top-3">
-        {/* md+: 3 columnas iguales a los lados → el compás queda centrado en pantalla, igual que la alerta.
-            En móvil el compás baja a su propia línea. */}
+        {/* Las columnas laterales simétricas mantienen centrado el compás. */}
         <div className="grid grid-cols-[1fr_auto] items-start gap-x-2 gap-y-1 md:grid-cols-[1fr_minmax(0,300px)_1fr]">
           <PositionCard frame={manifest.frame} here={here} label={hereLabel} online={online} />
           {!picking && phase !== 'confirm' && (
@@ -331,7 +315,6 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
               <CompassTape heading={view3d ? heading : null} bearing={bearing} />
             </div>
           )}
-          {/* Controles solo cuando hacen falta: brújula del dispositivo y cola sin enviar */}
           {((hasCompass && view3d) || queue.length > 0) && (
             <div className="hud pointer-events-auto col-start-2 row-start-1 flex min-h-10 items-center gap-2 justify-self-end px-2 py-1 text-xs md:col-start-3">
               {hasCompass && view3d && (
@@ -364,7 +347,6 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
 
         {alerts.length > 0 && (
           <div role="alert" className="mx-auto flex max-w-md items-center gap-2 rounded-full bg-alert-600/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur">
-            {/* Al astronauta solo la primera alerta; el detalle completo está en el panel de control */}
             <Icon name="warning" size={16} />
             {alerts[0]}
             {alerts.length > 1 && <span className="font-normal opacity-80"> (+{alerts.length - 1})</span>}
@@ -372,7 +354,6 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
         )}
       </div>
 
-      {/* ---------- Franja inferior: radar (abre el mapa) + panel esencial ---------- */}
       {!picking && phase !== 'confirm' && (
         <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex items-end gap-2 sm:inset-x-3 sm:bottom-3">
           <button
@@ -473,7 +454,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
             )}
 
             {phase === 'arrived' && dest.id === 'custom' && (
-              // ponytail: la posición no se mueve hasta que el backend acepte posiciones libres en /progress
+              // Llegar a un destino libre no actualiza la posición de misión.
               <div className="flex items-center justify-between gap-3">
                 <p className="font-bold">En el punto marcado</p>
                 <button
@@ -507,7 +488,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                     type="button"
                     className={`${bigButton} bg-primary-600 text-white`}
                     onClick={async () => {
-                      // Sin objetivos pendientes: la EVA termina y se cierra la misión (si la versión cambió, se recarga)
+                      // Si cambió la versión, la mutación recarga el estado antes de cerrar.
                       if (pending.length === 0 && mission.lifecycle_status !== 'completed') {
                         const err = await mutateMission(
                           mission.mission_id,
@@ -533,7 +514,6 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
         </div>
       )}
 
-      {/* ---------- Mapa de selección: elegir destino y verificar ruta ---------- */}
       {picking && phase !== 'confirm' && (
         <div role="dialog" aria-modal="true" aria-label="Elegir destino" className="absolute inset-0 z-20 flex flex-col bg-space-950 lg:flex-row">
           <aside className="order-2 flex max-h-[60dvh] flex-col border-white/10 bg-space-950 lg:order-1 lg:max-h-none lg:w-80 lg:border-r">
@@ -610,7 +590,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
           targetTitle={dest.title}
           onConfirm={() => {
             setPicking(false);
-            setPhase('navigate'); // ponytail: local hasta que exista el endpoint de navegación
+            setPhase('navigate');
           }}
           onCancel={() => setPhase('select')}
         />

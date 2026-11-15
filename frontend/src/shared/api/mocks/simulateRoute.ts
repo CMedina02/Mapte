@@ -1,5 +1,4 @@
-// Simulador del modelo de rutas del backend, SOLO para el mock.
-// La app nunca calcula rutas: este archivo hace el papel del servidor mientras no exista.
+// Cálculo de rutas para el modo simulado.
 import type { Constraints, Position, Resources, RouteResult } from '../../types/contracts';
 import { BOUNDS, FRAME_ID, HAZARDS, REAL_TERRAIN, REGION_ID, elevationAt, usingRealTerrain } from './monteSharp.ts';
 
@@ -22,8 +21,7 @@ const UNKNOWN_ZONES = (REAL_TERRAIN.quality_zones ?? []).filter((z) => z.quality
 const inUnknownZone = (x: number, y: number) =>
   usingRealTerrain() && UNKNOWN_ZONES.some((e) => x >= e.x_min_m && x <= e.x_max_m && y >= e.y_min_m && y <= e.y_max_m);
 
-// ponytail: tramos rectos entre paradas muestreados cada 20 m; el backend real usa A* y esquiva obstáculos.
-// Sin `res` (vista previa) no se evalúa el O₂.
+// Muestrea tramos rectos a intervalos de 20 m.
 export function simulateRoute(stops: Position[], c: Constraints, res?: Resources): RouteResult {
   const path: Position[] = [];
   const hits = new Set<string>();
@@ -113,9 +111,7 @@ export function simulateRoute(stops: Position[], c: Constraints, res?: Resources
   };
 }
 
-// Une tramos que ya calculó el A* del backend (modo híbrido: VITE_REAL_API=routes) en la ruta del plan.
-// Hace de servidor de misiones mientras /missions/plan no exista: suma métricas del backend (no las recalcula)
-// y evalúa el O₂ con el mismo modelo simple del mock.
+// Agrupa tramos calculados por el backend y evalúa el soporte con el modelo simulado.
 export function stitchLegs(legs: RouteResult[], res?: Resources): RouteResult {
   const sum = (k: 'distance_m' | 'duration_min' | 'ascent_m') =>
     legs.every((l) => l[k] !== null) ? r1(legs.reduce((a, l) => a + (l[k] ?? 0), 0)) : null;

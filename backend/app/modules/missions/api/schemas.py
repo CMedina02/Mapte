@@ -181,7 +181,7 @@ class MissionAdvanceRequestSchema(BaseModel):
 
     expected_version: int = Field(ge=1)
     current_position: PositionSchema
-    # Parada desde la que se sale (objetivo recién completado); por defecto, el último completado
+    # Si se omite la parada de salida, usa el último objetivo completado.
     from_label: str | None = None
     resources: MissionResourcesSchema
     activity_durations_min: dict[str, float] = Field(default_factory=dict)

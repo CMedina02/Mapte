@@ -714,7 +714,7 @@ def replan_from_current_position(
     except (ValueError, FrameMismatchError, InvalidRouteEndpointError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # El planificador nombra "base" a su punto de salida: aquí es la parada donde está el astronauta
+    # «base» identifica la última parada, que es el punto de salida del recálculo.
     from_label = payload.from_label or (completed[-1] if completed else "base")
     legs = [dict(leg) for leg in draft.snapshot["legs"]]
     if legs and legs[0]["start_label"] == "base" and from_label != "base":
@@ -783,8 +783,7 @@ def submit_observation(
     stored = _current_mission(missions, mission_id, payload.mission_version)
     if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
         raise HTTPException(status_code=409, detail="Solo una misión activa admite observaciones.")
-    # El astronauta puede elegir cualquier objetivo pendiente (el visor lo permite); después el
-    # cliente pide /replan desde ese objetivo. Solo se rechaza repetir uno ya completado.
+    # Acepta hallazgos en cualquier objetivo pendiente de la misión.
     if payload.objective_id in stored.snapshot.get("completed_objective_ids", []):
         raise HTTPException(
             status_code=409,
