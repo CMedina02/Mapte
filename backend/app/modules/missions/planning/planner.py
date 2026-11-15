@@ -23,7 +23,7 @@ from app.modules.missions.routing import (
     RouteApplicationService,
     RouteOutcomeStatus,
 )
-from app.modules.missions.terrain import EnvironmentalHazardReport
+from app.modules.missions.terrain import EnvironmentalHazardReport, LocalPosition
 
 
 class UnknownObjectiveError(ValueError):
@@ -42,8 +42,8 @@ class MissionPlanner:
         self._resources = ResourceEvaluator()
 
     def plan(self, request: MissionPlanningRequest) -> MissionPlan:
-        objectives = self._resolve_objectives(request)
-        legs = self._plan_legs(request, objectives)
+        requested_objectives = self._resolve_objectives(request)
+        objectives, legs, exclusions = self._plan_safe_prefix(request, requested_objectives)
         resource_segments = self._resource_segments(request, objectives, legs)
         evaluation = self._resources.evaluate(request.resources, resource_segments)
         viability = self._combine_viability(legs, evaluation.status)
@@ -53,33 +53,165 @@ class MissionPlanner:
                 + [evidence_id for leg in legs for evidence_id in leg.route.evidence_ids]
             )
         )
-        alerts = self._alerts(legs, evaluation.reason_codes, viability)
-        ordered_titles = " → ".join(objective.title for objective in objectives)
+        alerts = tuple(
+            dict.fromkeys(
+                [*self._alerts(legs, evaluation.reason_codes, viability)]
+                + [f"OBJECTIVE_EXCLUDED:{objective_id}" for objective_id, _, _ in exclusions]
+            )
+        )
+        ordered_titles = " → ".join(objective.title for objective in objectives) or "sin objetivos"
+        decisions = [
+            MissionDecision(
+                event_type="plan_created",
+                message=(
+                    f"Orden seguro planificado: base → {ordered_titles} → base. "
+                    f"Viabilidad del modelo: {viability.value}."
+                ),
+                evidence_ids=evidence_ids,
+            )
+        ]
+        decisions.extend(
+            MissionDecision(
+                event_type="objective_excluded",
+                message=f"Objetivo {objective_id} excluido: {reason}.",
+                evidence_ids=objective.evidence_ids,
+            )
+            for objective_id, reason, objective in exclusions
+        )
         return MissionPlan(
             mission_id=str(uuid4()),
             region_id=request.region_id,
             version=1,
             start_position=request.base_position,
             return_position=request.return_position or request.base_position,
-            objective_ids=request.objective_ids,
-            next_objective_id=request.objective_ids[0] if request.objective_ids else None,
+            objective_ids=tuple(objective.objective_id for objective in objectives),
+            next_objective_id=objectives[0].objective_id if objectives else None,
             legs=legs,
             constraints=request.constraints,
             resources=request.resources,
             resource_evaluation=evaluation,
             viability=viability,
             alerts=alerts,
-            decision_log=(
-                MissionDecision(
-                    event_type="plan_created",
-                    message=(
-                        f"Orden solicitado conservado: base → {ordered_titles} → base. "
-                        f"Viabilidad del modelo: {viability.value}."
-                    ),
-                    evidence_ids=evidence_ids,
-                ),
-            ),
+            decision_log=tuple(decisions),
             evidence_ids=evidence_ids,
+        )
+
+    def _plan_safe_prefix(
+        self,
+        request: MissionPlanningRequest,
+        requested: tuple[MissionObjective, ...],
+    ) -> tuple[
+        tuple[MissionObjective, ...],
+        tuple[MissionLeg, ...],
+        tuple[tuple[str, str, MissionObjective], ...],
+    ]:
+        """Accept an ordered objective only when its full round trip is supportable."""
+        accepted: list[MissionObjective] = []
+        outbound_legs: list[MissionLeg] = []
+        exclusions: list[tuple[str, str, MissionObjective]] = []
+        current = request.base_position
+        return_position = request.return_position or request.base_position
+        return_leg: MissionLeg | None = None
+
+        for objective_index, objective in enumerate(requested):
+            start_label = accepted[-1].objective_id if accepted else "base"
+            outbound = self._make_leg(
+                request,
+                len(outbound_legs) + 1,
+                current,
+                objective.position,
+                start_label,
+                objective.objective_id,
+            )
+            candidate_return = self._make_leg(
+                request,
+                len(outbound_legs) + 2,
+                objective.position,
+                return_position,
+                objective.objective_id,
+                "base",
+            )
+            candidate_objectives = (*accepted, objective)
+            candidate_legs = (*outbound_legs, outbound, candidate_return)
+            evaluation = self._resources.evaluate(
+                request.resources,
+                self._resource_segments(request, candidate_objectives, candidate_legs),
+            )
+
+            failed = next(
+                (leg for leg in candidate_legs if leg.route.status is RouteOutcomeStatus.NOT_VIABLE),
+                None,
+            )
+            uncertain = next(
+                (
+                    leg
+                    for leg in candidate_legs
+                    if leg.route.status is RouteOutcomeStatus.UNKNOWN
+                ),
+                None,
+            )
+            if failed is not None:
+                reason = (
+                    f"la ruta {failed.start_label}→{failed.end_label} no es viable"
+                )
+            elif uncertain is not None:
+                reason = (
+                    f"la ruta {uncertain.start_label}→{uncertain.end_label} "
+                    "depende de terreno desconocido"
+                )
+            elif evaluation.status is ResourceEvaluationStatus.NOT_VIABLE:
+                reason = "no quedan recursos para completar el regreso y conservar la reserva"
+            elif evaluation.status is ResourceEvaluationStatus.UNKNOWN:
+                reason = "no se puede confirmar el consumo con los datos disponibles"
+            else:
+                accepted.append(objective)
+                outbound_legs.append(outbound)
+                return_leg = candidate_return
+                current = objective.position
+                continue
+
+            exclusions.append((objective.objective_id, reason, objective))
+            exclusions.extend(
+                (later.objective_id, "omitido porque depende de un objetivo anterior excluido", later)
+                for later in requested[objective_index + 1 :]
+            )
+            break
+
+        if return_leg is None:
+            return_leg = self._make_leg(
+                request,
+                1,
+                request.base_position,
+                return_position,
+                "base",
+                "base",
+            )
+        legs = (*outbound_legs, return_leg)
+        normalized_legs = tuple(
+            MissionLeg(
+                leg_id=f"leg-{index}",
+                start_label=leg.start_label,
+                end_label=leg.end_label,
+                route=leg.route,
+            )
+            for index, leg in enumerate(legs, start=1)
+        )
+        return tuple(accepted), normalized_legs, tuple(exclusions)
+
+    def _make_leg(
+        self,
+        request: MissionPlanningRequest,
+        index: int,
+        start: LocalPosition,
+        end: LocalPosition,
+        start_label: str,
+        end_label: str,
+    ) -> MissionLeg:
+        return MissionLeg(
+            leg_id=f"leg-{index}",
+            start_label=start_label,
+            end_label=end_label,
+            route=self._routes.compute(request.region_id, start, end, request.constraints),
         )
 
     def _resolve_objectives(self, request: MissionPlanningRequest) -> tuple[MissionObjective, ...]:
@@ -96,34 +228,6 @@ class MissionPlanner:
                 )
             resolved.append(objective)
         return tuple(resolved)
-
-    def _plan_legs(
-        self,
-        request: MissionPlanningRequest,
-        objectives: tuple[MissionObjective, ...],
-    ) -> tuple[MissionLeg, ...]:
-        stops = (
-            request.base_position,
-            *(item.position for item in objectives),
-            request.return_position or request.base_position,
-        )
-        labels = ("base", *(item.objective_id for item in objectives), "base")
-        legs = []
-        for index, (start, end) in enumerate(zip(stops, stops[1:]), start=1):
-            legs.append(
-                MissionLeg(
-                    leg_id=f"leg-{index}",
-                    start_label=labels[index - 1],
-                    end_label=labels[index],
-                    route=self._routes.compute(
-                        request.region_id,
-                        start,
-                        end,
-                        request.constraints,
-                    ),
-                )
-            )
-        return tuple(legs)
 
     def _resource_segments(
         self,

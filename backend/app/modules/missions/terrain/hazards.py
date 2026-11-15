@@ -1,5 +1,6 @@
 """Mission hazard reports layered over the immutable catalog terrain."""
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import StrEnum
 from math import floor, isfinite
@@ -15,6 +16,8 @@ from app.modules.missions.terrain.models import (
     TraversalStatus,
     apply_restrictions,
 )
+
+_CELL_CACHE_LIMIT = 100_000
 
 
 class HazardEffect(StrEnum):
@@ -60,6 +63,9 @@ class MissionHazardOverlay:
         self._metadata = base.get_metadata(region_id)
         self._terrain = base.get_terrain(region_id)
         self._grid = self._terrain.grid
+        # Route searches revisit the same cells many times. Cache the composed
+        # terrain + quality + hazard sample for the lifetime of this request.
+        self._sample_cache: OrderedDict[GridCell, RoutingTerrainSample] = OrderedDict()
 
         frame_id = self._metadata.sector.frame_id
         for report in reports:
@@ -94,6 +100,14 @@ class MissionHazardOverlay:
     def height(self) -> int:
         return self._grid.height_px
 
+    @property
+    def pixel_size_x_m(self) -> float:
+        return self._grid.pixel_size_x_m
+
+    @property
+    def pixel_size_y_m(self) -> float:
+        return self._grid.pixel_size_y_m
+
     def position_to_cell(self, position: LocalPosition) -> GridCell | None:
         if position.frame_id != self.frame_id:
             raise FrameMismatchError(
@@ -115,6 +129,10 @@ class MissionHazardOverlay:
         return LocalPosition(x_m=x_m, y_m=y_m, frame_id=self.frame_id)
 
     def sample_cell(self, cell: GridCell) -> RoutingTerrainSample:
+        cached = self._sample_cache.get(cell)
+        if cached is not None:
+            self._sample_cache.move_to_end(cell)
+            return cached
         if not (0 <= cell.row < self._grid.height_px and 0 <= cell.column < self._grid.width_px):
             return RoutingTerrainSample(
                 elevation_m=None,
@@ -157,7 +175,11 @@ class MissionHazardOverlay:
             for report in self._reports
             if self._report_affects_cell(report, cell)
         )
-        return apply_restrictions(sample, restrictions)
+        result = apply_restrictions(sample, restrictions)
+        if len(self._sample_cache) >= _CELL_CACHE_LIMIT:
+            self._sample_cache.popitem(last=False)
+        self._sample_cache[cell] = result
+        return result
 
     @staticmethod
     def _restriction_for(report: EnvironmentalHazardReport) -> TerrainRestriction:

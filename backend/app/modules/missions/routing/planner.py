@@ -141,11 +141,9 @@ class AStarRoutePlanner:
         if current_sample.elevation_m is None or neighbor_sample.elevation_m is None:
             return None
 
-        current_position = self._terrain.cell_position(current)
-        neighbor_position = self._terrain.cell_position(neighbor)
         distance_m = hypot(
-            neighbor_position.x_m - current_position.x_m,
-            neighbor_position.y_m - current_position.y_m,
+            (neighbor.column - current.column) * self._terrain.pixel_size_x_m,
+            (neighbor.row - current.row) * self._terrain.pixel_size_y_m,
         )
         elevation_delta = neighbor_sample.elevation_m - current_sample.elevation_m
         slope_deg = degrees(atan2(abs(elevation_delta), distance_m))
@@ -185,11 +183,9 @@ class AStarRoutePlanner:
                 return False
             if current_sample.elevation_m is None or side_sample.elevation_m is None:
                 return False
-            current_position = self._terrain.cell_position(current)
-            side_position = self._terrain.cell_position(side_cell)
             distance_m = hypot(
-                side_position.x_m - current_position.x_m,
-                side_position.y_m - current_position.y_m,
+                (side_cell.column - current.column) * self._terrain.pixel_size_x_m,
+                (side_cell.row - current.row) * self._terrain.pixel_size_y_m,
             )
             slope_deg = degrees(
                 atan2(abs(side_sample.elevation_m - current_sample.elevation_m), distance_m)
@@ -207,12 +203,19 @@ class AStarRoutePlanner:
         )
 
     def _heuristic(self, current: GridCell, goal: GridCell) -> float:
-        current_position = self._terrain.cell_position(current)
-        goal_position = self._terrain.cell_position(goal)
-        return hypot(
-            goal_position.x_m - current_position.x_m,
-            goal_position.y_m - current_position.y_m,
+        row_steps = abs(goal.row - current.row)
+        column_steps = abs(goal.column - current.column)
+        diagonal_steps = min(row_steps, column_steps)
+        straight_distance = abs(row_steps - column_steps) * (
+            self._terrain.pixel_size_y_m
+            if row_steps > column_steps
+            else self._terrain.pixel_size_x_m
         )
+        diagonal_distance = diagonal_steps * hypot(
+            self._terrain.pixel_size_x_m,
+            self._terrain.pixel_size_y_m,
+        )
+        return diagonal_distance + straight_distance
 
     @staticmethod
     def _reconstruct(
