@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import mapteLogo from '../../Mapte-logo.svg';
 import type { Mission } from './shared/types/contracts';
 import MissionControl from './features/mission-control/MissionControl';
 import OfflineBar from './features/offline-sync/OfflineBar';
@@ -17,10 +18,9 @@ export default function App() {
   return (
     <div className="flex h-dvh flex-col bg-space-950 text-space-100">
       <header className="flex min-h-14 flex-wrap items-center gap-x-6 gap-y-1 border-b border-space-800 bg-space-900 px-4 sm:px-6">
-        <p className="flex items-center gap-2 text-[22px] font-medium tracking-tight text-space-50">
-          <span className="size-3 rounded-full bg-primary-600" aria-hidden />
-          Mapte
-        </p>
+        <svg role="img" aria-label="Mapte" className="shrink-0 mix-blend-lighten" width="176" height="48" viewBox="440 185 1320 360">
+          <image href={mapteLogo} width="2172" height="724" />
+        </svg>
         <div className="ml-auto py-2">
           <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
         </div>

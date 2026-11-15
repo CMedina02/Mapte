@@ -16,11 +16,27 @@ ai_assistance:
 
 ## 2. Qué hace y cómo funciona
 
-- **Planificación en el mapa 2D.** Control de Misión fija la base, ordena las paradas y ajusta el límite de pendiente, la velocidad de marcha, el soporte simulado y la reserva. La ortofoto muestra la superficie sobre la que se trazan los objetivos, el recorrido y el regreso.
-- **Cálculo del recorrido.** El motor A* usa pendientes derivadas del modelo digital de elevación en una rejilla de 4 m. Para recorridos largos, la búsqueda puede identificar primero un corredor a 20 m y refinarlo a 4 m. El motor respeta el límite de pendiente, evita zonas de exclusión del escenario y puede apartarse de sectores donde la calidad del dato es incierta.
-- **Decisión sobre cada parada.** Antes de añadir un objetivo, el planificador estima los tiempos de ida, actividad y vuelta. Conserva las paradas que se pueden completar en el orden elegido con la reserva exigida. El panel muestra por qué quedaron fuera otras paradas. El modelo descuenta un minuto de soporte simulado por cada minuto transcurrido.
-- **Simulación y trabajo científico.** El visor web usa el itinerario de Control de Misión y muestra terreno 3D, ruta, rumbo, radar y perfil de elevación desde una posición simulada. El panel Explorador presenta la pregunta científica, las actividades y las fotos de Curiosity de la parada actual. En objetivos compatibles, como Gediz Vallis, permite registrar una observación y actualizar el avance de la misión.
-- **Estado compartido.** FastAPI sirve el catálogo y calcula los planes. SQLite guarda versiones y eventos de la misión. El navegador puede guardar un paquete con el plan y el catálogo asociado para abrirlo en el visor. El flujo descrito usa el catálogo y el planificador del backend con `VITE_USE_MOCK=false`.
+Control de Misión configura la base, las paradas y los recursos en el mapa 2D. El backend devuelve los tramos, sus métricas y los motivos de exclusión. El visor reutiliza ese plan para mostrar el terreno 3D, el rumbo, el radar y el perfil de elevación desde una posición simulada. En una parada compatible, el explorador puede consultar una foto de referencia de Curiosity, elegir un hallazgo y adjuntar una nota.
+
+### Estructura del repositorio
+
+| Ubicación | Responsabilidad |
+| --- | --- |
+| `frontend/src/features/` y `frontend/src/shared/` | Componentes de Control de Misión, mapa, visor, simulación y sincronización. Las funciones compartidas incluyen el cliente HTTP y los tipos de la API. [Entrada de la aplicación](../../frontend/src/main.tsx) · [Cliente HTTP](../../frontend/src/shared/api/client.ts) |
+| `backend/app/modules/catalog/` | Carga el relieve y su procedencia. Publica el manifiesto de la región, los objetivos y las fotos en el mismo marco de coordenadas. [API del catálogo](../../backend/app/modules/catalog/api/router.py) |
+| `backend/app/modules/missions/` | Separa el cálculo de rutas, la evaluación de recursos, la planificación, las observaciones y la simulación. El repositorio SQLite guarda las versiones del plan y sus eventos. [API de misiones](../../backend/app/modules/missions/api/router.py) · [Persistencia](../../backend/app/modules/missions/persistence/sqlite.py) |
+| `backend/scripts/terrain/`, `backend/data/regions/` y `contracts/` | Preparación y publicación de los productos del terreno. El contrato OpenAPI documenta las solicitudes y respuestas que conectan las dos capas de la aplicación. [Proceso de terreno](../../backend/scripts/terrain/build_gale_mount_sharp.sh) · [Contrato OpenAPI](../../contracts/openapi.yaml) |
+
+El flujo descrito usa el catálogo y el planificador de FastAPI con `VITE_USE_MOCK=false`.
+
+### Funciones principales
+
+- **Crear el plan.** `PlanPanel` prepara la solicitud con la base, los objetivos en orden, la pendiente máxima, la velocidad, los tiempos de actividad, el soporte simulado y la reserva. Envía estos datos a `POST /api/v1/missions/plan`. [Formulario de planificación](../../frontend/src/features/mission-control/PlanPanel.tsx)
+- **Calcular un tramo.** `RouteApplicationService.compute()` combina elevación, calidad del terreno y zonas de riesgo con las restricciones de marcha. A* busca en una rejilla de 4 m. Para recorridos largos puede explorar primero un corredor a 20 m y refinarlo a 4 m. Si la búsqueda alcanza su límite o el trazado depende de terreno desconocido, el resultado señala que la viabilidad queda sin confirmar. [Servicio de rutas](../../backend/app/modules/missions/routing/service.py) · [Motor A*](../../backend/app/modules/missions/routing/planner.py)
+- **Evaluar el regreso.** `MissionPlanner.plan()` revisa las paradas en el orden elegido. Antes de aceptar cada una, calcula un regreso a la base y pasa todo el recorrido a `ResourceEvaluator.evaluate()`, que descuenta un minuto de soporte simulado por minuto de marcha o actividad. Si una parada incumple las restricciones o la reserva queda sin confirmar, conserva el itinerario hasta la última parada aceptada y registra el motivo de exclusión. [Planificador](../../backend/app/modules/missions/planning/planner.py) · [Evaluación de recursos](../../backend/app/modules/missions/resources/evaluator.py)
+- **Registrar hallazgos y recalcular.** `FindingPad` envía el código elegido y la nota opcional desde el visor. El backend comprueba la versión de la misión y aplica las reglas del hallazgo. Una vez registrada la observación, el cliente solicita un recálculo desde la parada alcanzada para los objetivos pendientes, con la base original como punto de regreso. [Registro en el visor](../../frontend/src/features/visor/FindingPad.tsx) · [Registro y recálculo en el cliente](../../frontend/src/shared/api/client.ts)
+- **Compartir la misión y guardar observaciones.** `get_mission_package()` reúne el plan, el manifiesto, los objetivos y las referencias de imágenes que usa el visor. El navegador guarda el paquete localmente. Si el explorador registra un hallazgo sin conexión, el visor puede guardarlo en una cola para enviarlo al recuperar la red. [Paquete de misión](../../backend/app/modules/missions/api/router.py) · [Cola de observaciones](../../frontend/src/features/offline-sync/offline.ts)
+- **Reproducir una marcha simulada.** La vista `/sim` muestra una caminata con un desvío programado. `EvaSimulation.step()` avanza la posición y evalúa cuándo avisar del desvío o recalcular la ruta. [Motor de simulación](../../backend/app/modules/missions/simulation/engine.py) · [Vista de demostración](../../frontend/src/features/simulation/SimVisor.tsx)
 
 ## 3. Integración de datos y recursos de la NASA
 
@@ -33,6 +49,18 @@ ai_assistance:
 **Caso de Gediz Vallis.** Con un límite de pendiente de **15°**, el planificador calculó una ida de **910 m** con una pendiente máxima modelada de **14,62°**. A 20 m/min y con 15 min de actividad científica, el plan incluyó la visita y el regreso con **480 min** de soporte simulado y una reserva de **60 min**. Al reducir solo el soporte disponible a **120 min**, excluyó la parada porque completar el itinerario habría dejado menos de 60 min de reserva.
 
 **Uso previsto.** En ejercicios de planificación, Control de Misión puede comparar itinerarios y explicar por qué se acepta o se excluye una parada. El explorador puede relacionar esa decisión con la elevación del recorrido, las fotografías de superficie y la actividad prevista. El piloto se centra en Monte Sharp. Extender el método a otra zona requeriría preparar su relieve e imágenes, comprobar su cobertura y construir un catálogo local de objetivos con evidencia documentada.
+
+### Puntos fuertes del desarrollo
+
+- **Decisiones que se pueden explicar.** El plan distingue una ruta incompatible con las restricciones, un trazado condicionado por terreno incierto y una reserva insuficiente. Control de Misión puede identificar qué condiciona la visita antes de ajustar el itinerario.
+- **Trazabilidad de los datos.** El manifiesto vincula terreno, resolución y fuentes. El catálogo conserva los créditos de las fotografías y sitúa las paradas de Curiosity en el marco del mapa. Esto permite rastrear de dónde procede el relieve que condiciona la ruta y qué evidencia respalda cada parada.
+- **Continuidad entre planificación y exploración.** Control de Misión y el visor comparten un plan versionado. El visor registra el hallazgo en la misma misión y el recálculo conserva la base original y los objetivos ya completados.
+
+### Mejoras futuras
+
+- **Recálculo y estimación de soporte.** Conservar los tiempos de actividad elegidos en el plan inicial al registrar hallazgos. Mostrar por separado la confirmación de la observación y el resultado del recálculo, con opción de reintentar este último.
+- **Trabajo sin conexión.** Permitir descargar el relieve, la ortofoto y las fotos antes de salir. El visor podría indicar qué recursos están disponibles localmente y cuáles requieren red.
+- **Cobertura del terreno.** Validar la cobertura y la resolución del relieve antes de incorporar otra región o usarlo para analizar obstáculos más pequeños que la rejilla actual. Añadir objetivos científicos con coordenadas, imágenes y fuentes documentadas para cada nuevo sector.
 
 ## 5. Herramientas, lenguajes, hardware y software
 
