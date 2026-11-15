@@ -143,3 +143,12 @@ class MissionEventsResponseSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     events: list[MissionEventSchema]
+
+
+class ObservationRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mission_version: int = Field(ge=1)
+    objective_id: str = Field(min_length=1)
+    finding_code: str = Field(min_length=1)
+    notes: str | None = Field(default=None, max_length=1000)

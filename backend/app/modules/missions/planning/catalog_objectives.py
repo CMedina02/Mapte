@@ -23,6 +23,7 @@ def objective_repository_from_catalogs(
             ),
             activities=tuple(objective.activities),
             evidence_ids=tuple(objective.evidence_ids),
+            possible_findings=tuple(objective.possible_findings),
         )
         for catalog in catalogs
         for objective in catalog.objectives

@@ -13,9 +13,11 @@ from app.modules.missions.api.schemas import (
     MissionProgressRequestSchema,
     MissionReplanRequestSchema,
     MissionStatusRequestSchema,
+    ObservationRequestSchema,
     RouteRequestSchema,
     RouteResultSchema,
 )
+from app.modules.missions.observations import decide_observation
 from app.modules.missions.persistence import (
     MissionEventDraft,
     MissionLifecycleStatus,
@@ -386,6 +388,95 @@ def get_mission_events(mission_id: str, missions: MissionDep) -> MissionEventsRe
     )
 
 
+@missions_router.post(
+    "/missions/{mission_id}/observations",
+    response_model=MissionPlanResponseSchema,
+)
+def submit_observation(
+    mission_id: str,
+    payload: ObservationRequestSchema,
+    objectives: ObjectiveDep,
+    missions: MissionDep,
+) -> MissionPlanResponseSchema:
+    stored = _current_mission(missions, mission_id, payload.mission_version)
+    if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
+        raise HTTPException(status_code=409, detail="Solo una misión activa admite observaciones.")
+    if payload.objective_id != stored.snapshot.get("next_objective_id"):
+        raise HTTPException(
+            status_code=409,
+            detail="Solo puede observarse el siguiente objetivo activo de la misión.",
+        )
+    objective = objectives.get_objective(stored.region_id, payload.objective_id)
+    if objective is None or payload.objective_id not in stored.snapshot["objective_ids"]:
+        raise HTTPException(
+            status_code=400, detail="El objetivo no pertenece al catálogo de la misión."
+        )
+    try:
+        decision = decide_observation(objective, payload.finding_code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    completed = list(
+        dict.fromkeys([*stored.snapshot.get("completed_objective_ids", []), payload.objective_id])
+    )
+    remaining = [item for item in stored.snapshot["objective_ids"] if item not in completed]
+    message = (
+        f"Hallazgo {payload.finding_code} registrado en {objective.title}. "
+        f"{decision.reason} Siguiente destino: {remaining[0] if remaining else 'base'}."
+    )
+    decision_entry = {
+        "event_type": "observation_recorded",
+        "message": message,
+        "evidence_ids": list(objective.evidence_ids),
+        "simulated": True,
+    }
+    snapshot = {
+        **stored.snapshot,
+        "completed_objective_ids": completed,
+        "next_objective_id": remaining[0] if remaining else None,
+        "legs": _remaining_legs(stored.snapshot["legs"], completed),
+        "resource_evaluation": {
+            "status": "unknown",
+            "reason_codes": ["RESOURCE_READING_REQUIRED_AFTER_OBSERVATION"],
+            "warnings": [],
+            "assumptions": [],
+            "known_consumption_min": 0,
+            "projected_consumption_min": None,
+            "oxygen_remaining_min": None,
+            "reserve_margin_min": None,
+        },
+        "alerts": list(
+            dict.fromkeys(
+                [
+                    *stored.snapshot["alerts"],
+                    "RESOURCE_READING_REQUIRED_AFTER_OBSERVATION",
+                ]
+            )
+        ),
+        "decision_log": [*stored.snapshot["decision_log"], decision_entry],
+    }
+    event_payload = {
+        "objective_id": payload.objective_id,
+        "finding_code": payload.finding_code,
+        "notes": payload.notes,
+        "action": decision.action.value,
+        "reason": decision.reason,
+        "evidence_ids": list(objective.evidence_ids),
+    }
+    updated = _update_mission(
+        missions,
+        mission_id,
+        MissionUpdate(
+            expected_version=payload.mission_version,
+            lifecycle_status=stored.lifecycle_status,
+            viability_status=StoredViabilityStatus.UNKNOWN,
+            snapshot=snapshot,
+            events=(MissionEventDraft(str(uuid4()), "observation_recorded", event_payload),),
+        ),
+    )
+    return _mission_response(updated)
+
+
 def _abort_mission(
     stored: StoredMission,
     payload: MissionStatusRequestSchema,
@@ -502,6 +593,11 @@ def _position_data(position: LocalPosition) -> dict:
 
 def _position_schema_data(position) -> dict:
     return {"x_m": position.x_m, "y_m": position.y_m, "frame_id": position.frame_id}
+
+
+def _remaining_legs(legs: list[dict], completed_objective_ids: list[str]) -> list[dict]:
+    completed = set(completed_objective_ids)
+    return [leg for leg in legs if leg["end_label"] not in completed]
 
 
 def _hazard_from_data(data: dict) -> EnvironmentalHazardReport:

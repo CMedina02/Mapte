@@ -26,6 +26,7 @@ class MissionObjective:
     position: LocalPosition
     activities: tuple[str, ...]
     evidence_ids: tuple[str, ...]
+    possible_findings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.objective_id.strip() or not self.region_id.strip() or not self.title.strip():

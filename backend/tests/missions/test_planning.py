@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 import pytest
+from fastapi import HTTPException
 
 from app.modules.catalog.domain import (
     InMemoryTerrainRepository,
@@ -9,12 +10,14 @@ from app.modules.catalog.domain import (
     VerticalReferenceSpec,
     build_synthetic_terrain,
 )
+from app.modules.catalog.infrastructure.science_loader import load_science_catalog
 from app.modules.missions.api.router import (
     change_mission_status,
     get_mission,
     get_mission_events,
     plan_mission,
     report_hazard_and_replan,
+    submit_observation,
     update_mission_progress,
 )
 from app.modules.missions.api.schemas import (
@@ -22,7 +25,9 @@ from app.modules.missions.api.schemas import (
     MissionProgressRequestSchema,
     MissionReplanRequestSchema,
     MissionStatusRequestSchema,
+    ObservationRequestSchema,
 )
+from app.modules.missions.observations import decide_observation
 from app.modules.missions.persistence import SQLiteMissionRepository, StoredRouteKind
 from app.modules.missions.planning import (
     InMemoryObjectiveRepository,
@@ -31,6 +36,7 @@ from app.modules.missions.planning import (
     MissionPlanningRequest,
     MissionPlanViability,
     UnknownObjectiveError,
+    objective_repository_from_catalogs,
 )
 from app.modules.missions.planning.persistence import mission_create_from_plan
 from app.modules.missions.resources import SupportResources
@@ -79,6 +85,7 @@ def objectives() -> InMemoryObjectiveRepository:
                 position=position(0, 2),
                 activities=("Fotografía",),
                 evidence_ids=("ev-a",),
+                possible_findings=("HEMATITE_DETECTED",),
             ),
             MissionObjective(
                 objective_id="obj-b",
@@ -87,6 +94,7 @@ def objectives() -> InMemoryObjectiveRepository:
                 position=position(1, 2),
                 activities=("Muestreo",),
                 evidence_ids=("ev-b",),
+                possible_findings=("CLAY_MINERALS_DETECTED",),
             ),
         )
     )
@@ -346,11 +354,46 @@ def test_active_mission_can_complete_after_all_objectives(tmp_path) -> None:
         objectives(),
         repository,
     )
+    with pytest.raises(HTTPException) as invalid:
+        submit_observation(
+            created.mission_id,
+            ObservationRequestSchema(
+                mission_version=2,
+                objective_id="obj-a",
+                finding_code="INVENTED_BY_FREE_TEXT",
+            ),
+            objectives(),
+            repository,
+        )
+    assert invalid.value.status_code == 400
+    observed = submit_observation(
+        created.mission_id,
+        ObservationRequestSchema(
+            mission_version=2,
+            objective_id="obj-a",
+            finding_code="HEMATITE_DETECTED",
+            notes="Hallazgo simulado",
+        ),
+        objectives(),
+        repository,
+    )
+    with pytest.raises(HTTPException) as stale:
+        submit_observation(
+            created.mission_id,
+            ObservationRequestSchema(
+                mission_version=2,
+                objective_id="obj-a",
+                finding_code="HEMATITE_DETECTED",
+            ),
+            objectives(),
+            repository,
+        )
+    assert stale.value.status_code == 409
     update_mission_progress(
         created.mission_id,
         MissionProgressRequestSchema.model_validate(
             {
-                "expected_version": 2,
+                "expected_version": 3,
                 "current_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
                 "completed_objective_ids": ["obj-a", "obj-b"],
                 "resources": {"oxygen_available_min": 100, "return_reserve_min": 30},
@@ -360,11 +403,26 @@ def test_active_mission_can_complete_after_all_objectives(tmp_path) -> None:
     )
     completed = change_mission_status(
         created.mission_id,
-        MissionStatusRequestSchema(expected_version=3, action="complete"),
+        MissionStatusRequestSchema(expected_version=4, action="complete"),
         terrain_repository(),
         objectives(),
         repository,
     )
 
-    assert completed.mission_version == 4
+    assert observed.next_objective_id == "obj-b"
+    assert observed.completed_objective_ids == ["obj-a"]
+    assert observed.viability_status == "unknown"
+    assert completed.mission_version == 5
     assert completed.lifecycle_status == "completed"
+
+
+def test_observation_rules_cover_every_real_catalog_finding() -> None:
+    catalog = load_science_catalog(REGION_ID)
+    assert catalog is not None
+    repository = objective_repository_from_catalogs((catalog,))
+
+    for source in catalog.objectives:
+        objective = repository.get_objective(REGION_ID, source.objective_id)
+        assert objective is not None
+        for finding_code in source.possible_findings:
+            assert decide_observation(objective, finding_code).finding_code == finding_code
