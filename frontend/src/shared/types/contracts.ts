@@ -124,6 +124,9 @@ export interface Terrain {
   memory_order: 'row_major';
   nodata_policy: 'f32_nan';
   texture_aligned: boolean;
+  // PROPUESTA (pendiente con backend): normal map RGB en espacio tangente (R=este, G=norte, B=arriba)
+  // con el relieve fino que el heightmap no representa; cubre la misma extensión que el heightmap.
+  normal_map_url?: string | null;
   grid: TerrainGrid;
 }
 

@@ -1,7 +1,7 @@
 // Simulador del modelo de rutas del backend, SOLO para el mock.
 // La app nunca calcula rutas: este archivo hace el papel del servidor mientras no exista.
 import type { Constraints, Position, Resources, RouteResult } from '../../types/contracts';
-import { BOUNDS, FRAME_ID, HAZARDS, REGION_ID, elevationAt } from './monteSharp.ts';
+import { BOUNDS, FRAME_ID, HAZARDS, REAL_TERRAIN, REGION_ID, elevationAt, usingRealTerrain } from './monteSharp.ts';
 
 const STEP_M = 20;
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -61,8 +61,7 @@ export function simulateRoute(stops: Position[], c: Constraints, res?: Resources
     if (hz.kind === 'exclusion') {
       blocked = true;
       warnings.push(`Cruza área de exclusión (${hz.risk_factor}): ${hz.mitigation}`);
-    } else if (hz.hazard_id !== 'hz-scarp') {
-      // el escarpe ya lo evalúa la pendiente del terreno
+    } else {
       warnings.push(`${hz.risk_factor}: ${hz.mitigation}`);
     }
   }
@@ -78,7 +77,11 @@ export function simulateRoute(stops: Position[], c: Constraints, res?: Resources
     }
   }
   if (unknownLegs > 0) warnings.push('Tramos fuera del área con datos: viabilidad desconocida.');
-  warnings.push('Simulación con terreno sintético: no usar para navegación real.');
+  warnings.push(
+    usingRealTerrain()
+      ? 'Simulación del modelo sobre el DEM real reducido a 20 m: no usar para navegación real.'
+      : 'Simulación con terreno sintético: no usar para navegación real.',
+  );
 
   return {
     route_id: `route-sim-${Date.now()}`,
@@ -91,11 +94,13 @@ export function simulateRoute(stops: Position[], c: Constraints, res?: Resources
     status: blocked ? 'not_viable' : unknownLegs > 0 ? 'unknown' : 'viable',
     unknown_segments: unknownLegs,
     warnings,
-    evidence_ids: ['ev-hirise-dem'],
+    evidence_ids: usingRealTerrain() ? [REAL_TERRAIN.evidence_ids[0]] : [],
     assumptions: [
       `Velocidad constante de ${c.speed_m_per_min} m/min`,
       'Consumo simulado: 1 min de O₂ por minuto de caminata',
-      'Terreno sintético inspirado en el flanco norte de Monte Sharp (no es el DEM HiRISE)',
+      usingRealTerrain()
+        ? 'Elevación: DEM USGS MSL Gale (1 m) promediado a 20 m'
+        : 'Terreno sintético inspirado en el flanco norte de Monte Sharp (no es el DEM HiRISE)',
       'Tramos rectos entre paradas (el backend real calcula la ruta con A*)',
     ],
     sample_only: true,

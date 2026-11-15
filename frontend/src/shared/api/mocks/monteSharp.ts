@@ -1,12 +1,16 @@
 // Escenario de SIMULACIÓN: Monte Sharp (Aeolis Mons), Cráter Gale, MC-23.
-// Basado en el brief del equipo. Geometría, terreno y capas son SINTÉTICOS (sample_only):
-// sirven para ensayar la interfaz hasta que el backend entregue los productos reales.
+// Terreno y ortofoto REALES del backend (USGS MSL Gale, reducidos para el navegador con
+// scripts/import_backend_terrain.py). Objetivos, zonas de riesgo y capa mineral siguen siendo
+// SINTÉTICOS (sample_only) hasta que el backend los entregue.
 import type {
   Evidence, Frame, Hazard, Layer, Objective, Photo, Position, Region,
 } from '../../types/contracts';
+import realTerrain from './realTerrain.json' with { type: 'json' };
+
+export const REAL_TERRAIN = realTerrain;
 
 export const REGION_ID = 'mc23-gale-mount-sharp';
-export const FRAME_ID = 'MC23_GALE_SHARP_LOCAL_V1';
+export const FRAME_ID = realTerrain.frame_id; // marco del backend (MARS_GALE_MS_LOCAL_V1)
 // Zona real que descarga el backend: 10 × 10 km, esquinas −4.66564°/−4.83435° N-S y 137.31535°/137.48465° E.
 // Origen (0,0) en la esquina suroeste; X hacia el este, Y hacia el norte.
 // ponytail: conversión grados→metros solo para el mock (1° lat ≈ 59,275 m); el marco oficial lo define el pipeline.
@@ -23,14 +27,22 @@ export const FRAME: Frame = {
   units: 'm',
   origin_east_lon_deg: 137.31535,
   origin_planetocentric_lat_deg: -4.83435,
-  projection_definition: 'MOCK: equirectangular local en metros, origen (0,0) en la esquina SO (−4.83435°, 137.31535°E); definición final: backend',
+  projection_definition: realTerrain.sector.local_crs_proj,
   longitude_direction: 'east',
   latitude_type: 'planetocentric',
 };
 
-// Terreno SINTÉTICO (no es el DEM HiRISE): ladera que sube hacia el sur, hacia Monte Sharp (~6°),
-// un escarpe de 70 m (>15°) al suroeste del sector y ondulaciones suaves. Cubre toda la zona de 10 km.
+// Elevación: si el mock ya cargó el DEM real, se usa ese; si no (p. ej. el check en Node),
+// un terreno SINTÉTICO: ladera hacia el sur (~6°), un escarpe de 70 m (>15°) y ondulaciones.
+let sampler: ((x: number, y: number) => number | null) | null = null;
+export function setElevationSampler(fn: (x: number, y: number) => number | null) {
+  sampler = fn;
+}
+export const usingRealTerrain = () => sampler !== null;
+
 export function elevationAt(zx: number, zy: number): number {
+  const real = sampler?.(zx, zy);
+  if (real != null) return real;
   const x = zx - SECTOR.min_x;
   const y = zy - SECTOR.min_y;
   const flank = 0.1 * (2000 - y);
@@ -40,9 +52,7 @@ export function elevationAt(zx: number, zy: number): number {
   return -4450 + flank + scarp + bumps;
 }
 
-export const ELEVATION_RANGE = { min: -4860, max: -3770 };
-// Contacto mineral sintético: por debajo arcillas (lago antiguo), por encima sulfatos (clima árido)
-export const CLAY_SULFATE_CONTACT_Z = -4350;
+export const ELEVATION_RANGE = { min: -4860, max: -3770 }; // del terreno sintético
 
 export const REGIONS: Region[] = [
   {
@@ -50,7 +60,7 @@ export const REGIONS: Region[] = [
     name: 'Monte Sharp (Aeolis Mons) · Cráter Gale',
     body: 'Mars',
     description:
-      'Aeolis Quadrangle (MC-23). Zona de 10 × 10 km centrada en −4.75°, 137.40°E; sector de caminata de 2 × 2 km al centro. Terreno sintético.',
+      'Aeolis Quadrangle (MC-23). Zona de 10 × 10 km centrada en −4.75°, 137.40°E; sector de caminata de 2 × 2 km al centro. DEM y ortofoto USGS; objetivos y riesgos simulados.',
     available: true,
   },
 ];
@@ -67,28 +77,17 @@ export const EVIDENCE: Evidence[] = [
     resolution_m: null,
     caveats: ['Fuente de referencia del equipo; las capas de este escenario son sintéticas.'],
   },
-  {
-    evidence_id: 'ev-hirise-dem',
-    title: 'HiRISE DEM',
-    mission: 'Mars Reconnaissance Orbiter',
-    instrument: 'HiRISE',
-    source_url: 'https://www.uahirise.org/dtm/',
-    credit: 'NASA/JPL-Caltech/UArizona',
+  ...realTerrain.sources.map((src) => ({
+    evidence_id: src.evidence_id,
+    title: src.title,
+    mission: 'Mars Science Laboratory (HiRISE, MRO)',
+    instrument: src.evidence_id.includes('ortho') ? 'HiRISE (ortofoto)' : 'HiRISE (DEM)',
+    source_url: src.download_url,
+    credit: src.provider,
     captured_at: null,
-    resolution_m: 0.5,
-    caveats: ['Simulación: el relieve es sintético; sustituir por el DEM HiRISE real del sector.'],
-  },
-  {
-    evidence_id: 'ev-mola',
-    title: 'MOLA',
-    mission: 'Mars Global Surveyor',
-    instrument: 'MOLA',
-    source_url: 'https://pds-geosciences.wustl.edu/missions/mgs/mola.html',
-    credit: 'NASA/GSFC',
-    captured_at: null,
-    resolution_m: 463,
-    caveats: ['Contexto regional; no aplica a escala de caminata.'],
-  },
+    resolution_m: src.resolution_m,
+    caveats: realTerrain.limitations,
+  })),
   {
     evidence_id: 'ev-crism',
     title: 'CRISM',
@@ -102,16 +101,16 @@ export const EVIDENCE: Evidence[] = [
   },
 ];
 
-// asset_url lo genera el mock en el navegador (imagen sintética)
+// La ortofoto es real (reducida a 2048 px); la capa mineral la dibuja el mock en el navegador
 export const LAYERS: Layer[] = [
   {
-    layer_id: 'topography',
-    kind: 'topographic',
-    title: 'Topografía (sintética · sustituye HiRISE DEM)',
-    asset_url: '',
+    layer_id: 'imagery',
+    kind: 'optical',
+    title: 'Ortofoto HiRISE (USGS MSL Gale 25 cm v3)',
+    asset_url: realTerrain.texture_url,
     opacity_default: 1,
-    resolution_m_per_pixel: 19.5,
-    evidence_ids: ['ev-hirise-dem', 'ev-mola'],
+    resolution_m_per_pixel: 10000 / 2048,
+    evidence_ids: [realTerrain.evidence_ids[1]],
     nodata_policy: 'unknown',
   },
   {
@@ -143,16 +142,7 @@ export const HAZARDS: Hazard[] = [
     description: 'Cimas estrechas y agrietadas',
     mitigation: 'Alerta de estabilidad: riesgo de tropiezo o caída con traje presurizado rígido.',
     polygon: [P(1300, 350), P(1750, 330), P(1780, 700), P(1320, 720)],
-    evidence_ids: ['ev-hirise-dem'],
-  },
-  {
-    hazard_id: 'hz-scarp',
-    kind: 'caution',
-    risk_factor: 'Pendientes Críticas',
-    description: 'Escarpe con inclinaciones > 15°',
-    mitigation: 'Bloqueo de rutas con pendientes superiores a 15 grados (lo decide el terreno).',
-    polygon: [P(0, 580), P(820, 580), P(820, 720), P(0, 720)],
-    evidence_ids: ['ev-hirise-dem'],
+    evidence_ids: [realTerrain.evidence_ids[0]],
   },
 ];
 
@@ -167,7 +157,7 @@ export const OBJECTIVES: Objective[] = [
     priority_weight: 2,
     activities: ['Fotografía del contacto (Mastcam)', 'Lectura espectral (ChemCam)', 'Muestreo de ambas unidades'],
     possible_findings: ['CLAY_SULFATE_CONTACT', 'GRADUAL_TRANSITION', 'NO_CONTACT_VISIBLE'],
-    evidence_ids: ['ev-crism', 'ev-hirise-dem'],
+    evidence_ids: ['ev-crism', realTerrain.evidence_ids[0]],
   },
   {
     objective_id: 'obj-boxwork',
@@ -179,7 +169,7 @@ export const OBJECTIVES: Objective[] = [
     priority_weight: 3,
     activities: ['Inspección de vetas desde la base de la cresta', 'Análisis geoquímico (ChemCam)'],
     possible_findings: ['MINERAL_VEINS_OBSERVED', 'NO_VEINS', 'UNSAFE_TO_APPROACH'],
-    evidence_ids: ['ev-hirise-dem', 'ev-crism'],
+    evidence_ids: [realTerrain.evidence_ids[0], 'ev-crism'],
   },
 ];
 
@@ -197,37 +187,3 @@ export const PHOTOS: Photo[] = OBJECTIVES.map((o) => ({
   location_quality: 'unknown',
   limitations: ['Simulación: falta elegir una imagen real con ubicación verificada.'],
 }));
-
-// ---------- Heightmap del sector (lo que entregará el backend como .f32) ----------
-
-// 256 × 256 celdas sobre el sector de 2 km (≈ 7.8 m por píxel). Fila 0 = norte, columna 0 = oeste;
-// cada valor es la elevación en el centro de la celda.
-export const HEIGHTMAP_SIZE = 256;
-export const HEIGHTMAP_URL = '/assets/mock-mc23/height.f32';
-
-export function sectorHeightmap() {
-  const n = HEIGHTMAP_SIZE;
-  const px = (SECTOR.max_x - SECTOR.min_x) / n;
-  const py = (SECTOR.max_y - SECTOR.min_y) / n;
-  const data = new Float32Array(n * n);
-  let min = Infinity, max = -Infinity;
-  for (let row = 0; row < n; row++) {
-    for (let col = 0; col < n; col++) {
-      const z = elevationAt(SECTOR.min_x + (col + 0.5) * px, SECTOR.max_y - (row + 0.5) * py);
-      data[row * n + col] = z;
-      if (z < min) min = z;
-      if (z > max) max = z;
-    }
-  }
-  return {
-    data,
-    width: n,
-    height: n,
-    min,
-    max,
-    originCenterX: SECTOR.min_x + px / 2, // centro de la celda noroeste
-    originCenterY: SECTOR.max_y - py / 2,
-    pixelX: px,
-    pixelY: py,
-  };
-}

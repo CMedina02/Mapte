@@ -8,12 +8,13 @@ interface Props {
   base: Position;
   path: Position[];
   hazards: Hazard[];
+  heading: number | null; // hacia dónde mira el astronauta (null = desconocido)
 }
 
 const R = 92; // radio útil en unidades del viewBox (200 × 200)
 const RANGES = [250, 500, 1000, 2000, 3000, 5000, 10000];
 
-export default function Radar({ center, target, base, path, hazards }: Props) {
+export default function Radar({ center, target, base, path, hazards, heading }: Props) {
   // Alcance: el menor anillo "redondo" que contiene el siguiente destino con margen (o toda la ruta si no hay destino).
   // Lo que queda fuera del alcance se recorta en el borde del radar.
   const dist = (p: Position) => Math.hypot(p.x_m - center.x_m, p.y_m - center.y_m);
@@ -34,10 +35,10 @@ export default function Radar({ center, target, base, path, hazards }: Props) {
           <stop offset="0%" stopColor="#0b3d91" stopOpacity="0.55" />
           <stop offset="100%" stopColor="#070d1f" stopOpacity="0.85" />
         </radialGradient>
-        <linearGradient id="radar-sweep" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#82a5e5" stopOpacity="0" />
-          <stop offset="100%" stopColor="#82a5e5" stopOpacity="0.35" />
-        </linearGradient>
+        <radialGradient id="radar-cone" cx="100" cy="100" r={R} gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#82a5e5" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#82a5e5" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
       <circle cx="100" cy="100" r={R} fill="url(#radar-bg)" stroke="#5182d8" strokeOpacity="0.7" />
@@ -73,14 +74,22 @@ export default function Radar({ center, target, base, path, hazards }: Props) {
           </g>
         )}
 
-        {/* Barrido decorativo (se detiene con "reducir movimiento") */}
-        <g className="origin-center motion-safe:animate-[spin_4s_linear_infinite]" style={{ transformOrigin: '100px 100px' }}>
-          <path d={`M100 100 L${100 + R} 100 A${R} ${R} 0 0 0 ${100 + R * Math.cos(Math.PI / 6)} ${100 - R * Math.sin(Math.PI / 6)} Z`} fill="url(#radar-sweep)" />
-        </g>
+        {/* Cono de visión estilo GPS: hacia dónde mira el astronauta (45° de apertura) */}
+        {heading !== null && (
+          <path
+            d={`M100 100 L${100 + R * Math.sin(-Math.PI / 8)} ${100 - R * Math.cos(Math.PI / 8)} A${R} ${R} 0 0 1 ${100 + R * Math.sin(Math.PI / 8)} ${100 - R * Math.cos(Math.PI / 8)} Z`}
+            fill="url(#radar-cone)"
+            transform={`rotate(${heading} 100 100)`}
+          />
+        )}
       </g>
 
-      {/* Posición actual */}
-      <path d="M100 92 L106 106 L100 102 L94 106 Z" fill="#ffffff" stroke="#070d1f" strokeWidth="1" />
+      {/* Posición actual: punto GPS con pulso (el pulso se detiene con "reducir movimiento") */}
+      <circle cx="100" cy="100" r="9" fill="#2c63c4" fillOpacity="0.35" className="motion-safe:animate-ping" style={{ transformOrigin: '100px 100px' }} />
+      <circle cx="100" cy="100" r="6" fill="#2c63c4" stroke="#ffffff" strokeWidth="2.5" />
+      {heading !== null && (
+        <path d="M100 84 L105 93 L95 93 Z" fill="#ffffff" transform={`rotate(${heading} 100 100)`} />
+      )}
 
       <text x="100" y="20" textAnchor="middle" className="fill-alert-400 text-[13px] font-bold">N</text>
       <text x="100" y="196" textAnchor="middle" className="fill-primary-200 text-[10px]">{range >= 1000 ? `${range / 1000} km` : `${range} m`}</text>

@@ -1,14 +1,20 @@
 // Vista 3D inclinada del terreno (FE-09). Solo dibuja lo que entrega el backend:
 // heightmap .f32, textura de una capa, ruta con z_m, base, objetivos y zonas de riesgo.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Html, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Hazard, Objective, Position, RegionManifest, RouteResult, RouteStatus, Terrain } from '../../shared/types/contracts';
 
-const EXAGGERATION = 1.5; // exageración vertical, declarada en pantalla
+// Reutiliza imágenes ya descargadas (textura) al recolocar la cámara para otro destino
+THREE.Cache.enabled = true;
+
+// Exageración vertical (declarada en pantalla): solo en terrenos casi planos; con relieve real fuerte, 1×
+const exaggerationFor = (terrain: Terrain, spanM: number) =>
+  (terrain.elevation_max_m - terrain.elevation_min_m) / spanM > 0.05 ? 1 : 1.5;
 const LIFT_M = 6; // separa líneas y marcadores del suelo para que no se hundan
 const SPACE = '#050a1a';
+const MARS_TINT = '#f6bf96'; // tinte sobre la ortofoto en gris; no es el color real medido
 const ROUTE_COLOR: Record<RouteStatus, string> = { viable: '#22c55e', not_viable: '#fc3d21', unknown: '#f59e0b' };
 
 interface Props {
@@ -18,6 +24,9 @@ interface Props {
   base: Position;
   objectives: Objective[];
   targetId: string | null;
+  here: Position; // posición actual del astronauta
+  destination: Position | null;
+  onHeading: (deg: number) => void; // hacia dónde mira (0° = norte), según la cámara
   onError: (message: string) => void;
 }
 
@@ -31,6 +40,7 @@ function makeFrame(terrain: Terrain, heights: Float32Array) {
   const spanY = (h - 1) * g.pixel_size_y_m;
   const cx = g.origin_center_x_m + spanX / 2;
   const cy = g.origin_center_y_m - spanY / 2; // el origen es la celda noroeste
+  const exag = exaggerationFor(terrain, Math.max(spanX, spanY));
 
   // Elevación por interpolación bilineal; null fuera del heightmap o sin dato (NaN)
   const heightAt = (x: number, y: number): number | null => {
@@ -48,7 +58,7 @@ function makeFrame(terrain: Terrain, heights: Float32Array) {
 
   const toScene = (x: number, y: number, z: number): Vec3 => [
     x - cx,
-    (z - terrain.elevation_min_m) * EXAGGERATION,
+    (z - terrain.elevation_min_m) * exag,
     -(y - cy),
   ];
 
@@ -59,7 +69,7 @@ function makeFrame(terrain: Terrain, heights: Float32Array) {
     return [sx, sy + LIFT_M, sz];
   };
 
-  return { w, h, spanX, spanY, cx, cy, heightAt, toScene, placePoint };
+  return { w, h, spanX, spanY, cx, cy, exag, heightAt, toScene, placePoint };
 }
 
 type Frame = ReturnType<typeof makeFrame>;
@@ -76,10 +86,22 @@ function TerrainMesh({ manifest, terrain, heights, frame }: { manifest: RegionMa
     return tex;
   }, [textureUrl, invalidate]);
 
+  // Relieve fino (DEM a 4 m) como normal map: usa las UV originales del heightmap (canal 1)
+  const normalUrl = terrain.normal_map_url;
+  const normalMap = useMemo(() => {
+    if (!normalUrl) return null;
+    const tex = new THREE.TextureLoader().load(normalUrl, () => invalidate());
+    tex.channel = 1;
+    tex.anisotropy = 4;
+    return tex;
+  }, [normalUrl, invalidate]);
+  useEffect(() => () => { texture?.dispose(); normalMap?.dispose(); }, [texture, normalMap]);
+
   const { geometry, hasNoData } = useMemo(() => {
     const geo = new THREE.PlaneGeometry(frame.spanX, frame.spanY, frame.w - 1, frame.h - 1);
     const pos = geo.attributes.position;
     const uv = geo.attributes.uv;
+    geo.setAttribute('uv1', uv.clone()); // UV del heightmap, antes de recortar la textura
     const colors = new Float32Array(pos.count * 3).fill(1);
     const b = manifest.bounds_local_m;
     let noData = false;
@@ -92,7 +114,7 @@ function TerrainMesh({ manifest, terrain, heights, frame }: { manifest: RegionMa
         pos.setZ(i, 0); // sin dato: se pinta distinto, no se presenta como terreno válido
         colors.set([0.55, 0.08, 0.08], i * 3);
       } else {
-        pos.setZ(i, (v - terrain.elevation_min_m) * EXAGGERATION);
+        pos.setZ(i, (v - terrain.elevation_min_m) * frame.exag);
       }
       if (!terrain.texture_aligned) {
         // La textura cubre toda la zona del manifiesto: se recorta a la extensión del heightmap
@@ -113,7 +135,9 @@ function TerrainMesh({ manifest, terrain, heights, frame }: { manifest: RegionMa
     <mesh geometry={geometry} receiveShadow>
       <meshStandardMaterial
         map={texture}
-        color={texture ? '#ffffff' : '#b5653a'}
+        normalMap={normalMap}
+        normalScale={[frame.exag, frame.exag]}
+        color={texture ? MARS_TINT : '#b5653a'} // la ortofoto es en gris: se tiñe en tono marciano (color aproximado)
         vertexColors={hasNoData}
         roughness={1}
         metalness={0}
@@ -165,11 +189,63 @@ function HazardOutline({ hazard, frame }: { hazard: Hazard; frame: Frame }) {
   );
 }
 
-export default function Terrain3D({ manifest, terrain, route, base, objectives, targetId, onError }: Props) {
+// Rejilla tipo HUD sobre el relieve (malla reducida a 64 × 64 para no pesar en tabletas)
+function GridOverlay({ frame }: { frame: Frame }) {
+  const geometry = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(frame.spanX, frame.spanY, 63, 63);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const z = frame.heightAt(frame.cx + pos.getX(i), frame.cy + pos.getY(i));
+      pos.setZ(i, z === null ? 0 : frame.toScene(0, 0, z)[1] + 1.5);
+    }
+    geo.rotateX(-Math.PI / 2);
+    return geo;
+  }, [frame]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry}>
+      <meshBasicMaterial color="#82a5e5" wireframe transparent opacity={0.12} depthWrite={false} />
+    </mesh>
+  );
+}
+
+// Astronauta: anillo en el suelo + punto GPS. La cámara mira desde detrás de él, así que
+// el cono de visión siempre apunta "hacia adelante" en pantalla.
+function AstronautMarker({ position }: { position: Vec3 }) {
+  return (
+    <group position={position}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[16, 22, 48]} />
+        <meshBasicMaterial color="#5182d8" transparent opacity={0.9} side={THREE.DoubleSide} />
+      </mesh>
+      <Html center zIndexRange={[16, 0]} style={{ pointerEvents: 'none' }}>
+        <svg width="56" height="64" viewBox="0 0 56 64" aria-label="Tu posición">
+          <defs>
+            <linearGradient id="gps-beam" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#82a5e5" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#82a5e5" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d="M28 40 L10 4 Q28 -4 46 4 Z" fill="url(#gps-beam)" />
+          <circle cx="28" cy="40" r="13" fill="#2c63c4" fillOpacity="0.35" className="motion-safe:animate-ping" style={{ transformOrigin: '28px 40px' }} />
+          <circle cx="28" cy="40" r="8" fill="#2c63c4" stroke="#ffffff" strokeWidth="3" />
+          <text x="28" y="62" textAnchor="middle" className="fill-white text-[10px] font-bold">TÚ</text>
+        </svg>
+      </Html>
+    </group>
+  );
+}
+
+// Rumbo de vista a partir del ángulo azimutal de la cámara (OrbitControls): 0° = norte (−Z), 90° = este (+X)
+const headingFromAzimuth = (az: number) => ((((-az * 180) / Math.PI) % 360) + 360) % 360;
+
+function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here, destination, onHeading, onError }: Props) {
   const [heights, setHeights] = useState<Float32Array | null>(null);
   const onErrorRef = useRef(onError);
+  const onHeadingRef = useRef(onHeading);
   useEffect(() => {
     onErrorRef.current = onError;
+    onHeadingRef.current = onHeading;
   });
 
   useEffect(() => {
@@ -196,29 +272,64 @@ export default function Terrain3D({ manifest, terrain, route, base, objectives, 
   }, [terrain.heightmap_url, terrain.header_bytes, terrain.width_px, terrain.height_px]);
 
   const frame = useMemo(() => (heights ? makeFrame(terrain, heights) : null), [terrain, heights]);
+  const routePoints = useMemo(
+    () => (frame && route && route.path.length > 1 ? route.path.map(frame.placePoint) : null),
+    [frame, route],
+  );
 
-  if (!heights || !frame) {
+  // Cámara de tercera persona: detrás del astronauta, mirando hacia el destino (o al norte)
+  const view = useMemo(() => {
+    if (!frame) return null;
+    const me = frame.placePoint(here);
+    let dx = 0;
+    let dz = -1;
+    let legM = 800;
+    if (destination) {
+      const d = frame.placePoint(destination);
+      const len = Math.hypot(d[0] - me[0], d[2] - me[2]);
+      if (len > 1) [dx, dz, legM] = [(d[0] - me[0]) / len, (d[2] - me[2]) / len, len];
+    }
+    const span = Math.max(frame.spanX, frame.spanY);
+    // Detrás del astronauta, a una distancia proporcional al tramo (más lejos en pantallas verticales)
+    const back = Math.min(Math.max(legM * 0.8, 450), span * 0.35) * (window.innerWidth < window.innerHeight ? 1.5 : 1);
+    return {
+      me,
+      target: [me[0], me[1], me[2]] as Vec3,
+      camera: [me[0] - dx * back, me[1] + back * 0.6, me[2] - dz * back] as Vec3,
+      heading: ((((Math.atan2(dx, -dz) * 180) / Math.PI) % 360) + 360) % 360,
+      span,
+      back,
+    };
+  }, [frame, here, destination]);
+
+  // Rumbo inicial (antes de que el usuario gire la cámara)
+  useEffect(() => {
+    if (view) onHeadingRef.current(Math.round(view.heading));
+  }, [view]);
+
+  if (!heights || !frame || !view) {
     return <p className="flex h-full items-center justify-center text-sm text-space-300">Cargando terreno 3D…</p>;
   }
 
-  // En pantallas verticales (pantalla de brazo) la cámara se aleja para que el sector quepa a lo ancho
-  const span = Math.max(frame.spanX, frame.spanY) * (window.innerWidth < window.innerHeight ? 1.7 : 1);
-  const routePoints = route && route.path.length > 1 ? route.path.map(frame.placePoint) : null;
   const target = objectives.find((o) => o.objective_id === targetId);
+  const span = view.span;
 
   return (
     <div className="relative h-full w-full">
+      {/* key: al cambiar de destino se recoloca la cámara detrás del astronauta */}
       <Canvas
+        key={`${view.camera.join(',')}`}
         frameloop="demand"
         dpr={[1, 2]}
-        camera={{ fov: 45, near: 1, far: span * 10, position: [0, span * 0.55, span * 0.85] }}
+        camera={{ fov: 50, near: 1, far: span * 10, position: view.camera }}
       >
         <color attach="background" args={[SPACE]} />
-        <fog attach="fog" args={[SPACE, span * 1.2, span * 3.5]} />
-        <hemisphereLight args={['#dfe8ff', '#3a1d10', 0.9]} />
+        <fog attach="fog" args={[SPACE, view.back * 3, view.back * 9]} />
+        <hemisphereLight args={['#dfe8ff', '#3a1d10', 1.2]} />
         <directionalLight position={[-span, span * 0.8, -span * 0.6]} intensity={1.6} />
 
         <TerrainMesh manifest={manifest} terrain={terrain} heights={heights} frame={frame} />
+        <GridOverlay frame={frame} />
 
         {manifest.hazards?.map((hz) => <HazardOutline key={hz.hazard_id} hazard={hz} frame={frame} />)}
 
@@ -227,9 +338,9 @@ export default function Terrain3D({ manifest, terrain, route, base, objectives, 
             points={routePoints}
             color={ROUTE_COLOR[route!.status] ?? ROUTE_COLOR.unknown}
             lineWidth={4}
-            dashed={route!.status !== 'viable'}
-            dashSize={25}
-            gapSize={15}
+            dashed
+            dashSize={18}
+            gapSize={12}
           />
         )}
 
@@ -243,24 +354,27 @@ export default function Terrain3D({ manifest, terrain, route, base, objectives, 
             emphasis={o.objective_id === target?.objective_id}
           />
         ))}
-
-        <Html position={[0, 0, -frame.spanY / 2 - 60]} center zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
-          <span className="text-sm font-bold text-alert-400">N</span>
-        </Html>
+        <AstronautMarker position={view.me} />
 
         <OrbitControls
           makeDefault
-          target={[0, 0, 0]}
+          target={view.target}
           enableDamping={false}
-          maxPolarAngle={Math.PI / 2.2}
-          minDistance={150}
+          maxPolarAngle={Math.PI / 2.15}
+          minDistance={120}
           maxDistance={span * 2.5}
+          onChange={(e) => {
+            const az = e?.target.getAzimuthalAngle();
+            if (az !== undefined) onHeadingRef.current(Math.round(headingFromAzimuth(az)));
+          }}
         />
       </Canvas>
 
-      <p className="pointer-events-none absolute right-2 bottom-2 max-w-[55%] rounded bg-space-950/80 px-2 py-1 text-right text-[11px] text-space-300">
-        3D · exageración vertical ×{EXAGGERATION} · arrastra para rotar, pellizca para acercar
+      <p className="pointer-events-none absolute right-2 bottom-2 hidden max-w-[45%] rounded bg-space-950/80 px-2 py-1 text-right text-[11px] text-space-300 sm:block">
+        3D · {frame.exag === 1 ? 'escala vertical real' : `exageración vertical ×${frame.exag}`} · ortofoto en gris con tinte marciano · arrastra para mirar alrededor
       </p>
     </div>
   );
 }
+
+export default memo(Terrain3D);

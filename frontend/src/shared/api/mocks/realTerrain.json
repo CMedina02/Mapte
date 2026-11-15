@@ -1,0 +1,66 @@
+{
+  "source_terrain_version": "gale-ms-v1",
+  "frame_id": "MARS_GALE_MS_LOCAL_V1",
+  "vertical_datum": "mars_areoid_usgs_msl_gale_v3",
+  "evidence_ids": [
+    "ev-usgs-msl-gale-dem-1m-v3",
+    "ev-usgs-msl-gale-ortho-25cm-v3"
+  ],
+  "heightmap_url": "/assets/mc23-real/height_20m.f32",
+  "texture_url": "/assets/mc23-real/ortho_2048.jpg",
+  "normal_map_url": "/assets/mc23-real/normal_2048.jpg",
+  "width_px": 500,
+  "height_px": 500,
+  "elevation_min_m": -4485.30419921875,
+  "elevation_max_m": -2587.969482421875,
+  "nodata_cells": 0,
+  "grid": {
+    "origin_center_x_m": 10.0,
+    "origin_center_y_m": 9990.0,
+    "pixel_size_x_m": 20.0,
+    "pixel_size_y_m": 20.0
+  },
+  "sector": {
+    "sector_id": "mc23-gale-mount-sharp-aoi-10km",
+    "extent_m": {
+      "x_min_m": 0.0,
+      "x_max_m": 10000.0,
+      "y_min_m": 0.0,
+      "y_max_m": 10000.0
+    },
+    "local_crs_proj": "+proj=tmerc +lat_0=-4.75 +lon_0=137.4 +k=1 +x_0=5000 +y_0=5000 +R=3396190 +units=m +no_defs",
+    "body_radius_m": 3396190.0
+  },
+  "sources": [
+    {
+      "evidence_id": "ev-usgs-msl-gale-dem-1m-v3",
+      "title": "MSL Gale Merged DEM Mosaic 1 m v3",
+      "provider": "USGS Astrogeology Science Center",
+      "mission": "MRO",
+      "instrument": "HiRISE (DEM estéreo)",
+      "credit": "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center",
+      "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_DEM_Mosaic_1m_v3.tif",
+      "local_raw_sha256": "c481ae885b4827af68fbdb428e9fac8a824d6828aebfba492577ba39bf55e42e",
+      "local_raw_size_bytes": 3868256546,
+      "resolution_m": 1.0,
+      "source_nodata": -32767
+    },
+    {
+      "evidence_id": "ev-usgs-msl-gale-ortho-25cm-v3",
+      "title": "MSL Gale Merged Orthophoto Mosaic 25 cm v3",
+      "provider": "USGS Astrogeology Science Center",
+      "mission": "MRO",
+      "instrument": "HiRISE",
+      "credit": "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center",
+      "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_Orthophoto_Mosaic_25cm_v3.tif",
+      "resolution_m": 0.25,
+      "note": "Solo se leyó el recorte del AOI vía HTTP Range (no el archivo completo)."
+    }
+  ],
+  "limitations": [
+    "La ortofoto de origen tiene huecos sin cobertura (valor 0) en el norte del AOI; la textura los conserva como 0, no son errores de descarga.",
+    "El DEM de origen muestra artefactos en rejilla en la franja este (x > ~6.6 km): relleno de menor resolución en el mosaico USGS; no usar ahí pendientes finas.",
+    "Datum vertical pendiente de confirmar contra la etiqueta PDS del DEM.",
+    "A 4 m no se resuelven rocas ni obstáculos menores a esa escala."
+  ]
+}
