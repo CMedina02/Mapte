@@ -1,18 +1,18 @@
 {
   "region_id": "mc23-gale-mount-sharp",
   "frame_id": "MARS_GALE_MS_LOCAL_V1",
-  "note": "Zonas de riesgo del escenario de demostración (sintéticas, las mismas que dibuja el frontend). exclusion = no se cruza; caution = se puede cruzar con costo mayor.",
+  "note": "Demo scenario hazard zones (synthetic, the same ones the frontend draws). exclusion = cannot be crossed; caution = can be crossed at higher cost.",
   "hazards": [
     {
       "hazard_id": "hz-dunes",
       "kind": "exclusion",
-      "risk_factor": "Campos de Dunas Eólicas",
+      "risk_factor": "Aeolian Dune Fields",
       "polygon": [[5100, 5150], [5650, 5100], [5750, 5450], [5400, 5600], [5080, 5450]]
     },
     {
       "hazard_id": "hz-boxwork",
       "kind": "caution",
-      "risk_factor": "Crestas de Boxwork",
+      "risk_factor": "Boxwork Ridges",
       "cost_multiplier": 3,
       "polygon": [[5300, 4350], [5750, 4330], [5780, 4700], [5320, 4720]]
     }

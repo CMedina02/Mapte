@@ -19,13 +19,17 @@ export function savePackage(pkg: MissionPackage) {
   localStorage.setItem(PKG_KEY, JSON.stringify(pkg));
 }
 
+export function clearPackage() {
+  localStorage.removeItem(PKG_KEY);
+}
+
 export function updatePackageMission(m: Mission) {
   const pkg = loadPackage();
   if (pkg?.mission.mission_id !== m.mission_id) return;
   try {
     savePackage({ ...pkg, mission: m });
   } catch (e) {
-    console.warn('No se pudo actualizar el paquete local', e);
+    console.warn('Could not update the local package', e);
   }
 }
 
@@ -35,14 +39,18 @@ export const isNewerMission = (a: Mission | null, b: Mission) =>
 
 // Otra pestaña (panel ↔ visor) guardó el paquete: el evento 'storage' llega al instante en el mismo navegador.
 // ponytail: entre dispositivos distintos lo cubre el sondeo de GET /missions/{id}; WebSocket/SSE si hace falta < 1 s.
-export function usePackageUpdates(onPkg: (pkg: MissionPackage) => void) {
+export function usePackageUpdates(onPkg: (pkg: MissionPackage | null) => void) {
   const ref = useRef(onPkg);
   useEffect(() => {
     ref.current = onPkg;
   });
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key !== PKG_KEY || !e.newValue) return;
+      if (e.key !== PKG_KEY && e.key !== null) return;
+      if (!e.newValue) {
+        ref.current(null);
+        return;
+      }
       try {
         ref.current(JSON.parse(e.newValue) as MissionPackage);
       } catch {
@@ -70,7 +78,7 @@ export function usePendingQueue() {
     try {
       localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
     } catch (e) {
-      console.warn('No se pudo guardar la cola', e);
+      console.warn('Could not save the queue', e);
     }
   }, [queue]);
   return [queue, setQueue] as const;
@@ -110,7 +118,7 @@ export async function sendQueue(
     if (err) return err;
     setQueue((q) => q.slice(1));
   }
-  return 'Cambios enviados';
+  return 'Changes sent';
 }
 
 // Última posición conocida del astronauta: el visor la muestra aunque no haya misión asignada

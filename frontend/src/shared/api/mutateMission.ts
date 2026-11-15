@@ -14,13 +14,13 @@ export async function mutateMission(
             try {
                 const latest = await marsApi.getMission(missionId);
                 onMission(latest);
-                return `${e.message} Estado recargado (v${latest.mission_version}).`; // el backend dice el motivo del 409
+                return `${e.message} State reloaded (v${latest.mission_version}).`; // el backend dice el motivo del 409
             } catch {
-                return 'Conflicto de versión y no se pudo recargar la misión.';
+                return 'Version conflict and the mission could not be reloaded.';
             }
         }
         if (e instanceof MarsApiError && e.status === 503) {
-            return 'Servidor no disponible. Se conserva el último estado conocido; reintenta más tarde.';
+            return 'Server unavailable. The last known state is kept; try again later.';
         }
         if (e instanceof MarsApiError && e.status === 0) return e.message;
         return e instanceof Error ? e.message : String(e);

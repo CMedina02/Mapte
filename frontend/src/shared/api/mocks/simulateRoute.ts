@@ -58,13 +58,13 @@ export function simulateRoute(stops: Position[], c: Constraints, res?: Resources
 
   if (maxSlope > c.max_slope_deg) {
     blocked = true;
-    warnings.push(`Pendiente de ${maxSlope.toFixed(0)}° supera el máximo de ${c.max_slope_deg}°: ruta bloqueada.`);
+    warnings.push(`Slope of ${maxSlope.toFixed(0)}° exceeds the maximum of ${c.max_slope_deg}°: route blocked.`);
   }
   for (const hz of HAZARDS) {
     if (!hits.has(hz.hazard_id)) continue;
     if (hz.kind === 'exclusion') {
       blocked = true;
-      warnings.push(`Cruza área de exclusión (${hz.risk_factor}): ${hz.mitigation}`);
+      warnings.push(`Crosses exclusion area (${hz.risk_factor}): ${hz.mitigation}`);
     } else {
       warnings.push(`${hz.risk_factor}: ${hz.mitigation}`);
     }
@@ -76,15 +76,15 @@ export function simulateRoute(stops: Position[], c: Constraints, res?: Resources
     if (need > res.oxygen_available_min) {
       blocked = true;
       warnings.push(
-        `O₂ insuficiente: se requieren ${need.toFixed(0)} min (caminata + reserva) y hay ${res.oxygen_available_min} min.`,
+        `Insufficient O₂: ${need.toFixed(0)} min required (walk + reserve), ${res.oxygen_available_min} min available.`,
       );
     }
   }
-  if (unknownLegs > 0) warnings.push('Tramos fuera del área con datos o sobre DEM de calidad desconocida: viabilidad desconocida.');
+  if (unknownLegs > 0) warnings.push('Segments outside the data area or over unknown-quality DEM: viability unknown.');
   warnings.push(
     usingRealTerrain()
-      ? 'Simulación del modelo sobre el DEM real reducido a 20 m: no usar para navegación real.'
-      : 'Simulación con terreno sintético: no usar para navegación real.',
+      ? 'Model simulation over the real DEM downsampled to 20 m: do not use for real navigation.'
+      : 'Simulation with synthetic terrain: do not use for real navigation.',
   );
 
   return {
@@ -102,12 +102,12 @@ export function simulateRoute(stops: Position[], c: Constraints, res?: Resources
     warnings,
     evidence_ids: usingRealTerrain() ? [REAL_TERRAIN.evidence_ids[0]] : [],
     assumptions: [
-      `Velocidad constante de ${c.speed_m_per_min} m/min`,
-      'Consumo simulado: 1 min de O₂ por minuto de caminata',
+      `Constant speed of ${c.speed_m_per_min} m/min`,
+      'Simulated consumption: 1 min of O₂ per minute of walking',
       usingRealTerrain()
-        ? 'Elevación: DEM USGS MSL Gale (1 m) promediado a 20 m'
-        : 'Terreno sintético inspirado en el flanco norte de Monte Sharp (no es el DEM HiRISE)',
-      'Tramos rectos entre paradas (el backend real calcula la ruta con A*)',
+        ? 'Elevation: USGS MSL Gale DEM (1 m) averaged to 20 m'
+        : 'Synthetic terrain inspired by the north flank of Mount Sharp (not the HiRISE DEM)',
+      'Straight segments between stops (the real backend computes the route with A*)',
     ],
     sample_only: true,
   };
@@ -131,7 +131,7 @@ export function stitchLegs(legs: RouteResult[], res?: Resources): RouteResult {
   if (res && duration !== null && duration + res.return_reserve_min > res.oxygen_available_min) {
     status = 'not_viable';
     warnings.push(
-      `O₂ insuficiente: se requieren ${(duration + res.return_reserve_min).toFixed(0)} min (caminata + reserva) y hay ${res.oxygen_available_min} min.`,
+      `Insufficient O₂: ${(duration + res.return_reserve_min).toFixed(0)} min required (walk + reserve), ${res.oxygen_available_min} min available.`,
     );
   }
   const path = legs.flatMap((l, i) => (i === 0 ? l.path : l.path.slice(1)));
@@ -149,7 +149,7 @@ export function stitchLegs(legs: RouteResult[], res?: Resources): RouteResult {
     unknown_segments: legs.reduce((a, l) => a + l.unknown_segments, 0),
     warnings,
     evidence_ids: uniq(legs.flatMap((l) => l.evidence_ids)),
-    assumptions: uniq([...legs.flatMap((l) => l.assumptions), 'Tramos: A* del backend · O₂ del plan: simulado en el cliente (mock)']),
+    assumptions: uniq([...legs.flatMap((l) => l.assumptions), 'Segments: backend A* · plan O₂: simulated on the client (mock)']),
     sample_only: true,
   };
 }

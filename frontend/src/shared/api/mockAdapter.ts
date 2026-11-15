@@ -40,11 +40,11 @@ function ready(): Promise<void> {
     })
     .then((buf) => {
       const data = new Float32Array(buf);
-      if (data.length !== RT.width_px * RT.height_px) throw new Error('tamaño inesperado');
+      if (data.length !== RT.width_px * RT.height_px) throw new Error('unexpected size');
       setElevationSampler(makeSampler(data));
       manifestCache = null;
     })
-    .catch((e) => console.warn('Mock: no se pudo cargar el DEM real; se usa terreno sintético.', e));
+    .catch((e) => console.warn('Mock: could not load the real DEM; using synthetic terrain.', e));
   return terrainReady;
 }
 
@@ -156,7 +156,7 @@ function save(state: MockState): Mission {
   return structuredClone(state.mission!);
 }
 
-const notFound = () => new MarsApiError(404, 'MISSION_NOT_FOUND', 'No hay misión planificada.');
+const notFound = () => new MarsApiError(404, 'MISSION_NOT_FOUND', 'No mission planned.');
 // Como el backend: z_m de cada objetivo muestreado del DEM (null si cae sin dato)
 const withZ = (p: Position): Position => ({ ...p, z_m: Math.round(elevationAt(p.x_m, p.y_m) * 10) / 10 });
 const objectivesWithZ = () => OBJECTIVES.map((o) => ({ ...structuredClone(o), position: withZ(o.position) }));
@@ -232,7 +232,7 @@ function supportEvaluation(routes: RouteResult[], interventionMin: number | null
     reserve_margin_min: margin,
     reason_codes: status === 'not_viable' ? ['INSUFFICIENT_RETURN_RESERVE'] : status === 'unknown' ? ['DURATION_UNKNOWN'] : [],
     warnings: [],
-    assumptions: ['El consumo hasta la intervención usa el mayor tiempo de llegada.'],
+    assumptions: ['Consumption until intervention uses the longest arrival time.'],
   };
 }
 
@@ -253,7 +253,7 @@ function advance(update: (m: Mission, c: Constraints) => Mission, clientVersion:
     save(state);
   }
   if (clientVersion !== state.mission.mission_version) {
-    throw new MarsApiError(409, 'VERSION_CONFLICT', 'La misión cambió en el servidor; recarga el estado.');
+    throw new MarsApiError(409, 'VERSION_CONFLICT', 'The mission changed on the server; reload the state.');
   }
   const next = update(structuredClone(state.mission), state.constraints);
   return save({ ...state, mission: { ...next, mission_version: state.mission.mission_version + 1 } });
@@ -328,7 +328,7 @@ export const mockApi = {
         decision_log: [
           {
             event_type: 'plan_created',
-            message: `Simulación: base → ${req.objective_ids.map(titleOf).join(' → ')} → base. Ruta ${resourceEvaluation.status}.`,
+            message: `Simulation: base → ${req.objective_ids.map(titleOf).join(' → ')} → base. Route ${resourceEvaluation.status}.`,
             evidence_ids: ['ev-trek'],
             simulated: true,
           },
@@ -371,8 +371,8 @@ export const mockApi = {
           ...m.decision_log,
           {
             event_type: 'observation',
-            message: `Simulación: ${req.finding_code} en ${titleOf(req.objective_id)}. Siguiente: ${
-              remaining[0] ? titleOf(remaining[0]) : 'regreso a la base'
+            message: `Simulation: ${req.finding_code} at ${titleOf(req.objective_id)}. Next: ${
+              remaining[0] ? titleOf(remaining[0]) : 'return to base'
             } (se conserva el orden del plan).`,
             evidence_ids: [],
             simulated: true,
@@ -384,7 +384,7 @@ export const mockApi = {
   contingency: (req: ContingencyRequest) =>
     advance((m, c) => {
       if (req.contingency_type === 'rover_unavailable') {
-        throw new MarsApiError(400, 'UNMODELED_CONTINGENCY', 'El escenario rover_unavailable aún no tiene un modelo operativo válido.');
+        throw new MarsApiError(400, 'UNMODELED_CONTINGENCY', 'The rover_unavailable scenario does not have a valid operational model yet.');
       }
       const resources = { ...m.resources, oxygen_available_min: req.oxygen_available_min };
       const legs = missionLegs([req.position, m.return_position], ['current_position', 'base'], c, resources);
@@ -401,14 +401,14 @@ export const mockApi = {
         alerts: [
           'OXYGEN_REDUCED',
           ok
-            ? `Contingencia ${req.contingency_type}: retorno a la base viable (${legs[0].metrics.duration_min} min, simulado).`
-            : `Contingencia ${req.contingency_type}: retorno a la base NO viable con los recursos disponibles (simulado).`,
+            ? `Contingency ${req.contingency_type}: return to base viable (${legs[0].metrics.duration_min} min, simulated).`
+            : `Contingency ${req.contingency_type}: return to base NOT viable with the available resources (simulated).`,
         ],
         decision_log: [
           ...m.decision_log,
           {
             event_type: 'contingency',
-            message: `Simulación: ${req.contingency_type} con ${req.oxygen_available_min} min de O₂. Retorno ${resourceEvaluation.status}.`,
+            message: `Simulation: ${req.contingency_type} with ${req.oxygen_available_min} min of O₂. Return ${resourceEvaluation.status}.`,
             evidence_ids: m.evidence_ids,
             simulated: true,
           },
@@ -420,7 +420,7 @@ export const mockApi = {
     const { mission } = loadState();
     if (!mission) throw notFound();
     if (req.mission_version !== mission.mission_version) {
-      throw new MarsApiError(409, 'VERSION_CONFLICT', 'La misión cambió en el servidor; recarga el estado.');
+      throw new MarsApiError(409, 'VERSION_CONFLICT', 'The mission changed on the server; reload the state.');
     }
     const resources = { ...mission.resources, oxygen_available_min: req.oxygen_available_min };
     const constraints = mission.routing_constraints ?? { max_slope_deg: 15, speed_m_per_min: 20, avoid_unknown: true };
@@ -453,7 +453,7 @@ export const mockApi = {
       options,
       recommended_option_id: viable[0]?.option_id ?? null,
       warnings: viable.length ? ['SIMULATED_DECISION_SUPPORT_ONLY'] : ['SIMULATED_DECISION_SUPPORT_ONLY', 'NO_OPTION_PRESERVES_MODELED_RESERVE'],
-      assumptions: ['Mock reducido; el backend real muestrea puntos sobre la ruta vigente.'],
+      assumptions: ['Reduced mock; the real backend samples points along the current route.'],
       generated_at: new Date().toISOString(),
     };
   },

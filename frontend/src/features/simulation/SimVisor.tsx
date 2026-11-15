@@ -40,10 +40,10 @@ const lerp = (a: Position, b: Position, u: number): Position => ({
 });
 
 const STATUS_LABEL: Record<SimState['status'], string> = {
-  following: 'En ruta',
-  drifting: 'Fuera de ruta',
-  arrived: 'Llegó al destino',
-  stopped: 'Detenido',
+  following: 'On route',
+  drifting: 'Off route',
+  arrived: 'Reached destination',
+  stopped: 'Stopped',
 };
 
 const ALERT_STYLE: Record<Exclude<SimAction, 'none'>, string> = {
@@ -101,7 +101,7 @@ export default function SimVisor() {
         if (alive) setRegion({ manifest, objectives });
       })
       .catch((e) => {
-        if (alive) setError(`No se pudo iniciar la simulación: ${e instanceof Error ? e.message : e}. ¿Está el backend en :8000?`);
+        if (alive) setError(`Could not start the simulation: ${e instanceof Error ? e.message : e}. Is the backend running on :8000?`);
       });
     return () => {
       alive = false;
@@ -127,7 +127,7 @@ export default function SimVisor() {
         .then(show)
         .catch((e) => {
           setRunning(false);
-          setError(`Se perdió el enlace con el backend: ${e instanceof Error ? e.message : e}`);
+          setError(`Lost the link with the backend: ${e instanceof Error ? e.message : e}`);
         })
         .finally(() => {
           inFlight.current = false;
@@ -164,13 +164,13 @@ export default function SimVisor() {
       <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-space-950 p-6 text-center text-sm text-space-200">
         <p>{error}</p>
         <button type="button" className="btn-primary" onClick={restart}>
-          Reintentar
+          Retry
         </button>
       </div>
     );
   }
   if (!sim || !region || !here) {
-    return <div className="flex h-dvh items-center justify-center bg-space-950 text-sm text-space-200">Preparando simulación…</div>;
+    return <div className="flex h-dvh items-center justify-center bg-space-950 text-sm text-space-200">Preparing simulation…</div>;
   }
 
   const { manifest, objectives } = region;
@@ -194,7 +194,7 @@ export default function SimVisor() {
       <div className="absolute inset-0">
         {use3d && manifest.terrain ? (
           <ErrorBoundary fallback={map2d}>
-            <Suspense fallback={<p className="flex h-full items-center justify-center text-sm">Cargando terreno 3D…</p>}>
+            <Suspense fallback={<p className="flex h-full items-center justify-center text-sm">Loading 3D terrain…</p>}>
               <Terrain3D
                 manifest={manifest}
                 terrain={manifest.terrain}
@@ -219,7 +219,7 @@ export default function SimVisor() {
       {/* Etiqueta fija: nada simulado se presenta como medido */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
         <p className="hud px-4 py-1.5 text-xs text-space-200">
-          Simulación: terreno y rutas reales, caminata acelerada {speed} veces
+          Simulation: real terrain and routes, walk sped up {speed}×
         </p>
       </div>
 
@@ -237,29 +237,29 @@ export default function SimVisor() {
           {STATUS_LABEL[sim.status]}
         </p>
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-          <dt className="text-space-300">Destino</dt>
-          <dd className="truncate">{target?.title ?? 'Punto marcado'}</dd>
-          <dt className="text-space-300">Restante</dt>
-          <dd>{sim.remaining_m == null ? 'Recalculando…' : `${Math.round(sim.remaining_m)} m`}</dd>
-          <dt className="text-space-300">Llegada en</dt>
+          <dt className="text-space-300">Destination</dt>
+          <dd className="truncate">{target?.title ?? 'Marked point'}</dd>
+          <dt className="text-space-300">Remaining</dt>
+          <dd>{sim.remaining_m == null ? 'Recalculating…' : `${Math.round(sim.remaining_m)} m`}</dd>
+          <dt className="text-space-300">Arrival in</dt>
           <dd>{sim.eta_min == null ? '—' : `${Math.round(sim.eta_min)} min`}</dd>
-          <dt className="text-space-300">Desvío</dt>
+          <dt className="text-space-300">Deviation</dt>
           <dd className={sim.deviation_m >= sim.thresholds.warn_m ? 'font-bold text-amber-300' : ''}>{Math.round(sim.deviation_m)} m</dd>
-          <dt className="text-space-300">Rumbo</dt>
+          <dt className="text-space-300">Heading</dt>
           <dd>{Math.round(sim.heading_deg)}°</dd>
-          <dt className="text-space-300">Recálculos</dt>
+          <dt className="text-space-300">Reroutes</dt>
           <dd>{rerouted}</dd>
-          <dt className="text-space-300">Tiempo fuera</dt>
+          <dt className="text-space-300">EVA time</dt>
           <dd>{clock(sim.t_s)}</dd>
         </dl>
         <p className="mt-2 text-xs text-space-400">
-          Aviso a {sim.thresholds.warn_m} m · recálculo a {sim.thresholds.reroute_m} m
+          Warning at {sim.thresholds.warn_m} m · reroute at {sim.thresholds.reroute_m} m
         </p>
       </section>
 
       {/* Bitácora del backend */}
       <section className="hud absolute bottom-3 left-3 max-h-56 w-80 overflow-y-auto p-4 text-xs max-sm:inset-x-3 max-sm:w-auto">
-        <p className="mb-2 text-sm font-medium text-space-200">Bitácora</p>
+        <p className="mb-2 text-sm font-medium text-space-200">Log</p>
         <ol className="space-y-1">
           {sim.log.map((e, i) => (
             <li key={i} className="flex gap-2">
@@ -274,7 +274,7 @@ export default function SimVisor() {
         {!finished && (
           <button type="button" className="btn-go shadow-lg" onClick={() => setRunning((r) => !r)}>
             <Icon name={running ? 'pause' : 'play'} size={18} />
-            {running ? 'Pausar' : 'Continuar'}
+            {running ? 'Pause' : 'Continue'}
           </button>
         )}
         <div className="flex flex-col gap-2">
@@ -282,14 +282,14 @@ export default function SimVisor() {
             type="button"
             className="btn-primary shadow-lg"
             onClick={() => setSpeed((v) => SPEEDS[(SPEEDS.indexOf(v as (typeof SPEEDS)[number]) + 1) % SPEEDS.length])}
-            title="Cambiar velocidad de la simulación"
+            title="Change simulation speed"
           >
             <Icon name="speed" size={18} />
             x{speed}
           </button>
           <button type="button" className="btn-primary shadow-lg" onClick={restart}>
             <Icon name="replay" size={18} />
-            Reiniciar
+            Restart
           </button>
         </div>
       </div>

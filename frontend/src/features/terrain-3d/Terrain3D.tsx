@@ -357,7 +357,7 @@ function AstronautMarker({ position }: { position: Vec3 }) {
         <meshBasicMaterial color="#4285f4" transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>
       <Html center zIndexRange={[16, 0]} style={{ pointerEvents: 'none' }}>
-        <svg width="56" height="64" viewBox="0 0 56 64" aria-label="Tu posición">
+        <svg width="56" height="64" viewBox="0 0 56 64" aria-label="Your position">
           <defs>
             <linearGradient id="gps-beam" x1="0" y1="1" x2="0" y2="0">
               <stop offset="0%" stopColor="#8ab4f8" stopOpacity="0.8" />
@@ -367,7 +367,7 @@ function AstronautMarker({ position }: { position: Vec3 }) {
           <path d="M28 40 L10 4 Q28 -4 46 4 Z" fill="url(#gps-beam)" />
           <circle cx="28" cy="40" r="13" fill="#1a73e8" fillOpacity="0.35" className="motion-safe:animate-ping" style={{ transformOrigin: '28px 40px' }} />
           <circle cx="28" cy="40" r="8" fill="#1a73e8" stroke="#ffffff" strokeWidth="3" />
-          <text x="28" y="62" textAnchor="middle" className="fill-white text-[11px] font-medium">Tú</text>
+          <text x="28" y="62" textAnchor="middle" className="fill-white text-[11px] font-medium">You</text>
         </svg>
       </Html>
     </group>
@@ -419,6 +419,26 @@ function HeadingDriver({ heading, pitch }: { heading: number | null; pitch: numb
     controls.update(); // emite 'change': actualiza el compás y mantiene la cámara sobre el terreno
     invalidate();
   });
+  return null;
+}
+
+// Coloca la cámara detrás del astronauta mirando al destino cada vez que cambian (sin recrear la escena)
+function CameraRig({ camera: pos, target }: { camera: Vec3; target: Vec3 }) {
+  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
+  const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
+  const posKey = pos.join(',');
+  const targetKey = target.join(',');
+  useEffect(() => {
+    const [cx, cy, cz] = posKey.split(',').map(Number);
+    const [tx, ty, tz] = targetKey.split(',').map(Number);
+    camera.position.set(cx, cy, cz);
+    if (controls) {
+      controls.target.set(tx, ty, tz);
+      controls.update(); // emite 'change': actualiza el compás
+    } else camera.lookAt(tx, ty, tz);
+    invalidate();
+  }, [posKey, targetKey, controls, camera, invalidate]);
   return null;
 }
 
@@ -479,12 +499,12 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
         // Float32 little-endian sin header: coincide con el orden de bytes de los navegadores actuales
         const data = new Float32Array(buf, terrain.header_bytes);
         if (data.length !== terrain.width_px * terrain.height_px) {
-          throw new Error(`tamaño inesperado (${data.length} valores)`);
+          throw new Error(`unexpected size (${data.length} values)`);
         }
         if (alive) setDem(decimateForMesh(terrainRef.current, data));
       })
       .catch((e) => {
-        if (alive) onErrorRef.current(`No se pudo cargar el terreno 3D (${e instanceof Error ? e.message : e}). Mostrando mapa 2D.`);
+        if (alive) onErrorRef.current(`Could not load the 3D terrain (${e instanceof Error ? e.message : e}). Showing 2D map.`);
       });
     return () => {
       alive = false;
@@ -531,7 +551,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
   }, [view]);
 
   if (!heights || !frame || !view) {
-    return <p className="flex h-full items-center justify-center text-sm text-space-300">Cargando terreno 3D…</p>;
+    return <p className="flex h-full items-center justify-center text-sm text-space-300">Loading 3D terrain…</p>;
   }
 
   const target = objectives.find((o) => o.objective_id === targetId);
@@ -542,9 +562,8 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
 
   return (
     <div className="relative h-full w-full">
-      {/* key: al cambiar de destino se recoloca la cámara detrás del astronauta */}
+      {/* Una sola escena: al cambiar de destino CameraRig recoloca la cámara (remontar el Canvas rompía las etiquetas Html) */}
       <Canvas
-        key={follow ? 'follow' : `${view.camera.join(',')}`}
         frameloop="demand"
         dpr={[1, 2]}
         camera={{ fov: 50, near: 1, far: span * 10, position: view.camera }}
@@ -584,7 +603,6 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
 
         <OrbitControls
           makeDefault
-          target={follow ? undefined : view.target}
           enableDamping={false}
           maxPolarAngle={MAX_POLAR}
           minDistance={120}
@@ -600,7 +618,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
           }}
         />
         <HeadingDriver heading={lookHeading} pitch={lookPitch} />
-        {follow && <FollowDriver me={view.me} />}
+        {follow ? <FollowDriver me={view.me} /> : <CameraRig camera={view.camera} target={view.target} />}
       </Canvas>
 
     </div>

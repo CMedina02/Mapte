@@ -16,12 +16,12 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
 
   // ponytail: cuando el backend agregue radiación/energía/agua al contrato, se suman aquí como filas
   const rows: [string, string][] = [
-    ['Distancia', fmt(r.distance_m, 'm')],
-    ['Tiempo', fmt(r.duration_min, 'min')],
-    ['Pendiente máx.', fmt(r.max_slope_deg, '°')],
-    ['Ascenso', fmt(r.ascent_m, 'm')],
-    ['O₂ disponible', fmt(resources.oxygen_available_min, 'min')],
-    ['Reserva', fmt(resources.return_reserve_min, 'min')],
+    ['Distance', fmt(r.distance_m, 'm')],
+    ['Time', fmt(r.duration_min, 'min')],
+    ['Max slope', fmt(r.max_slope_deg, '°')],
+    ['Ascent', fmt(r.ascent_m, 'm')],
+    ['Available O₂', fmt(resources.oxygen_available_min, 'min')],
+    ['Reserve', fmt(resources.return_reserve_min, 'min')],
   ];
 
   return (
@@ -34,12 +34,12 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
       >
         <div className="space-y-1">
           <h2 id="rc-title" className="text-2xl font-normal text-space-50">
-            Antes de salir
+            Before you leave
           </h2>
-          <p className="text-sm text-space-300">Rumbo a {targetTitle.split(' — ')[0]}</p>
+          <p className="text-sm text-space-300">Heading to {targetTitle.split(' — ')[0]}</p>
         </div>
 
-        <span className={`chip ${s.cls}`}>Ruta {s.label.toLowerCase()}</span>
+        <span className={`chip ${s.cls}`}>Route {s.label.toLowerCase()}</span>
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
           {rows.map(([k, v]) => (
@@ -57,10 +57,10 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
           </p>
         ))}
         {blocked && (
-          <p className="text-sm font-medium text-alert-400">No es seguro salir por esta ruta.</p>
+          <p className="text-sm font-medium text-alert-400">It is not safe to leave on this route.</p>
         )}
         {r.status === 'unknown' && (
-          <p className="text-sm text-amber-300">La ruta aún no está confirmada como segura.</p>
+          <p className="text-sm text-amber-300">The route is not yet confirmed as safe.</p>
         )}
 
         <div className="grid grid-cols-2 gap-3">
@@ -70,15 +70,15 @@ export default function ResourceCheck({ route: r, resources, targetTitle, onConf
             disabled={blocked}
             className="btn-go min-h-14"
           >
-            Confirmar destino
+            Confirm destination
           </button>
           <button type="button" onClick={onCancel} className="btn min-h-14 border border-primary-500 text-primary-300">
-            Cancelar
+            Cancel
           </button>
         </div>
 
         <p className="text-xs text-space-400">
-          Valores del modelo del backend{r.sample_only ? ' · datos de muestra' : ''}.
+          Backend model values{r.sample_only ? ' · sample data' : ''}.
         </p>
       </div>
     </div>

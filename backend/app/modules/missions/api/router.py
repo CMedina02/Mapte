@@ -71,7 +71,7 @@ missions_router = APIRouter(tags=["Missions"])
 def get_terrain_repository(request: Request) -> TerrainRepository:
     repository = getattr(request.app.state, "terrain_repository", None)
     if repository is None:
-        raise HTTPException(status_code=503, detail="El terreno no está cargado.")
+        raise HTTPException(status_code=503, detail="Terrain is not loaded.")
     return repository
 
 
@@ -81,14 +81,14 @@ TerrainDep = Annotated[TerrainRepository, Depends(get_terrain_repository)]
 def get_objective_repository(request: Request) -> ObjectiveRepository:
     repository = getattr(request.app.state, "objective_repository", None)
     if repository is None:
-        raise HTTPException(status_code=503, detail="El catálogo científico no está cargado.")
+        raise HTTPException(status_code=503, detail="The science catalog is not loaded.")
     return repository
 
 
 def get_mission_repository(request: Request) -> MissionRepository:
     repository = getattr(request.app.state, "mission_repository", None)
     if repository is None:
-        raise HTTPException(status_code=503, detail="La persistencia de misiones no está lista.")
+        raise HTTPException(status_code=503, detail="Mission persistence is not ready.")
     return repository
 
 
@@ -113,7 +113,7 @@ def compute_route(payload: RouteRequestSchema, repository: TerrainDep) -> RouteR
     except KeyError as exc:
         raise HTTPException(
             status_code=404,
-            detail=f"Región desconocida: {payload.region_id!r}.",
+            detail=f"Unknown region: {payload.region_id!r}.",
         ) from exc
     except (FrameMismatchError, InvalidRouteEndpointError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -159,7 +159,7 @@ def plan_mission(
 def get_mission(mission_id: str, missions: MissionDep) -> MissionPlanResponseSchema:
     stored = missions.get(mission_id)
     if stored is None:
-        raise HTTPException(status_code=404, detail=f"Misión no encontrada: {mission_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Mission not found: {mission_id!r}.")
     return _mission_response(stored)
 
 
@@ -174,10 +174,10 @@ def get_mission_package(
 ) -> MissionPackageResponseSchema:
     stored = missions.get(mission_id)
     if stored is None:
-        raise HTTPException(status_code=404, detail=f"Misión no encontrada: {mission_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Mission not found: {mission_id!r}.")
     region = catalog.get(stored.region_id)
     if region is None:
-        raise HTTPException(status_code=503, detail="La región de la misión no está cargada.")
+        raise HTTPException(status_code=503, detail="The mission region is not loaded.")
 
     manifest = build_region_manifest(region)
     available_objectives = {
@@ -190,7 +190,7 @@ def get_mission_package(
     if missing_objective_ids:
         raise HTTPException(
             status_code=503,
-            detail=f"Faltan objetivos del paquete: {missing_objective_ids}.",
+            detail=f"Package objectives missing: {missing_objective_ids}.",
         )
     objectives = [available_objectives[item] for item in stored.snapshot["objective_ids"]]
     objective_ids = set(stored.snapshot["objective_ids"])
@@ -246,13 +246,13 @@ def report_hazard_and_replan(
 ) -> MissionPlanResponseSchema:
     stored = missions.get(mission_id)
     if stored is None:
-        raise HTTPException(status_code=404, detail=f"Misión no encontrada: {mission_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Mission not found: {mission_id!r}.")
     if payload.expected_version != stored.current_version:
-        raise HTTPException(status_code=409, detail="La misión fue actualizada por otro cliente.")
+        raise HTTPException(status_code=409, detail="The mission was updated by another client.")
     original_ids = tuple(stored.snapshot["objective_ids"])
     completed = tuple(dict.fromkeys(payload.completed_objective_ids))
     if not set(completed).issubset(original_ids):
-        raise HTTPException(status_code=400, detail="Hay objetivos completados ajenos a la misión.")
+        raise HTTPException(status_code=400, detail="Some completed objectives do not belong to the mission.")
     remaining = tuple(item for item in original_ids if item not in completed)
     report_id = str(uuid4())
     report = EnvironmentalHazardReport(
@@ -335,13 +335,13 @@ def update_mission_progress(
 ) -> MissionPlanResponseSchema:
     stored = _current_mission(missions, mission_id, payload.expected_version)
     if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
-        raise HTTPException(status_code=409, detail="Solo una misión activa admite progreso.")
+        raise HTTPException(status_code=409, detail="Only an active mission accepts progress.")
     original = tuple(stored.snapshot["objective_ids"])
     previous = tuple(stored.snapshot.get("completed_objective_ids", []))
     completed = tuple(dict.fromkeys(payload.completed_objective_ids))
     if not set(previous).issubset(completed) or not set(completed).issubset(original):
         raise HTTPException(
-            status_code=400, detail="El progreso no puede revertir o inventar objetivos."
+            status_code=400, detail="Progress cannot revert or invent objectives."
         )
     remaining = [item for item in original if item not in completed]
     snapshot = {
@@ -406,14 +406,25 @@ def change_mission_status(
         else MissionLifecycleStatus.COMPLETED
     )
     if payload.action == "start" and stored.lifecycle_status is not MissionLifecycleStatus.DRAFT:
-        raise HTTPException(status_code=409, detail="Solo una misión borrador puede iniciarse.")
+        raise HTTPException(status_code=409, detail="Only a draft mission can be started.")
     if payload.action == "complete":
         if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
-            raise HTTPException(status_code=409, detail="Solo una misión activa puede completarse.")
+            raise HTTPException(status_code=409, detail="Only an active mission can be completed.")
         if set(stored.snapshot.get("completed_objective_ids", [])) != set(
             stored.snapshot["objective_ids"]
         ):
-            raise HTTPException(status_code=409, detail="Aún existen objetivos pendientes.")
+            raise HTTPException(status_code=409, detail="There are still pending objectives.")
+    snapshot = stored.snapshot
+    if payload.action == "complete":
+        # La caminata termina en la base: el astronauta queda ahí (o donde indique el cliente)
+        snapshot = {
+            **snapshot,
+            "current_position": (
+                _position_schema_data(payload.current_position)
+                if payload.current_position is not None
+                else snapshot["return_position"]
+            ),
+        }
     updated = _update_mission(
         missions,
         mission_id,
@@ -421,7 +432,7 @@ def change_mission_status(
             expected_version=payload.expected_version,
             lifecycle_status=target,
             viability_status=stored.viability_status,
-            snapshot=stored.snapshot,
+            snapshot=snapshot,
             events=(MissionEventDraft(str(uuid4()), f"mission_{target.value}", {}),),
         ),
     )
@@ -434,7 +445,7 @@ def change_mission_status(
 )
 def get_mission_events(mission_id: str, missions: MissionDep) -> MissionEventsResponseSchema:
     if missions.get(mission_id) is None:
-        raise HTTPException(status_code=404, detail=f"Misión no encontrada: {mission_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Mission not found: {mission_id!r}.")
     return MissionEventsResponseSchema(
         events=[
             {
@@ -463,29 +474,29 @@ def evaluate_contingency(
 ) -> MissionPlanResponseSchema:
     stored = _current_mission(missions, mission_id, payload.mission_version)
     if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
-        raise HTTPException(status_code=409, detail="Solo una misión activa admite contingencias.")
+        raise HTTPException(status_code=409, detail="Only an active mission accepts contingencies.")
     if payload.contingency_type == "rover_unavailable":
         raise HTTPException(
             status_code=400,
-            detail="rover_unavailable no está modelado; no se simulará un efecto inventado.",
+            detail="rover_unavailable is not modeled; no invented effect will be simulated.",
         )
     if payload.position.frame_id != stored.frame_id:
         raise HTTPException(
             status_code=400,
-            detail="La posición de la contingencia usa un frame_id distinto al de la misión.",
+            detail="The contingency position uses a different frame_id than the mission.",
         )
 
     current_resources = stored.snapshot["resources"]
     if payload.oxygen_available_min >= current_resources["oxygen_available_min"]:
         raise HTTPException(
             status_code=400,
-            detail="oxygen_reduced debe disminuir el soporte disponible actual.",
+            detail="oxygen_reduced must lower the current available support.",
         )
     constraints_data = stored.snapshot.get("routing_constraints")
     if constraints_data is None:
         raise HTTPException(
             status_code=409,
-            detail="La misión no conserva sus restricciones de ruta; debe replanificarse.",
+            detail="The mission no longer has its route constraints; it must be replanned.",
         )
 
     reports = tuple(_hazard_from_data(item) for item in stored.snapshot.get("hazard_reports", []))
@@ -511,8 +522,8 @@ def evaluate_contingency(
     decision_entry = {
         "event_type": "contingency_evaluated",
         "message": (
-            "Reducción de soporte evaluada con retorno directo a la base. "
-            f"Viabilidad del modelo: {result_status}."
+            "Support reduction evaluated with a direct return to base. "
+            f"Model viability: {result_status}."
         ),
         "evidence_ids": list(draft.snapshot["evidence_ids"]),
         "simulated": True,
@@ -585,18 +596,18 @@ def optimize_preventive_support(
         MissionLifecycleStatus.DRAFT,
         MissionLifecycleStatus.ACTIVE,
     }:
-        raise HTTPException(status_code=409, detail="La misión ya está cerrada.")
+        raise HTTPException(status_code=409, detail="The mission is already closed.")
     constraints_data = stored.snapshot.get("routing_constraints")
     if constraints_data is None:
         raise HTTPException(
             status_code=409,
-            detail="La misión no conserva las restricciones necesarias para comparar opciones.",
+            detail="The mission no longer has the constraints needed to compare options.",
         )
     current_oxygen = stored.snapshot["resources"]["oxygen_available_min"]
     if payload.oxygen_available_min > current_oxygen:
         raise HTTPException(
             status_code=400,
-            detail="oxygen_available_min no puede superar el soporte registrado en la misión.",
+            detail="oxygen_available_min cannot exceed the support recorded in the mission.",
         )
     path_points = tuple(
         _local_position_data(point) for leg in stored.snapshot["legs"] for point in leg["path"]
@@ -604,7 +615,7 @@ def optimize_preventive_support(
     candidates = sample_route_positions(path_points, payload.max_candidates)
     if not candidates:
         raise HTTPException(
-            status_code=409, detail="La misión no tiene una ruta vigente evaluable."
+            status_code=409, detail="The mission has no current route to evaluate."
         )
     reports = tuple(_hazard_from_data(item) for item in stored.snapshot.get("hazard_reports", []))
     optimizer = PreventiveSupportOptimizer(terrain, reports)
@@ -681,12 +692,12 @@ def replan_from_current_position(
     """
     stored = _current_mission(missions, mission_id, payload.expected_version)
     if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
-        raise HTTPException(status_code=409, detail="Solo una misión activa se puede recalcular.")
+        raise HTTPException(status_code=409, detail="Only an active mission can be recalculated.")
     constraints_data = stored.snapshot.get("routing_constraints")
     if constraints_data is None:
         raise HTTPException(
             status_code=409,
-            detail="La misión no conserva sus restricciones de ruta; debe replanificarse.",
+            detail="The mission no longer has its route constraints; it must be replanned.",
         )
     original_ids = tuple(stored.snapshot["objective_ids"])
     completed = tuple(stored.snapshot.get("completed_objective_ids", []))
@@ -721,9 +732,9 @@ def replan_from_current_position(
         legs[0]["start_label"] = from_label
     accepted = draft.snapshot["objective_ids"]
     message = (
-        "Ruta recalculada desde la posición actual: "
-        + (" → ".join(accepted) + " → base" if accepted else "regreso a base")
-        + f". Viabilidad del modelo: {draft.viability_status.value}."
+        "Route recalculated from the current position: "
+        + (" → ".join(accepted) + " → base" if accepted else "return to base")
+        + f". Model viability: {draft.viability_status.value}."
     )
     recalculated = {
         "event_type": "route_recalculated",
@@ -782,18 +793,18 @@ def submit_observation(
 ) -> MissionPlanResponseSchema:
     stored = _current_mission(missions, mission_id, payload.mission_version)
     if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
-        raise HTTPException(status_code=409, detail="Solo una misión activa admite observaciones.")
+        raise HTTPException(status_code=409, detail="Only an active mission accepts observations.")
     # El astronauta puede elegir cualquier objetivo pendiente (el visor lo permite); después el
     # cliente pide /replan desde ese objetivo. Solo se rechaza repetir uno ya completado.
     if payload.objective_id in stored.snapshot.get("completed_objective_ids", []):
         raise HTTPException(
             status_code=409,
-            detail="Ese objetivo ya tiene un hallazgo registrado.",
+            detail="That objective already has a recorded finding.",
         )
     objective = objectives.get_objective(stored.region_id, payload.objective_id)
     if objective is None or payload.objective_id not in stored.snapshot["objective_ids"]:
         raise HTTPException(
-            status_code=400, detail="El objetivo no pertenece al catálogo de la misión."
+            status_code=400, detail="The objective does not belong to the mission catalog."
         )
     try:
         decision = decide_observation(objective, payload.finding_code)
@@ -805,8 +816,8 @@ def submit_observation(
     )
     remaining = [item for item in stored.snapshot["objective_ids"] if item not in completed]
     message = (
-        f"Hallazgo {payload.finding_code} registrado en {objective.title}. "
-        f"{decision.reason} Siguiente destino: {remaining[0] if remaining else 'base'}."
+        f"Finding {payload.finding_code} recorded at {objective.title}. "
+        f"{decision.reason} Next destination: {remaining[0] if remaining else 'base'}."
     )
     decision_entry = {
         "event_type": "observation_recorded",
@@ -872,11 +883,11 @@ def _abort_mission(
         MissionLifecycleStatus.DRAFT,
         MissionLifecycleStatus.ACTIVE,
     }:
-        raise HTTPException(status_code=409, detail="La misión ya está cerrada.")
+        raise HTTPException(status_code=409, detail="The mission is already closed.")
     if payload.current_position is None or payload.resources is None or payload.constraints is None:
         raise HTTPException(
             status_code=400,
-            detail="Abortar requiere posición actual, recursos y restricciones.",
+            detail="Aborting requires the current position, resources and constraints.",
         )
     reports = tuple(_hazard_from_data(item) for item in stored.snapshot.get("hazard_reports", []))
     request = MissionPlanningRequest(
@@ -933,9 +944,9 @@ def _current_mission(
 ) -> StoredMission:
     stored = missions.get(mission_id)
     if stored is None:
-        raise HTTPException(status_code=404, detail=f"Misión no encontrada: {mission_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Mission not found: {mission_id!r}.")
     if stored.current_version != expected_version:
-        raise HTTPException(status_code=409, detail="La misión fue actualizada por otro cliente.")
+        raise HTTPException(status_code=409, detail="The mission was updated by another client.")
     return stored
 
 

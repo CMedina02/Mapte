@@ -141,13 +141,13 @@ def test_reducing_available_support_cannot_improve_viability() -> None:
 
 
 def test_resource_inputs_reject_invalid_or_ambiguous_values() -> None:
-    with pytest.raises(ValueError, match="no negativo"):
+    with pytest.raises(ValueError, match="non-negative"):
         SupportResources(-1, 0)
-    with pytest.raises(ValueError, match="duración conocida"):
+    with pytest.raises(ValueError, match="known duration"):
         segment("activity", OperationalSegmentKind.ACTIVITY, None)
-    with pytest.raises(ValueError, match="al menos un segmento"):
+    with pytest.raises(ValueError, match="At least one operational segment"):
         ResourceEvaluator().evaluate(SupportResources(100, 20), ())
-    with pytest.raises(ValueError, match="no pueden repetirse"):
+    with pytest.raises(ValueError, match="cannot repeat"):
         ResourceEvaluator().evaluate(
             SupportResources(100, 20),
             (

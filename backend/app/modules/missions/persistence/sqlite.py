@@ -158,7 +158,7 @@ class SQLiteMissionRepository:
                 self._insert_events(connection, draft.mission_id, 1, draft.events, now)
             except sqlite3.IntegrityError as error:
                 raise MissionAlreadyExistsError(
-                    f"No se pudo crear la misión {draft.mission_id!r}; un identificador ya existe"
+                    f"Could not create mission {draft.mission_id!r}; the identifier already exists"
                 ) from error
         return self._required(draft.mission_id)
 
@@ -186,7 +186,7 @@ class SQLiteMissionRepository:
 
     def update(self, mission_id: str, change: MissionUpdate) -> StoredMission:
         if change.expected_version < 1:
-            raise ValueError("expected_version debe ser al menos 1")
+            raise ValueError("expected_version must be at least 1")
         now = _utc_now()
         snapshot_json = _encode_json(change.snapshot)
         with self._transaction() as connection:
@@ -195,11 +195,11 @@ class SQLiteMissionRepository:
                 (mission_id,),
             ).fetchone()
             if mission is None:
-                raise MissionNotFoundError(f"Misión no encontrada: {mission_id!r}")
+                raise MissionNotFoundError(f"Mission not found: {mission_id!r}")
             if mission["current_version"] != change.expected_version:
                 raise MissionVersionConflictError(
-                    f"La misión está en versión {mission['current_version']}; "
-                    f"se esperaba {change.expected_version}"
+                    f"The mission is at version {mission['current_version']}; "
+                    f"expected {change.expected_version}"
                 )
             new_version = change.expected_version + 1
             connection.execute(
@@ -239,7 +239,7 @@ class SQLiteMissionRepository:
                 ),
             )
             if updated.rowcount != 1:
-                raise MissionVersionConflictError("La misión cambió durante la actualización")
+                raise MissionVersionConflictError("The mission changed during the update")
         return self._required(mission_id)
 
     def list_events(self, mission_id: str) -> tuple[StoredMissionEvent, ...]:
@@ -248,7 +248,7 @@ class SQLiteMissionRepository:
                 "SELECT 1 FROM missions WHERE mission_id = ?", (mission_id,)
             ).fetchone()
             if exists is None:
-                raise MissionNotFoundError(f"Misión no encontrada: {mission_id!r}")
+                raise MissionNotFoundError(f"Mission not found: {mission_id!r}")
             rows = connection.execute(
                 """SELECT * FROM mission_events WHERE mission_id = ?
                 ORDER BY mission_version, rowid""",
@@ -271,8 +271,8 @@ class SQLiteMissionRepository:
             current = connection.execute("PRAGMA user_version").fetchone()[0]
             if current > SCHEMA_VERSION:
                 raise RuntimeError(
-                    f"La base usa el esquema {current}; "
-                    f"esta aplicación soporta hasta {SCHEMA_VERSION}"
+                    f"The database uses schema {current}; "
+                    f"this application supports up to {SCHEMA_VERSION}"
                 )
             connection.executescript(SCHEMA)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -303,7 +303,7 @@ class SQLiteMissionRepository:
     def _required(self, mission_id: str) -> StoredMission:
         mission = self.get(mission_id)
         if mission is None:
-            raise MissionNotFoundError(f"Misión no encontrada: {mission_id!r}")
+            raise MissionNotFoundError(f"Mission not found: {mission_id!r}")
         return mission
 
     @staticmethod
@@ -400,7 +400,7 @@ class SQLiteMissionRepository:
         required = (draft.mission_id, draft.region_id, draft.frame_id, draft.terrain_version)
         if any(not value.strip() for value in required):
             raise ValueError(
-                "Los identificadores de misión, región, marco y terreno son obligatorios"
+                "Mission, region, frame and terrain identifiers are required"
             )
 
 
@@ -411,7 +411,7 @@ def _encode_json(value: Any) -> str:
 def _decode_json(value: str) -> dict[str, Any]:
     decoded = json.loads(value)
     if not isinstance(decoded, dict):
-        raise RuntimeError("El registro persistido no contiene un objeto JSON")
+        raise RuntimeError("The persisted record does not contain a JSON object")
     return decoded
 
 

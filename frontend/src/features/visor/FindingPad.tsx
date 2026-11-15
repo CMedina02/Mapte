@@ -13,10 +13,11 @@ interface Props {
   onQueue: (o: PendingObservation) => void;
   onDone: (message: string) => void;
   onBack: () => void;
+  onExplore: () => void; // abre la ficha del objetivo con todas las fotos
 }
 
 // En el objetivo: el astronauta elige lo que observa, puede dejar una nota y la misión sigue al siguiente
-export default function FindingPad({ mission, objective, photo, onMission, onQueue, onDone, onBack }: Props) {
+export default function FindingPad({ mission, objective, photo, onMission, onQueue, onDone, onBack, onExplore }: Props) {
   const [code, setCode] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -27,7 +28,7 @@ export default function FindingPad({ mission, objective, photo, onMission, onQue
     const obs = { objective_id: objective.objective_id, finding_code: code, ...(notes.trim() ? { notes: notes.trim() } : {}) };
     if (!navigator.onLine) {
       onQueue(obs);
-      onDone('Guardado. Se enviará al recuperar la conexión.');
+      onDone('Saved. It will be sent when the connection is back.');
       return;
     }
     setBusy(true);
@@ -38,27 +39,27 @@ export default function FindingPad({ mission, objective, photo, onMission, onQue
     );
     setBusy(false);
     if (err) setError(err);
-    else onDone('Hallazgo registrado. Ruta recalculada al siguiente destino.');
+    else onDone('Finding recorded. Route recalculated to the next destination.');
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-start gap-3">
         {photo && (
-          <a href={photo.source_url} target="_blank" rel="noreferrer" className="shrink-0" title={`${photo.camera} · ${photo.credit}`}>
-            <img src={photo.image_url} alt={`Foto de ${objective.title}`} className="size-16 rounded-xl object-cover" />
-          </a>
+          <button type="button" onClick={onExplore} className="shrink-0" title="View rover photos at this site">
+            <img src={photo.image_url} alt={`Photo of ${objective.title}`} className="size-16 rounded-xl object-cover" />
+          </button>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-space-400">¿Qué observas?</p>
+          <p className="text-xs text-space-400">What do you observe?</p>
           <p className="leading-snug font-medium text-space-50">{objective.title.split(' — ')[0]}</p>
         </div>
         <button type="button" onClick={onBack} disabled={busy} className="btn-ghost min-h-9 px-4">
-          Volver
+          Back
         </button>
       </div>
 
-      <div role="radiogroup" aria-label="Hallazgo" className="flex flex-wrap gap-2">
+      <div role="radiogroup" aria-label="Finding" className="flex flex-wrap gap-2">
         {objective.possible_findings.map((c) => (
           <button
             key={c}
@@ -78,7 +79,7 @@ export default function FindingPad({ mission, objective, photo, onMission, onQue
 
       <textarea
         className="field min-h-16 resize-none"
-        placeholder="Notas (opcional)"
+        placeholder="Notes (optional)"
         maxLength={1000}
         value={notes}
         disabled={busy}
@@ -87,7 +88,7 @@ export default function FindingPad({ mission, objective, photo, onMission, onQue
 
       {error && <p className="text-sm text-alert-400">{error}</p>}
       <button type="button" disabled={!code || busy} onClick={send} className="btn-primary min-h-12 w-full text-base">
-        {busy ? 'Registrando…' : 'Registrar y seguir'}
+        {busy ? 'Recording…' : 'Record and continue'}
       </button>
     </div>
   );

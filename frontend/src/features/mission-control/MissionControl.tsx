@@ -14,7 +14,7 @@ import Icon, { type IconName } from '../../shared/ui/Icon';
 type Tab = 'plan' | 'layers';
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'plan', label: 'Plan', icon: 'flag' },
-  { id: 'layers', label: 'Capas', icon: 'layers' },
+  { id: 'layers', label: 'Layers', icon: 'layers' },
 ];
 
 interface Props {
@@ -98,7 +98,7 @@ export default function MissionControl({ mission, onMission }: Props) {
           <>
             <section>
               <label htmlFor="region" className="eyebrow">
-                Región
+                Region
               </label>
               <select
                 id="region"
@@ -131,6 +131,23 @@ export default function MissionControl({ mission, onMission }: Props) {
                 }}
               />
             )}
+            {(mission || base || selectedIds.length > 0) && (
+              <button
+                type="button"
+                className="btn-ghost w-full"
+                onClick={() => {
+                  // Borra la ruta planificada y la selección para empezar de cero
+                  onMission(null);
+                  setBase(null);
+                  setSelectedIds([]);
+                  setFailed(null);
+                  setPlanReq(null);
+                }}
+              >
+                <Icon name="replay" />
+                Reset routes
+              </button>
+            )}
           </>
         )}
         {tab === 'layers' && manifest && (
@@ -160,7 +177,7 @@ export default function MissionControl({ mission, onMission }: Props) {
             here={mission?.current_position}
           />
         ) : (
-          <p className="p-6 text-space-400">Cargando mapa…</p>
+          <p className="p-6 text-space-400">Loading map…</p>
         )}
       </main>
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Mission } from './shared/types/contracts';
 import MissionControl from './features/mission-control/MissionControl';
 import OfflineBar from './features/offline-sync/OfflineBar';
-import { isNewerMission, loadPackage, updatePackageMission, usePackageUpdates, usePendingQueue } from './features/offline-sync/offline';
+import { clearPackage, isNewerMission, loadPackage, updatePackageMission, usePackageUpdates, usePendingQueue } from './features/offline-sync/offline';
 
 export default function App() {
   // Si hay paquete local, la misión arranca desde ahí (permite abrir la app sin red)
@@ -11,10 +11,15 @@ export default function App() {
 
   useEffect(() => {
     if (mission) updatePackageMission(mission);
+    else clearPackage();
   }, [mission]);
 
-  // Cambios hechos desde el visor (hallazgos, avance) llegan al panel sin recargar
-  usePackageUpdates((pkg) => setMission((m) => (m?.mission_id === pkg.mission.mission_id && isNewerMission(m, pkg.mission) ? pkg.mission : m)));
+  // Cambios hechos desde el visor (hallazgos, avance) o reinicios llegan al panel sin recargar
+  usePackageUpdates((pkg) =>
+    setMission((m) =>
+      pkg ? (m?.mission_id === pkg.mission.mission_id && isNewerMission(m, pkg.mission) ? pkg.mission : m) : null,
+    ),
+  );
 
   return (
     <div className="flex h-dvh flex-col bg-space-950 text-space-100">

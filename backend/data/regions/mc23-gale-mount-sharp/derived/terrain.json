@@ -4,9 +4,9 @@
   "generator": "backend/scripts/terrain/build_gale_mount_sharp.sh",
   "region": {
     "region_id": "mc23-gale-mount-sharp",
-    "name": "Monte Sharp (Aeolis Mons), cráter Gale",
+    "name": "Mount Sharp (Aeolis Mons), Gale crater",
     "body": "Mars",
-    "description": "AOI de 10 km en Monte Sharp, cráter Gale, cuadrángulo Aeolis (MC-23), Marte"
+    "description": "10 km AOI on Mount Sharp, Gale crater, Aeolis quadrangle (MC-23), Mars"
   },
   "frame": {
     "frame_id": "MARS_GALE_MS_LOCAL_V1",
@@ -80,7 +80,7 @@
           "y_min_m": 0.0,
           "y_max_m": 10000.0
         },
-        "reason": "Artefactos en rejilla del DEM USGS (relleno de menor resolución); pendientes no fiables"
+        "reason": "USGS DEM grid artifacts (lower-resolution fill); slopes unreliable"
       }
     ]
   },
@@ -100,7 +100,7 @@
     "format": "png",
     "bands": "gray8",
     "nodata_value": 0,
-    "nodata_meaning": "sin cobertura HiRISE en el mosaico USGS de origen",
+    "nodata_meaning": "no HiRISE coverage in the source USGS mosaic",
     "width_px": 5000,
     "height_px": 5000,
     "origin_center_x_m": 1.0,
@@ -114,8 +114,8 @@
     "size_bytes": 25000000
   },
   "transformations": [
-    "DEM: reproyección a marco local, remuestreo 'average' 1 m -> 4 m, NoData -32767 -> NaN",
-    "Ortofoto: paleta -> gris, recorte nativo 0.25 m, reproyección a marco local, remuestreo 'average' -> 2 m"
+    "DEM: reprojection to local frame, 'average' resampling 1 m -> 4 m, NoData -32767 -> NaN",
+    "Orthophoto: palette -> gray, native 0.25 m crop, reprojection to local frame, 'average' resampling -> 2 m"
   ],
   "sources": [
     {
@@ -123,8 +123,8 @@
       "title": "MSL Gale Merged DEM Mosaic 1 m v3",
       "provider": "USGS Astrogeology Science Center",
       "mission": "MRO",
-      "instrument": "HiRISE (DEM estéreo)",
-      "credit": "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center",
+      "instrument": "HiRISE (stereo DEM)",
+      "credit": "NASA/JPL/University of Arizona (HiRISE); USGS Astrogeology Science Center mosaic",
       "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_DEM_Mosaic_1m_v3.tif",
       "local_raw_sha256": "c481ae885b4827af68fbdb428e9fac8a824d6828aebfba492577ba39bf55e42e",
       "local_raw_size_bytes": 3868256546,
@@ -137,16 +137,16 @@
       "provider": "USGS Astrogeology Science Center",
       "mission": "MRO",
       "instrument": "HiRISE",
-      "credit": "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center",
+      "credit": "NASA/JPL/University of Arizona (HiRISE); USGS Astrogeology Science Center mosaic",
       "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_Orthophoto_Mosaic_25cm_v3.tif",
       "resolution_m": 0.25,
-      "note": "Solo se leyó el recorte del AOI vía HTTP Range (no el archivo completo)."
+      "note": "Only the AOI crop was read via HTTP Range (not the full file)."
     }
   ],
   "limitations": [
-    "La ortofoto de origen tiene huecos sin cobertura (valor 0) en el norte del AOI; la textura los conserva como 0, no son errores de descarga.",
-    "El DEM de origen muestra artefactos en rejilla en la franja este (x > ~6.6 km): relleno de menor resolución en el mosaico USGS; no usar ahí pendientes finas.",
-    "Datum vertical pendiente de confirmar contra la etiqueta PDS del DEM.",
-    "A 4 m no se resuelven rocas ni obstáculos menores a esa escala."
+    "The source orthophoto has coverage gaps (value 0) in the north of the AOI; the texture keeps them as 0; they are not download errors.",
+    "The source DEM shows grid artifacts in the eastern strip (x > ~6.6 km): lower-resolution fill in the USGS mosaic; do not rely on fine slopes there.",
+    "Vertical datum still to be confirmed against the DEM's PDS label.",
+    "At 4 m, rocks and obstacles smaller than that scale are not resolved."
   ]
 }

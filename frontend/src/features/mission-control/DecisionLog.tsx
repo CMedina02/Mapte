@@ -9,7 +9,7 @@ export default function DecisionLog({ mission }: { mission: Mission; objectives?
   if (entries.length === 0) return null;
   return (
     <section className="space-y-2 text-sm">
-      <h2 className="eyebrow">Bitácora</h2>
+      <h2 className="eyebrow">Log</h2>
       <ol className="card space-y-0 p-0">
         {entries.map((d, i) => (
           <li key={i} className={`px-4 py-3 ${i ? 'border-t border-space-800' : ''}`}>

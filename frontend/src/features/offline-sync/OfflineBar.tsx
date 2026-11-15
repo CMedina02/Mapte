@@ -30,7 +30,7 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
       .then(async (pkg) => {
         if (!alive) return;
         if (pkg.package_status === 'incomplete') {
-          setMsg(`Visor sin actualizar: faltan ${pkg.missing_assets.length} archivos del paquete.`);
+          setMsg(`Visor not updated: ${pkg.missing_assets.length} package files missing.`);
           return;
         }
         const downloads = await Promise.allSettled(
@@ -42,13 +42,13 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
         if (!alive) return;
         const failed = downloads.filter((item) => item.status === 'rejected').length;
         if (failed > 0) {
-          setMsg(`Visor sin actualizar: falló la descarga de ${failed} recursos.`);
+          setMsg(`Visor not updated: ${failed} resources failed to download.`);
           return;
         }
         savePackage(pkg);
         setMsg(null);
       })
-      .catch((e: unknown) => alive && setMsg(`Visor sin actualizar: ${e instanceof Error ? e.message : String(e)}`));
+      .catch((e: unknown) => alive && setMsg(`Visor not updated: ${e instanceof Error ? e.message : String(e)}`));
     return () => {
       alive = false;
     };
@@ -70,15 +70,15 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
       )}
 
       {/* Solo lo que pide atención: sin conexión. 'En línea' y 'visor al día' son el estado normal. */}
-      {!online && <span className={`${badge} bg-amber-900 text-amber-300`}>Sin conexión</span>}
+      {!online && <span className={`${badge} bg-amber-900 text-amber-300`}>Offline</span>}
 
       {queue.length > 0 && (
-        <span className={`${badge} bg-primary-900 text-primary-300`}>{queue.length} sin enviar</span>
+        <span className={`${badge} bg-primary-900 text-primary-300`}>{queue.length} unsent</span>
       )}
 
       {online && queue.length > 0 && (
         <button type="button" className={action} onClick={sync} disabled={busy}>
-          Sincronizar
+          Sync
         </button>
       )}
     </div>

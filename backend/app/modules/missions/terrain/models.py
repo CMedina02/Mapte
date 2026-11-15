@@ -29,9 +29,9 @@ class LocalPosition:
 
     def __post_init__(self) -> None:
         if not isfinite(self.x_m) or not isfinite(self.y_m):
-            raise ValueError("Las coordenadas locales deben ser finitas")
+            raise ValueError("Local coordinates must be finite")
         if not self.frame_id.strip():
-            raise ValueError("frame_id no puede estar vacío")
+            raise ValueError("frame_id cannot be empty")
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,9 +48,9 @@ class TerrainRestriction:
 
     def __post_init__(self) -> None:
         if not self.code.strip():
-            raise ValueError("El código de restricción no puede estar vacío")
+            raise ValueError("The restriction code cannot be empty")
         if not isfinite(self.cost_multiplier) or self.cost_multiplier < 1:
-            raise ValueError("cost_multiplier debe ser finito y mayor o igual que 1")
+            raise ValueError("cost_multiplier must be finite and greater than or equal to 1")
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,14 +66,14 @@ class RoutingTerrainSample:
     def __post_init__(self) -> None:
         if self.data_status is TerrainDataStatus.VALID:
             if self.elevation_m is None or not isfinite(self.elevation_m):
-                raise ValueError("Una muestra válida requiere una elevación finita")
+                raise ValueError("A valid sample requires a finite elevation")
         elif self.elevation_m is not None:
-            raise ValueError("NoData y outside no pueden declarar elevación")
+            raise ValueError("NoData and outside cannot declare an elevation")
 
         if not isfinite(self.cost_multiplier) or self.cost_multiplier < 1:
-            raise ValueError("cost_multiplier debe ser finito y mayor o igual que 1")
+            raise ValueError("cost_multiplier must be finite and greater than or equal to 1")
         if any(not code.strip() for code in self.restriction_codes):
-            raise ValueError("Los códigos de restricción no pueden estar vacíos")
+            raise ValueError("Restriction codes cannot be empty")
 
 
 def apply_restrictions(

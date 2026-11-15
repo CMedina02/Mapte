@@ -151,7 +151,7 @@ def _astar(
             return path, expanded_nodes
         if expanded_nodes >= MAX_EXPANDED_NODES:
             raise RouteSearchLimitError(
-                "Se alcanzó el límite de búsqueda antes de confirmar el resultado",
+                "Search limit reached before confirming the result",
                 expanded_nodes=expanded_nodes,
             )
 
@@ -195,7 +195,7 @@ def _astar(
                 (new_cost + weight * heuristic(neighbor, nrow, ncol), next(sequence), neighbor),
             )
 
-    raise RouteNotFoundError("No existe una ruta que cumpla las restricciones solicitadas")
+    raise RouteNotFoundError("No route satisfies the requested constraints")
 
 
 class AStarRoutePlanner:
@@ -211,8 +211,8 @@ class AStarRoutePlanner:
         end: LocalPosition,
         constraints: RoutePlanningConstraints = RoutePlanningConstraints(),
     ) -> PlannedRoute:
-        start_cell = self._require_endpoint("origen", start, constraints)
-        end_cell = self._require_endpoint("destino", end, constraints)
+        start_cell = self._require_endpoint("start", start, constraints)
+        end_cell = self._require_endpoint("destination", end, constraints)
         if start_cell == end_cell:
             return self._build_result((start_cell,), 1, constraints)
 
@@ -320,11 +320,11 @@ class AStarRoutePlanner:
     ) -> GridCell:
         cell = self._terrain.position_to_cell(position)
         if cell is None:
-            raise InvalidRouteEndpointError(f"El {label} está fuera de la región")
+            raise InvalidRouteEndpointError(f"The {label} is outside the region")
         sample = self._terrain.sample_cell(cell)
         if not self._is_usable(sample, constraints):
             reason = ", ".join(sample.restriction_codes) or sample.traversal_status
-            raise InvalidRouteEndpointError(f"El {label} no es transitable: {reason}")
+            raise InvalidRouteEndpointError(f"The {label} is not traversable: {reason}")
         return cell
 
     def _evaluate_step(
@@ -415,7 +415,7 @@ class AStarRoutePlanner:
         points_list: list[RouteWaypoint] = []
         for cell, sample in zip(cells, samples, strict=True):
             if sample.elevation_m is None:
-                raise RuntimeError("La ruta reconstruida contiene una elevación desconocida")
+                raise RuntimeError("The reconstructed route contains an unknown elevation")
             position = self._terrain.cell_position(cell)
             points_list.append(
                 RouteWaypoint(
@@ -441,7 +441,7 @@ class AStarRoutePlanner:
                 constraints,
             )
             if step is None:
-                raise RuntimeError("La ruta reconstruida contiene un paso inválido")
+                raise RuntimeError("The reconstructed route contains an invalid step")
             distance_m += step.distance_m
             ascent_m += step.ascent_m
             max_slope_deg = max(max_slope_deg, step.slope_deg)
@@ -463,10 +463,10 @@ class AStarRoutePlanner:
             hazard_penalty_m=hazard_penalty_m,
             expanded_nodes=expanded_nodes,
             assumptions=(
-                f"Velocidad constante: {constraints.speed_m_per_min:g} m/min",
-                f"Pendiente máxima: {constraints.max_slope_deg:g}°",
-                f"Factor provisional de costo por ascenso: {constraints.ascent_cost_factor:g}",
-                "Los extremos se ajustan al centro de la celda de terreno que los contiene",
-                "Oxígeno, radiación, polvo y fatiga se evalúan fuera del buscador",
+                f"Constant speed: {constraints.speed_m_per_min:g} m/min",
+                f"Maximum slope: {constraints.max_slope_deg:g}°",
+                f"Provisional ascent cost factor: {constraints.ascent_cost_factor:g}",
+                "Endpoints are snapped to the center of the terrain cell containing them",
+                "Oxygen, radiation, dust and fatigue are evaluated outside the search",
             ),
         )

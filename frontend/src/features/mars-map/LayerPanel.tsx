@@ -9,18 +9,18 @@ interface Props {
 }
 
 const KIND: Record<LayerKind, string> = {
-  optical: 'Imagen',
-  topographic: 'Relieve',
-  geologic: 'Geología',
-  thermal: 'Temperatura',
-  spectral: 'Mineralogía',
-  other: 'Capa',
+  optical: 'Imagery',
+  topographic: 'Relief',
+  geologic: 'Geology',
+  thermal: 'Temperature',
+  spectral: 'Mineralogy',
+  other: 'Layer',
 };
 
 export default function LayerPanel({ layers, state, onChange }: Props) {
   return (
     <section className="space-y-2 text-sm">
-      <h2 className="eyebrow">Capas del mapa</h2>
+      <h2 className="eyebrow">Map layers</h2>
       <ul className="card space-y-0 p-0">
         {layers.map((l, i) => {
           const s = state[l.layer_id];
@@ -31,14 +31,14 @@ export default function LayerPanel({ layers, state, onChange }: Props) {
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium text-space-50">{l.title.split(' (')[0]}</span>
                   <span className="block text-xs text-space-400">
-                    {KIND[l.kind] ?? 'Capa'} · {l.resolution_m_per_pixel} m por píxel
+                    {KIND[l.kind] ?? 'Layer'} · {l.resolution_m_per_pixel} m per pixel
                   </span>
                 </span>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={s.visible}
-                  aria-label={`Mostrar ${l.title}`}
+                  aria-label={`Show ${l.title}`}
                   disabled={!supported}
                   onClick={() => onChange(l.layer_id, { ...s, visible: !s.visible })}
                   className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-40 ${s.visible ? 'bg-primary-600' : 'bg-space-700'}`}
@@ -48,7 +48,7 @@ export default function LayerPanel({ layers, state, onChange }: Props) {
               </div>
               {supported && s.visible && (
                 <Slider
-                  label="Opacidad"
+                  label="Opacity"
                   value={Math.round(s.opacity * 100)}
                   min={0}
                   max={100}
@@ -57,7 +57,7 @@ export default function LayerPanel({ layers, state, onChange }: Props) {
                   onChange={(v) => onChange(l.layer_id, { ...s, opacity: v / 100 })}
                 />
               )}
-              {!supported && <p className="text-xs text-space-400">Formato aún no disponible en el mapa.</p>}
+              {!supported && <p className="text-xs text-space-400">Format not yet supported on the map.</p>}
             </li>
           );
         })}

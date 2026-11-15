@@ -62,7 +62,7 @@ const HALO = new Stroke({ color: 'rgba(0,0,0,0.75)', width: 3 });
 const pendingBaseStyle = new Style({
   image: new Circle({ radius: 10, fill: new Fill({ color: 'rgba(255,255,255,0.15)' }), stroke: new Stroke({ color: '#fff', width: 2, lineDash: [4, 3] }) }),
   text: new Text({
-    text: 'Nueva base',
+    text: 'New base',
     offsetY: -18,
     font: LABEL_FONT,
     fill: new Fill({ color: '#fff' }),
@@ -73,7 +73,7 @@ const hereStyle = new Style({
   zIndex: 10, // siempre encima de base y objetivos (OL pinta en orden de creación)
   image: new Circle({ radius: 9, fill: new Fill({ color: '#1a73e8' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
   text: new Text({
-    text: 'Tú',
+    text: 'You',
     offsetY: 20, // debajo del punto: arriba van las etiquetas de base y objetivos
     font: LABEL_FONT,
     fill: new Fill({ color: '#fff' }),
@@ -106,7 +106,7 @@ const unknownZoneStyle = new Style({
   fill: new Fill({ color: 'rgba(148,163,184,0.18)' }),
   stroke: new Stroke({ color: '#94a3b8', width: 1.5, lineDash: [2, 6] }),
   text: new Text({
-    text: 'Terreno sin datos',
+    text: 'Terrain with no data',
     font: LABEL_FONT,
     fill: new Fill({ color: '#fff' }),
     stroke: HALO,
@@ -279,7 +279,7 @@ export default function MarsMap({
     const frameId = manifest.frame.frame_id;
     const point = (p: Position, label: string, color: string) => {
       if (p.frame_id !== frameId) {
-        console.warn(`Posición en frame ${p.frame_id}, se esperaba ${frameId}; no se dibuja.`);
+        console.warn(`Position in frame ${p.frame_id}, expected ${frameId}; not drawn.`);
         return [];
       }
       const f = new Feature(new Point([p.x_m, p.y_m]));
@@ -319,7 +319,7 @@ export default function MarsMap({
     if (!route || route.path.length < 2) return;
     const frameId = manifest.frame.frame_id;
     if (route.path.some((p) => p.frame_id !== frameId)) {
-      console.warn(`Ruta en otro frame (se esperaba ${frameId}); no se dibuja.`);
+      console.warn(`Route in another frame (expected ${frameId}); not drawn.`);
       return;
     }
     if (legs?.length) {

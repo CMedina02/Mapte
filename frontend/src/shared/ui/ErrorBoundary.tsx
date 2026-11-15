@@ -9,7 +9,7 @@ export default class ErrorBoundary extends Component<{ fallback: ReactNode; chil
   }
 
   componentDidCatch(error: unknown) {
-    console.warn('Vista reemplazada por respaldo:', error);
+    console.warn('View replaced by fallback:', error);
   }
 
   render() {

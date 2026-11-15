@@ -42,10 +42,10 @@ def register_error_handlers(app: FastAPI) -> None:
             {"location": list(e["loc"]), "message": e["msg"], "type": e["type"]}
             for e in exc.errors()
         ]
-        return error_response(422, "VALIDATION_ERROR", "Solicitud inválida", {"issues": issues})
+        return error_response(422, "VALIDATION_ERROR", "Invalid request", {"issues": issues})
 
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
-        response = error_response(500, "INTERNAL_ERROR", "Error interno del servidor")
-        logger.exception("Error no controlado en %s", request.url.path)
+        response = error_response(500, "INTERNAL_ERROR", "Internal server error")
+        logger.exception("Unhandled error at %s", request.url.path)
         return response

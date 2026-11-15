@@ -58,10 +58,10 @@ export const ELEVATION_RANGE = { min: -4860, max: -3770 }; // del terreno sinté
 export const REGIONS: Region[] = [
   {
     region_id: REGION_ID,
-    name: 'Monte Sharp (Aeolis Mons) · Cráter Gale',
+    name: 'Mount Sharp (Aeolis Mons) · Gale Crater',
     body: 'Mars',
     description:
-      'Aeolis Quadrangle (MC-23). Zona de 10 × 10 km centrada en −4.75°, 137.40°E; sector de caminata de 2 × 2 km al centro. DEM y ortofoto USGS; objetivos en sitios reales de Curiosity; riesgos simulados.',
+      'Aeolis Quadrangle (MC-23). 10 × 10 km zone centered at −4.75°, 137.40°E; 2 × 2 km walking sector in the center. USGS DEM and orthophoto; objectives at real Curiosity sites; simulated hazards.',
     available: true,
   },
 ];
@@ -70,19 +70,19 @@ export const EVIDENCE: Evidence[] = [
   {
     evidence_id: 'ev-trek',
     title: 'NASA Mars Trek',
-    mission: 'Varias',
-    instrument: 'Portal cartográfico',
+    mission: 'Various',
+    instrument: 'Map portal',
     source_url: 'https://trek.nasa.gov/mars/',
     credit: 'NASA/JPL-Caltech',
     captured_at: null,
     resolution_m: null,
-    caveats: ['Fuente de referencia del equipo; las capas de este escenario son sintéticas.'],
+    caveats: ["Team reference source; this scenario's layers are synthetic."],
   },
   ...realTerrain.sources.map((src) => ({
     evidence_id: src.evidence_id,
     title: src.title,
     mission: 'Mars Science Laboratory (HiRISE, MRO)',
-    instrument: src.evidence_id.includes('ortho') ? 'HiRISE (ortofoto)' : 'HiRISE (DEM)',
+    instrument: src.evidence_id.includes('ortho') ? 'HiRISE (orthophoto)' : 'HiRISE (DEM)',
     source_url: src.download_url,
     credit: src.provider,
     captured_at: null,
@@ -98,7 +98,7 @@ export const EVIDENCE: Evidence[] = [
     credit: 'NASA/JPL-Caltech/JHUAPL',
     captured_at: null,
     resolution_m: 18,
-    caveats: ['Simulación: mapa mineral sintético (arcillas abajo, sulfatos arriba).'],
+    caveats: ['Simulation: synthetic mineral map (clays below, sulfates above).'],
   },
   ...(realCatalog.evidence as Evidence[]),
 ];
@@ -108,7 +108,7 @@ export const LAYERS: Layer[] = [
   {
     layer_id: 'imagery',
     kind: 'optical',
-    title: 'Ortofoto HiRISE (USGS MSL Gale 25 cm v3)',
+    title: 'HiRISE orthophoto (USGS MSL Gale 25 cm v3)',
     asset_url: realTerrain.texture_url,
     opacity_default: 1,
     resolution_m_per_pixel: 10000 / 2048,
@@ -118,7 +118,7 @@ export const LAYERS: Layer[] = [
   {
     layer_id: 'spectroscopy',
     kind: 'spectral',
-    title: 'Mineralogía (sintética · sustituye CRISM)',
+    title: 'Mineralogy (synthetic · stands in for CRISM)',
     asset_url: '',
     opacity_default: 0.6,
     resolution_m_per_pixel: 19.5,
@@ -131,18 +131,18 @@ export const HAZARDS: Hazard[] = [
   {
     hazard_id: 'hz-dunes',
     kind: 'exclusion',
-    risk_factor: 'Campos de Dunas Eólicas',
-    description: 'Arena suelta y activa',
-    mitigation: 'Área de exclusión: evitar hundimiento o pérdida de tracción.',
+    risk_factor: 'Aeolian Dune Fields',
+    description: 'Loose, active sand',
+    mitigation: 'Exclusion area: avoid sinking or loss of traction.',
     polygon: [P(1100, 1150), P(1650, 1100), P(1750, 1450), P(1400, 1600), P(1080, 1450)],
     evidence_ids: ['ev-trek'],
   },
   {
     hazard_id: 'hz-boxwork',
     kind: 'caution',
-    risk_factor: 'Crestas de Boxwork',
-    description: 'Cimas estrechas y agrietadas',
-    mitigation: 'Alerta de estabilidad: riesgo de tropiezo o caída con traje presurizado rígido.',
+    risk_factor: 'Boxwork Ridges',
+    description: 'Narrow, fractured crests',
+    mitigation: 'Stability alert: risk of tripping or falling in a rigid pressurized suit.',
     polygon: [P(1300, 350), P(1750, 330), P(1780, 700), P(1320, 720)],
     evidence_ids: [realTerrain.evidence_ids[0]],
   },

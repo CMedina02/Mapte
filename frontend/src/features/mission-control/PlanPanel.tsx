@@ -42,11 +42,11 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
     activityMin === DEFAULTS.activity;
 
   const problem = !base
-    ? 'Toca el mapa para elegir el punto de salida.'
+    ? 'Tap the map to choose the starting point.'
     : selectedIds.length === 0
-      ? 'Elige al menos un objetivo.'
+      ? 'Choose at least one objective.'
       : reserve >= oxygen
-        ? 'La reserva debe ser menor que el oxígeno disponible.'
+        ? 'The reserve must be less than the available oxygen.'
         : null;
 
   async function plan() {
@@ -73,7 +73,7 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
   return (
     <section className="space-y-5 text-sm">
       <div className="space-y-2">
-        <h2 className="eyebrow">Objetivos</h2>
+        <h2 className="eyebrow">Objectives</h2>
         <ul className="overflow-hidden rounded-[var(--radius-card)] border border-space-800 bg-space-900">
           {objectives.map((o, i) => {
             const order = selectedIds.indexOf(o.objective_id);
@@ -103,28 +103,28 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
             );
           })}
         </ul>
-        <p className="px-1 text-xs text-space-400">La letra indica el orden de visita.</p>
+        <p className="px-1 text-xs text-space-400">The letter shows the visiting order.</p>
       </div>
 
       <details className="group rounded-[var(--radius-card)] border border-space-800 bg-space-900">
         <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
           <Icon name="tune" className="text-space-400" />
           <span className="min-w-0 flex-1">
-            <span className="block font-medium text-space-50">Ajustes</span>
+            <span className="block font-medium text-space-50">Settings</span>
             <span className="block truncate text-xs text-space-400">
-              {isDefault ? 'Valores de referencia de la NASA' : `${hours(oxygen)} de oxígeno · reserva ${reserve} min`}
+              {isDefault ? 'NASA reference values' : `${hours(oxygen)} of oxygen · reserve ${reserve} min`}
             </span>
           </span>
           <Icon name="expandMore" className="text-space-400 transition-transform group-open:rotate-180" />
         </summary>
         <div className="space-y-5 border-t border-space-800 px-4 pt-4 pb-5">
-          <Slider label="Oxígeno disponible" value={oxygen} min={120} max={1200} step={15} display={hours(oxygen)} onChange={setOxygen} />
-          <Slider label="Reserva para volver" value={reserve} min={0} max={120} step={5} display={`${reserve} min`} onChange={setReserve} />
-          <Slider label="Tiempo en cada objetivo" value={activityMin} min={0} max={120} step={5} display={`${activityMin} min`} onChange={setActivityMin} />
-          <Slider label="Pendiente máxima" value={maxSlope} min={5} max={35} step={1} display={`${maxSlope}°`} onChange={setMaxSlope} />
-          <Slider label="Ritmo de caminata" value={speed} min={10} max={50} step={1} display={`${(speed * 0.06).toFixed(1)} km/h`} onChange={setSpeed} />
+          <Slider label="Available oxygen" value={oxygen} min={120} max={1200} step={15} display={hours(oxygen)} onChange={setOxygen} />
+          <Slider label="Return reserve" value={reserve} min={0} max={120} step={5} display={`${reserve} min`} onChange={setReserve} />
+          <Slider label="Time at each objective" value={activityMin} min={0} max={120} step={5} display={`${activityMin} min`} onChange={setActivityMin} />
+          <Slider label="Maximum slope" value={maxSlope} min={5} max={35} step={1} display={`${maxSlope}°`} onChange={setMaxSlope} />
+          <Slider label="Walking pace" value={speed} min={10} max={50} step={1} display={`${(speed * 0.06).toFixed(1)} km/h`} onChange={setSpeed} />
           <label className="flex cursor-pointer items-center justify-between gap-3">
-            <span className="text-space-200">Evitar terreno sin datos</span>
+            <span className="text-space-200">Avoid terrain with no data</span>
             <button
               type="button"
               role="switch"
@@ -150,7 +150,7 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
                 setActivityMin(DEFAULTS.activity);
               }}
             >
-              Restablecer
+              Reset
             </button>
           )}
         </div>
@@ -160,7 +160,7 @@ export default function PlanPanel({ regionId, objectives, base, replan, selected
         {error && <p className="px-1 text-xs text-alert-500">{error}</p>}
         {!error && problem && <p className="px-1 text-xs text-space-400">{problem}</p>}
         <button type="button" onClick={plan} disabled={!!problem || loading} className="btn-primary w-full">
-          {loading ? 'Calculando ruta…' : replan ? 'Recalcular desde aquí' : 'Planificar'}
+          {loading ? 'Calculating route…' : replan ? 'Recalculate from here' : 'Plan'}
         </button>
       </div>
     </section>

@@ -94,7 +94,7 @@ def load_static_hazards(region_id: str) -> tuple[StaticHazardZone, ...]:
     zones = []
     for item in data["hazards"]:
         if item["kind"] not in ("exclusion", "caution"):
-            raise ValueError(f"{item['hazard_id']}: kind desconocido {item['kind']!r}")
+            raise ValueError(f"{item['hazard_id']}: unknown kind {item['kind']!r}")
         zones.append(
             StaticHazardZone(
                 hazard_id=item["hazard_id"],
@@ -125,15 +125,15 @@ class EnvironmentalHazardReport:
 
     def __post_init__(self) -> None:
         if not self.report_id.strip() or not self.hazard_code.strip():
-            raise ValueError("report_id y hazard_code no pueden estar vacíos")
+            raise ValueError("report_id and hazard_code cannot be empty")
         if self.mission_version < 1:
-            raise ValueError("mission_version debe ser mayor o igual que 1")
+            raise ValueError("mission_version must be greater than or equal to 1")
         if not isfinite(self.affected_radius_m) or self.affected_radius_m < 0:
-            raise ValueError("affected_radius_m debe ser finito y no negativo")
+            raise ValueError("affected_radius_m must be finite and non-negative")
         if not isfinite(self.cost_multiplier) or self.cost_multiplier < 1:
-            raise ValueError("cost_multiplier debe ser finito y mayor o igual que 1")
+            raise ValueError("cost_multiplier must be finite and greater than or equal to 1")
         if self.effect is HazardEffect.HIGH_COST and self.cost_multiplier == 1:
-            raise ValueError("HIGH_COST requiere cost_multiplier mayor que 1")
+            raise ValueError("HIGH_COST requires cost_multiplier greater than 1")
 
 
 class MissionHazardOverlay:
@@ -157,9 +157,9 @@ class MissionHazardOverlay:
         frame_id = self._metadata.sector.frame_id
         for report in reports:
             if report.position.frame_id != frame_id:
-                raise FrameMismatchError(f"El reporte {report.report_id} no pertenece a {frame_id}")
+                raise FrameMismatchError(f"Report {report.report_id} does not belong to {frame_id}")
             if not self._grid.contains_xy(report.position.x_m, report.position.y_m):
-                raise ValueError(f"El reporte {report.report_id} está fuera de la región")
+                raise ValueError(f"Report {report.report_id} is outside the region")
         self._reports = reports
         self._static_zones = tuple((zone, zone.bbox) for zone in load_static_hazards(region_id))
 
@@ -332,7 +332,7 @@ class MissionHazardOverlay:
     def position_to_cell(self, position: LocalPosition) -> GridCell | None:
         if position.frame_id != self.frame_id:
             raise FrameMismatchError(
-                f"Se esperaba frame_id={self.frame_id}, se recibió {position.frame_id}"
+                f"Expected frame_id={self.frame_id}, got {position.frame_id}"
             )
         if not self._grid.contains_xy(position.x_m, position.y_m):
             return None

@@ -68,11 +68,11 @@ class DeviationPlan:
 
     def __post_init__(self) -> None:
         if not 0 < self.at_fraction < 1:
-            raise ValueError("at_fraction debe estar entre 0 y 1")
+            raise ValueError("at_fraction must be between 0 and 1")
         if self.side not in ("left", "right"):
             raise ValueError("side debe ser 'left' o 'right'")
         if not 0 < self.angle_deg <= 90:
-            raise ValueError("angle_deg debe estar entre 0 y 90")
+            raise ValueError("angle_deg must be between 0 and 90")
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,7 +166,7 @@ class EvaSimulation:
         computation = self._compute(start)  # InvalidRouteEndpointError -> caller (400)
         if computation is None:
             raise SimulationRouteError(
-                "No hay ruta viable entre el inicio y el destino con estas restricciones."
+                "No viable route between start and destination with these constraints."
             )
         self.route = computation
         self.original_route_id = computation.route_id
@@ -181,11 +181,11 @@ class EvaSimulation:
         self._deviation_done = deviation is None
         self._warned = False
         self.last_action = SimulationAction.NONE
-        self.last_message = "Ruta calculada. Inicia la caminata."
+        self.last_message = "Route calculated. Start walking."
         self.log: list[SimulationEvent] = []
         self._record(
             "route_planned",
-            f"Ruta A* de {self._path.length_m:.0f} m hacia el destino.",
+            f"A* route of {self._path.length_m:.0f} m to the destination.",
         )
 
     # --- public state -------------------------------------------------------
@@ -227,7 +227,7 @@ class EvaSimulation:
         sim_seconds = dt_s * self.speed_factor
         self.t_s += sim_seconds
         budget = self.constraints.speed_m_per_min / 60.0 * sim_seconds
-        action, message = SimulationAction.NONE, "En ruta."
+        action, message = SimulationAction.NONE, "On route."
 
         def raise_to(new: SimulationAction, text: str) -> None:
             nonlocal action, message
@@ -244,7 +244,7 @@ class EvaSimulation:
             action, message = (
                 (SimulationAction.WARN, self._off_route_text())
                 if self._warned
-                else (SimulationAction.NONE, "Saliendo de la ruta…")
+                else (SimulationAction.NONE, "Leaving the route…")
             )
         self.last_action, self.last_message = action, message
         return StepOutcome(action, message)
@@ -262,8 +262,8 @@ class EvaSimulation:
 
         if self.progress_m >= total - _EPS:
             self.status = SimulationStatus.ARRIVED
-            self._record("arrived", "Llegaste al destino.")
-            raise_to(SimulationAction.ARRIVED, "Llegaste al destino.")
+            self._record("arrived", "You reached the destination.")
+            raise_to(SimulationAction.ARRIVED, "You reached the destination.")
             return 0.0
         if trigger is not None and self.progress_m >= trigger - _EPS:
             assert self.deviation is not None
@@ -273,7 +273,7 @@ class EvaSimulation:
             self._deviation_done = True
             self._record(
                 "deviation_started",
-                f"El astronauta se desvía a la {'izquierda' if turn < 0 else 'derecha'}.",
+                f"The astronaut veers to the {'left' if turn < 0 else 'right'}.",
             )
         return budget
 
@@ -286,17 +286,17 @@ class EvaSimulation:
             blocked = self._blocked_reason(nx, ny)
             if blocked is not None:
                 self._record("hazard_ahead", blocked)
-                return self._reroute(budget, raise_to, f"{blocked} Se recalculó la ruta.")
+                return self._reroute(budget, raise_to, f"{blocked} Route recalculated.")
             self.x_m, self.y_m = nx, ny
             self.z_m = self._elevation(nx, ny, self.z_m)
             budget -= move
             deviation = self.deviation_m
             if deviation >= self.reroute_m:
-                self._record("off_route", f"Fuera de ruta ({deviation:.0f} m).")
+                self._record("off_route", f"Off route ({deviation:.0f} m).")
                 return self._reroute(
                     budget,
                     raise_to,
-                    f"Fuera de ruta ({deviation:.0f} m): se recalculó desde tu posición.",
+                    f"Off route ({deviation:.0f} m): recalculated from your position.",
                 )
             if deviation >= self.warn_m and not self._warned:
                 self._warned = True
@@ -312,7 +312,7 @@ class EvaSimulation:
             computation = None
         if computation is None:
             self.status = SimulationStatus.STOPPED
-            text = "No hay ruta segura desde tu posición. Detente y espera instrucciones."
+            text = "No safe route from your position. Stop and wait for instructions."
             self._record("stopped", text)
             raise_to(SimulationAction.STOP, text)
             return 0.0
@@ -324,7 +324,7 @@ class EvaSimulation:
         self.status = SimulationStatus.FOLLOWING
         self._warned = False
         self.x_m, self.y_m, self.z_m, self.heading_deg = self._path.at(0.0)
-        self._record("rerouted", f"Ruta nueva de {self._path.length_m:.0f} m hacia el destino.")
+        self._record("rerouted", f"New route of {self._path.length_m:.0f} m to the destination.")
         raise_to(SimulationAction.REROUTED, message)
         return budget
 
@@ -350,19 +350,19 @@ class EvaSimulation:
     def _blocked_reason(self, x: float, y: float) -> str | None:
         sample = self._sample(x, y)
         if sample is None or sample.elevation_m is None:
-            return "Sin datos de terreno adelante."
+            return "No terrain data ahead."
         if sample.traversal_status is not TraversalStatus.BLOCKED:
             return None
         if any(code.startswith("STATIC_HAZARD:") for code in sample.restriction_codes):
-            return "Zona de exclusión adelante."
-        return "Terreno bloqueado adelante."
+            return "Exclusion zone ahead."
+        return "Blocked terrain ahead."
 
     def _elevation(self, x: float, y: float, fallback: float) -> float:
         sample = self._sample(x, y)
         return fallback if sample is None or sample.elevation_m is None else sample.elevation_m
 
     def _off_route_text(self) -> str:
-        return f"Fuera de ruta ({self.deviation_m:.0f} m)."
+        return f"Off route ({self.deviation_m:.0f} m)."
 
     def _record(self, event_type: str, message: str) -> None:
         event = SimulationEvent(round(self.t_s, 1), event_type, message, self.x_m, self.y_m)

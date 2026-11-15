@@ -156,7 +156,7 @@ def test_hazard_overlay_rejects_wrong_frame_and_outside_reports() -> None:
             ),
         )
 
-    with pytest.raises(ValueError, match="fuera de la región"):
+    with pytest.raises(ValueError, match="outside the region"):
         MissionHazardOverlay(
             base,
             REGION_ID,

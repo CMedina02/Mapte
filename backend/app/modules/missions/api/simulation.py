@@ -46,7 +46,7 @@ MAX_SPEED_FACTOR = 600.0
 class DeviationSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    at_fraction: float = Field(default=0.4, gt=0, lt=1, description="Fracción de la ruta.")
+    at_fraction: float = Field(default=0.4, gt=0, lt=1, description="Fraction of the route.")
     side: Literal["left", "right"] = "left"
     angle_deg: float = Field(default=60.0, gt=0, le=90)
 
@@ -61,7 +61,7 @@ class SimulationCreateSchema(BaseModel):
     speed_factor: float = Field(default=DEFAULT_SPEED_FACTOR, gt=0, le=MAX_SPEED_FACTOR)
     deviation: DeviationSchema | None = Field(
         default_factory=DeviationSchema,
-        description="Desvío automático; null para caminar sin desviarse.",
+        description="Automatic deviation; null to walk without deviating.",
     )
 
 
@@ -90,7 +90,7 @@ class SimulationStateSchema(BaseModel):
     status: Literal["following", "drifting", "arrived", "stopped"]
     action: Literal["none", "warn", "rerouted", "arrived", "stop"]
     message: str
-    t_s: float = Field(description="Tiempo simulado transcurrido (s).")
+    t_s: float = Field(description="Simulated elapsed time (s).")
     speed_factor: float
     position: PositionSchema
     heading_deg: float
@@ -193,7 +193,7 @@ def step_simulation(
 @simulation_router.delete("/{sim_id}", status_code=204)
 def delete_simulation(sim_id: str, registry: RegistryDep) -> Response:
     if not registry.remove(sim_id):
-        raise HTTPException(status_code=404, detail=f"Simulación no encontrada: {sim_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Simulation not found: {sim_id!r}.")
     return Response(status_code=204)
 
 
@@ -206,7 +206,7 @@ def _build(terrain: TerrainRepository, payload: SimulationCreateSchema) -> EvaSi
     if (payload.start is None or payload.end is None) and not is_preset_region:
         raise HTTPException(
             status_code=400,
-            detail="Fuera de la región preestablecida hay que indicar start y end.",
+            detail="Outside the preset region, start and end are required.",
         )
     preset_start = LocalPosition(*PRESET_START, PRESET_FRAME_ID)
     preset_end = LocalPosition(*PRESET_END, PRESET_FRAME_ID)
@@ -242,7 +242,7 @@ def _build(terrain: TerrainRepository, payload: SimulationCreateSchema) -> EvaSi
             deviation=deviation,
         )
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Región desconocida: {region_id!r}.") from exc
+        raise HTTPException(status_code=404, detail=f"Unknown region: {region_id!r}.") from exc
     except (FrameMismatchError, InvalidRouteEndpointError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except SimulationRouteError as exc:
@@ -252,7 +252,7 @@ def _build(terrain: TerrainRepository, payload: SimulationCreateSchema) -> EvaSi
 def _require(registry: SimulationRegistry, sim_id: str) -> EvaSimulation:
     simulation = registry.get(sim_id)
     if simulation is None:
-        raise HTTPException(status_code=404, detail=f"Simulación no encontrada: {sim_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Simulation not found: {sim_id!r}.")
     return simulation
 
 

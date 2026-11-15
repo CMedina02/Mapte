@@ -30,7 +30,7 @@ export default function Radar({ center, target, base, path, hazards, heading, im
   const pts = (ps: Position[]) => ps.map((p) => `${sx(p).toFixed(1)},${sy(p).toFixed(1)}`).join(' ');
 
   return (
-    <svg viewBox="0 0 200 200" className="h-auto w-full drop-shadow" role="img" aria-label={`Radar, alcance ${range} m, norte arriba`}>
+    <svg viewBox="0 0 200 200" className="h-auto w-full drop-shadow" role="img" aria-label={`Radar, range ${range} m, north up`}>
       <defs>
         <clipPath id="radar-clip">
           <circle cx="100" cy="100" r={R} />

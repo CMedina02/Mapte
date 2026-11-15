@@ -19,7 +19,7 @@ export default function CompassTape({ heading, bearing }: { heading: number | nu
 
   return (
     <div className="mx-auto w-full max-w-[300px]">
-      <svg viewBox="0 0 240 36" className="h-auto w-full" role="img" aria-label={`Vista ${pad(center)} grados ${cardinal(center)}`}>
+      <svg viewBox="0 0 240 36" className="h-auto w-full" role="img" aria-label={`View ${pad(center)} degrees ${cardinal(center)}`}>
         <defs>
           <linearGradient id="tape-fade" x1="0" x2="1">
             <stop offset="0%" stopColor="#fff" stopOpacity="0" />
@@ -63,10 +63,10 @@ export default function CompassTape({ heading, bearing }: { heading: number | nu
       </svg>
       <p className="-mt-1 text-center">
         <span className="rounded-full bg-space-900/80 px-3 py-0.5 text-[11px] text-space-100">
-          {heading !== null ? `Miras al ${cardinal(heading)} ${pad(heading)}°` : 'Norte arriba'}
-          {bearing !== null && ` · destino al ${cardinal(bearing)}`}
+          {heading !== null ? `Facing ${cardinal(heading)} ${pad(heading)}°` : 'North up'}
+          {bearing !== null && ` · destination ${cardinal(bearing)}`}
           {heading !== null && bearing !== null && Math.abs(turn) >= 5 && (
-            <span className="text-green-400"> · gira {Math.abs(Math.round(turn))}° a la {turn > 0 ? 'derecha' : 'izquierda'}</span>
+            <span className="text-green-400"> · turn {Math.abs(Math.round(turn))}° {turn > 0 ? 'right' : 'left'}</span>
           )}
         </span>
       </p>

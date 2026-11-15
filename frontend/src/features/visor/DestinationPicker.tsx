@@ -22,7 +22,7 @@ interface Props {
 // Lista de destinos con el mismo diseño que el panel de control: letra de parada, nombre y estado
 export default function DestinationPicker({ destinations, selectedId, here, letters = {}, onSelect }: Props) {
   return (
-    <ul role="radiogroup" aria-label="Destino" className="overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-space-900/70">
+    <ul role="radiogroup" aria-label="Destination" className="overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-space-900/70">
       {destinations.map((d, i) => {
         const b = bearingDeg(here, d.position);
         const selected = d.id === selectedId;
@@ -54,7 +54,7 @@ export default function DestinationPicker({ destinations, selectedId, here, lett
                 <span className={`block text-xs ${blocked ? 'text-alert-300' : 'text-space-300'}`}>
                   {blocked
                     ? d.note
-                    : `${Math.round(b)}° ${cardinal(b)}${d.recommended ? ' · siguiente en el plan' : ''}${d.reach === 'ok' ? ' · regreso seguro' : ''}`}
+                    : `${Math.round(b)}° ${cardinal(b)}${d.recommended ? ' · next in plan' : ''}${d.reach === 'ok' ? ' · safe return' : ''}`}
                 </span>
               </span>
             </button>

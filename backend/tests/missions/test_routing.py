@@ -171,7 +171,7 @@ def test_unknown_is_blocked_by_default_and_measured_when_allowed() -> None:
 
 def test_planner_rejects_invalid_endpoints_and_reports_no_safe_route() -> None:
     planner = build_planner(flat_grid(width=3), blocked={GridCell(1, 1)})
-    with pytest.raises(InvalidRouteEndpointError, match="fuera de la región"):
+    with pytest.raises(InvalidRouteEndpointError, match="outside the region"):
         planner.plan(LocalPosition(-1, 15, FRAME_ID), position(1, 2))
     with pytest.raises(ValueError, match="frame_id"):
         planner.plan(LocalPosition(5, 15, "OTHER_FRAME"), position(1, 2))

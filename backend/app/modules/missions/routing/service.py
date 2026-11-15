@@ -43,9 +43,9 @@ class RouteComputation:
 
 # Rutas repetidas (panel y visor piden la misma, replanes, tramos de regreso) se sirven de caché
 _ROUTE_CACHE_LIMIT = 256
-_LIMIT_ASSUMPTION = "La búsqueda alcanzó su límite de cálculo sin confirmar si existe una ruta"
+_LIMIT_ASSUMPTION = "The search reached its computation limit without confirming whether a route exists"
 _NO_ROUTE_ASSUMPTION = (
-    "No se encontró una ruta ni siquiera permitiendo datos de calidad desconocida"
+    "No route found even when allowing unknown-quality data"
 )
 
 
@@ -187,9 +187,9 @@ class RouteApplicationService:
     @staticmethod
     def _hazard_assumption(terrain: MissionHazardOverlay) -> str:
         return (
-            "Zonas de exclusión del catálogo bloqueadas; zonas de precaución con costo mayor"
+            "Catalog exclusion zones blocked; caution zones with higher cost"
             if terrain.has_static_hazards
-            else "Los peligros estáticos del catálogo aún no están publicados"
+            else "Catalog static hazards are not published yet"
         )
 
     @staticmethod

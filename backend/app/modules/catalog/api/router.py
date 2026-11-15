@@ -52,7 +52,7 @@ catalog_router = APIRouter(tags=["Catalog"])
 def get_catalog_store(request: Request) -> CatalogStore:
     store = getattr(request.app.state, "catalog_store", None)
     if not isinstance(store, CatalogStore):
-        raise HTTPException(status_code=503, detail="El catálogo de regiones no está cargado.")
+        raise HTTPException(status_code=503, detail="The region catalog is not loaded.")
     return store
 
 
@@ -62,7 +62,7 @@ StoreDep = Annotated[CatalogStore, Depends(get_catalog_store)]
 def _require_region(store: CatalogStore, region_id: str) -> LoadedRegion:
     region = store.get(region_id)
     if region is None:
-        raise HTTPException(status_code=404, detail=f"Región desconocida: {region_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Unknown region: {region_id!r}.")
     return region
 
 
@@ -131,7 +131,7 @@ def build_photos_response(
     if objective_id is not None and objective_id not in {
         item.objective_id for item in catalog.active_objectives
     }:
-        raise HTTPException(status_code=404, detail=f"Objetivo desconocido: {objective_id!r}.")
+        raise HTTPException(status_code=404, detail=f"Unknown objective: {objective_id!r}.")
     return PhotosResponse(
         photos=[
             PhotoSchema(
@@ -160,7 +160,7 @@ def _science_catalog(region: LoadedRegion) -> ScienceCatalog | None:
             catalog.check_within_extent(region.metadata)
     except ScienceDataError as exc:
         raise HTTPException(
-            status_code=503, detail=f"Catálogo científico no disponible: {exc}"
+            status_code=503, detail=f"Science catalog unavailable: {exc}"
         ) from exc
     return catalog
 
@@ -175,13 +175,13 @@ def _position(store: CatalogStore, region_id: str, position: LocalPosition) -> P
 @catalog_router.get(
     "/assets/{region_id}/{filename}",
     response_class=FileResponse,
-    responses={404: {"description": "Región o asset no publicado."}},
+    responses={404: {"description": "Region or asset not published."}},
 )
 def get_asset(region_id: str, filename: str, store: StoreDep) -> FileResponse:
     region = _require_region(store, region_id)
     path = region.asset_files().get(filename)
     if path is None or path.resolve().parent != region.derived_dir or not path.is_file():
-        raise HTTPException(status_code=404, detail="Asset no publicado para esta región.")
+        raise HTTPException(status_code=404, detail="Asset not published for this region.")
     media_type = ASSET_MEDIA_TYPES.get(path.suffix, "application/octet-stream")
     return FileResponse(path, media_type=media_type, filename=path.name)
 
@@ -228,7 +228,7 @@ def build_region_manifest(region: LoadedRegion) -> RegionManifestResponse:
             LayerSchema(
                 layer_id=metadata.consistency.texture_layer_id,
                 kind="optical",
-                title="Ortofoto HiRISE (USGS MSL Gale 25 cm v3)",
+                title="HiRISE orthophoto (USGS MSL Gale 25 cm v3)",
                 asset_url=metadata.assets.texture_url,
                 opacity_default=1.0,
                 resolution_m_per_pixel=float(texture_block.get("pixel_size_m") or 1.0),

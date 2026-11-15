@@ -21,7 +21,7 @@ const enc = encodeURIComponent;
 
 function assertOnline() {
   if (!navigator.onLine) {
-    throw new MarsApiError(0, 'OFFLINE', 'Sin conexión: operando con el paquete local.');
+    throw new MarsApiError(0, 'OFFLINE', 'Offline: working from the local package.');
   }
 }
 
@@ -34,7 +34,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers: { 'Content-Type': 'application/json', ...init?.headers },
     });
   } catch {
-    throw new MarsApiError(0, 'NETWORK_ERROR', 'Sin conexión con el servidor.');
+    throw new MarsApiError(0, 'NETWORK_ERROR', 'No connection to the server.');
   }
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiError | null;
@@ -67,7 +67,7 @@ const DEFAULT_ACTIVITY_MIN = 45;
 async function observeInBackend(missionId: string, req: ObservationRequest): Promise<Mission> {
   let b = await backendMission(missionId);
   if (b.mission_version !== req.mission_version) {
-    throw new MarsApiError(409, 'VERSION_CONFLICT', 'La misión fue actualizada por otro cliente.');
+    throw new MarsApiError(409, 'VERSION_CONFLICT', 'The mission was updated by another client.');
   }
   const path = `/missions/${enc(missionId)}`;
   if (b.lifecycle_status === 'draft') {
@@ -83,7 +83,8 @@ async function observeInBackend(missionId: string, req: ObservationRequest): Pro
 
   // ponytail: lectura de O₂ ESTIMADA (O₂ previo − tramo caminado − trabajo en el objetivo) porque el traje
   // aún no envía telemetría; cuando la haya, se manda la lectura real.
-  const walked = before.legs.find((leg) => leg.end_label === req.objective_id)?.metrics.duration_min;
+  const arrival = objectivePosition(before, req.objective_id);
+  const walked = arrival ? await walkedMinutes(before, arrival) : null;
   const oxygenNow =
     walked == null
       ? before.resources.oxygen_available_min
@@ -92,7 +93,7 @@ async function observeInBackend(missionId: string, req: ObservationRequest): Pro
   try {
     return await post<Mission>(`${path}/replan`, {
       expected_version: observed.mission_version,
-      current_position: objectivePosition(before, req.objective_id) ?? observed.current_position ?? observed.start_position,
+      current_position: arrival ?? observed.current_position ?? observed.start_position,
       from_label: req.objective_id,
       resources: { oxygen_available_min: oxygenNow, return_reserve_min: before.resources.return_reserve_min },
       activity_durations_min: Object.fromEntries(remaining.map((id) => [id, DEFAULT_ACTIVITY_MIN])),
@@ -100,6 +101,47 @@ async function observeInBackend(missionId: string, req: ObservationRequest): Pro
   } catch {
     return observed; // el hallazgo quedó registrado aunque el recálculo falle (p. ej. sin backend nuevo)
   }
+}
+
+// Dónde está el astronauta según la misión: último recálculo o, si aún no hay, la base de salida
+const missionHere = (m: Mission): Position => m.current_position ?? m.start_position;
+const near = (a: Position, b: Position) => Math.hypot(a.x_m - b.x_m, a.y_m - b.y_m) < 5;
+
+// Minutos caminados hasta `to`. Si el astronauta siguió el tramo del plan se usa su métrica; si eligió
+// otro destino desde el radar (fuera de orden o desde un punto libre) se calcula el camino real recorrido.
+async function walkedMinutes(m: Mission, to: Position): Promise<number | null> {
+  const from = missionHere(m);
+  const planned = m.legs.find((leg) => leg.path.length > 1 && near(leg.path[0], from) && near(leg.path.at(-1)!, to));
+  if (planned) return planned.metrics.duration_min;
+  if (!m.routing_constraints) return null;
+  return post<RouteResult>('/routes/compute', { region_id: m.region_id, start: from, end: to, constraints: m.routing_constraints })
+    .then((r) => r.duration_min)
+    .catch(() => null);
+}
+
+// El astronauta llegó a un punto libre marcado en el radar: la misión se recalcula desde ahí
+// (POST /replan con esa posición), así la siguiente ruta ya no sale del sitio anterior.
+async function moveInBackend(missionId: string, version: number, at: Position): Promise<Mission> {
+  let b = await backendMission(missionId);
+  if (b.mission_version !== version) {
+    throw new MarsApiError(409, 'VERSION_CONFLICT', 'The mission was updated by another client.');
+  }
+  const path = `/missions/${enc(missionId)}`;
+  if (b.lifecycle_status === 'draft') {
+    b = await post<Mission>(`${path}/status`, { expected_version: b.mission_version, action: 'start' });
+  }
+  const walked = await walkedMinutes(b, at);
+  const remaining = b.objective_ids.filter((id) => !b.completed_objective_ids.includes(id));
+  return post<Mission>(`${path}/replan`, {
+    expected_version: b.mission_version,
+    current_position: { x_m: at.x_m, y_m: at.y_m, frame_id: at.frame_id },
+    from_label: 'current_position',
+    resources: {
+      oxygen_available_min: Math.max(0, b.resources.oxygen_available_min - (walked ?? 0)),
+      return_reserve_min: b.resources.return_reserve_min,
+    },
+    activity_durations_min: Object.fromEntries(remaining.map((id) => [id, DEFAULT_ACTIVITY_MIN])),
+  });
 }
 
 // Paquete para el visor: misión del backend + catálogo (real si no hay mock, del mock en modo híbrido)
@@ -120,7 +162,7 @@ async function contingencyInBackend(missionId: string, req: ContingencyRequest):
 
 // Backend apagado o caído (el proxy de Vite responde 5xx): en modo híbrido se vuelve al mock con aviso
 const backendDown = (e: unknown) => e instanceof MarsApiError && (e.status === 0 || e.status >= 500) && e.code !== 'OFFLINE';
-const BACKEND_DOWN = 'Backend no disponible: ruta simulada en línea recta por el mock.';
+const BACKEND_DOWN = 'Backend unavailable: straight-line route simulated by the mock.';
 function withMockFallback<T extends RouteResult | Mission>(real: Promise<T>, mock: () => Promise<T>, note: (r: T) => T) {
   return real.catch(async (e: unknown) => {
     if (USE_MOCK && backendDown(e)) return note(await mock());
@@ -190,6 +232,12 @@ export const marsApi = {
 
   triggerContingency: (missionId: string, req: ContingencyRequest): Promise<Mission> =>
     realMissions ? contingencyInBackend(missionId, req) : mocked(() => mockApi.contingency(req)),
+
+  // Llegada a un punto libre (no objetivo): mueve la posición y recalcula los tramos desde ahí
+  moveTo: (mission: Mission, at: Position): Promise<Mission> =>
+    realMissions
+      ? moveInBackend(mission.mission_id, mission.mission_version, at)
+      : mocked(() => ({ ...mission, mission_version: mission.mission_version + 1, current_position: at })),
 
   // De vuelta en la base con todos los objetivos: cierra la misión (backend: POST /status action=complete)
   completeMission: (missionId: string, version: number, at: Position): Promise<Mission> =>

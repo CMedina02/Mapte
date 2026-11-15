@@ -39,7 +39,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
       .getRegions()
       .then((rs) => {
         const id = rs.find((r) => r.available)?.region_id;
-        if (!id) throw new Error('sin región disponible');
+        if (!id) throw new Error('no region available');
         return Promise.all([marsApi.getManifest(id), marsApi.getObjectives(id)] as const);
       })
       .then(([manifest, objectives]) => setRegion({ manifest, objectives, layers: initialLayerState(manifest.layers) }))
@@ -49,7 +49,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
   if (!region) {
     return (
       <div className="flex h-dvh items-center justify-center bg-space-950 p-6 text-center text-sm text-space-200">
-        {failed ? 'Sin misión y sin enlace con el panel de control.' : 'Cargando mapa…'}
+        {failed ? 'No mission and no link to mission control.' : 'Loading map…'}
       </div>
     );
   }
@@ -89,7 +89,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
       });
       onPackage(await marsApi.getMissionPackage(mission.mission_id));
     } catch (e) {
-      setMsg(`No se pudo planificar: ${e instanceof Error ? e.message : String(e)}`);
+      setMsg(`Could not plan: ${e instanceof Error ? e.message : String(e)}`);
       setPlanning(false);
     }
   };
@@ -113,7 +113,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
       <div className="absolute inset-0">
         {use3d && manifest.terrain ? (
           <ErrorBoundary fallback={map2d}>
-            <Suspense fallback={<p className="flex h-full items-center justify-center text-sm">Cargando terreno 3D…</p>}>
+            <Suspense fallback={<p className="flex h-full items-center justify-center text-sm">Loading 3D terrain…</p>}>
               <Terrain3D
                 manifest={manifest}
                 terrain={manifest.terrain}
@@ -134,8 +134,8 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
       </div>
 
       <div className="pointer-events-none absolute inset-x-2 top-2 z-20 flex flex-wrap items-start gap-2 sm:inset-x-3 sm:top-3">
-        {here && <PositionCard frame={manifest.frame} here={here} label="Sin misión" online={online} />}
-        <p className="hud mx-auto px-3 py-1.5 text-xs">Sin misión</p>
+        {here && <PositionCard frame={manifest.frame} here={here} label="No mission" online={online} />}
+        <p className="hud mx-auto px-3 py-1.5 text-xs">No mission</p>
       </div>
 
       {/* Radar: abre la selección de objetivos */}
@@ -143,7 +143,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
         <button
           type="button"
           className="group absolute bottom-2 left-2 z-20 aspect-square w-28 rounded-full focus-visible:outline-2 focus-visible:outline-primary-300 sm:bottom-3 sm:left-3 sm:w-44 lg:w-52"
-          aria-label="Abrir mapa para elegir objetivos y planificar misión"
+          aria-label="Open map to choose objectives and plan a mission"
           onClick={() => setPicking(true)}
         >
           <Radar
@@ -166,15 +166,15 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
       )}
 
       {picking && (
-        <div role="dialog" aria-modal="true" aria-label="Elegir misión" className="absolute inset-0 z-30 flex flex-col bg-space-950 lg:flex-row">
+        <div role="dialog" aria-modal="true" aria-label="Choose mission" className="absolute inset-0 z-30 flex flex-col bg-space-950 lg:flex-row">
           <div className="relative min-h-0 flex-1">{map2d}</div>
           <aside className="hud m-2 max-h-[55dvh] space-y-3 overflow-y-auto p-3 sm:p-4 lg:max-h-none lg:w-96 lg:self-end">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-base font-medium text-space-50">Elige tus objetivos</p>
+              <p className="text-base font-medium text-space-50">Choose your objectives</p>
               <button
                 type="button"
                 className="flex size-10 items-center justify-center rounded-full text-space-200 hover:bg-white/10"
-                aria-label="Cerrar"
+                aria-label="Close"
                 onClick={() => setPicking(false)}
               >
                 <Icon name="close" />
@@ -212,9 +212,9 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
               })}
             </ul>
             <p className="text-[11px] text-space-400">
-              O₂ {EVA_PLAN.resources.oxygen_available_min} · reserva {EVA_PLAN.resources.return_reserve_min} · {EVA_PLAN.activity_min} min/objetivo
+              O₂ {EVA_PLAN.resources.oxygen_available_min} · reserve {EVA_PLAN.resources.return_reserve_min} · {EVA_PLAN.activity_min} min/objective
             </p>
-            {!here && <p className="text-xs text-amber-300">Toca el mapa para fijar tu posición.</p>}
+            {!here && <p className="text-xs text-amber-300">Tap the map to set your position.</p>}
             {msg && <p className="text-xs text-alert-300">{msg}</p>}
             <button
               type="button"
@@ -222,7 +222,7 @@ export default function IdleVisor({ onPackage }: { onPackage: (pkg: MissionPacka
               onClick={plan}
               className="btn min-h-14 w-full bg-primary-600 px-5 text-base text-white enabled:hover:bg-primary-500 sm:text-lg"
             >
-              {planning ? 'Calculando…' : 'Planificar'}
+              {planning ? 'Calculating…' : 'Plan'}
             </button>
           </aside>
         </div>

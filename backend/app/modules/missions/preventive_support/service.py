@@ -127,13 +127,13 @@ class PreventiveSupportOptimizer:
             recommended_option_id=recommended,
             warnings=tuple(warnings),
             assumptions=(
-                "El punto de encuentro se limita a la ruta vigente de la misión",
-                "El vehículo y la tripulación usan el mismo límite de pendiente y política NoData",
-                "La velocidad del vehículo es un parámetro simulado independiente",
-                "El consumo hasta la intervención usa el mayor tiempo de llegada, "
-                "incluyendo espera",
-                "No se modelan fallas del vehículo, comunicaciones, fisiología "
-                "ni transferencia de consumibles",
+                "The rendezvous point is limited to the mission's current route",
+                "The vehicle and crew use the same slope limit and NoData policy",
+                "Vehicle speed is an independent simulated parameter",
+                "Consumption until intervention uses the longest arrival time, "
+                "including waiting",
+                "Vehicle failures, communications, physiology "
+                "and consumable transfer are not modeled",
             ),
         )
 

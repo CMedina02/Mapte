@@ -37,7 +37,7 @@ class SupportResources:
             ("return_reserve_min", self.return_reserve_min),
         ):
             if not isfinite(value) or value < 0:
-                raise ValueError(f"{name} debe ser finito y no negativo")
+                raise ValueError(f"{name} must be finite and non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,13 +49,13 @@ class OperationalSegment:
 
     def __post_init__(self) -> None:
         if not self.segment_id.strip():
-            raise ValueError("segment_id no puede estar vacío")
+            raise ValueError("segment_id cannot be empty")
         if self.duration_min is not None and (
             not isfinite(self.duration_min) or self.duration_min < 0
         ):
-            raise ValueError("duration_min debe ser finito, no negativo o None")
+            raise ValueError("duration_min must be finite, non-negative or None")
         if self.status is OperationalSegmentStatus.VIABLE and self.duration_min is None:
-            raise ValueError("Un segmento viable requiere una duración conocida")
+            raise ValueError("A viable segment requires a known duration")
 
 
 @dataclass(frozen=True, slots=True)

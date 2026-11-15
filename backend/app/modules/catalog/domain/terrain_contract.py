@@ -794,7 +794,7 @@ class InMemoryTerrainRepository:
 
 def build_synthetic_terrain(
     region_id: str = "mc23-gale-mount-sharp",
-    region_name: str = "Monte Sharp (Aeolis Mons), cráter Gale",
+    region_name: str = "Mount Sharp (Aeolis Mons), Gale crater",
     sector_id: str = "mc23-gale-mount-sharp-synthetic-pilot",
     frame_id: str = "MARS_GALE_MS_LOCAL_V1",
     width_px: int = 32,

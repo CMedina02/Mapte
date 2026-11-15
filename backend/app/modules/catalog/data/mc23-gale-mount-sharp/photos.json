@@ -10,7 +10,7 @@
       "photo_id": "photo-msl-1060-268059",
       "objective_id": "obj-marias-pass-buckskin",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/01060/opgs/edr/ncam/NLB_491598575EDR_F0482542NCAM00226M_.JPG",
-      "camera": "Navcam izquierda (RCE-B)",
+      "camera": "Left Navcam (RCE-B)",
       "sol": 1060,
       "captured_at": "2015-07-31T07:26:30Z",
       "credit": "NASA/JPL-Caltech",
@@ -29,9 +29,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Navcam del sol de perforación de Buckskin.",
-        "La ubicación es la del rover (site/drive 48_2542 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Navcam from the Buckskin drilling sol.",
+        "The location is the rover's (site/drive 48_2542 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",
@@ -42,7 +42,7 @@
       "photo_id": "photo-msl-1060-268053",
       "objective_id": "obj-marias-pass-buckskin",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/01060/opgs/edr/fcam/FLB_491598488EDR_F0482542FHAZ00400M_.JPG",
-      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "camera": "Front left Hazcam (RCE-B)",
       "sol": 1060,
       "captured_at": "2015-07-31T07:25:03Z",
       "credit": "NASA/JPL-Caltech",
@@ -61,9 +61,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Hazcam frontal: espacio de trabajo del brazo en Buckskin.",
-        "La ubicación es la del rover (site/drive 48_2542 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Front Hazcam: arm workspace at Buckskin.",
+        "The location is the rover's (site/drive 48_2542 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",
@@ -74,7 +74,7 @@
       "photo_id": "photo-msl-2224-543711",
       "objective_id": "obj-vrr-highfield",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/ncam/NLA_594936581EDR_F0730550NCAM00309M_.JPG",
-      "camera": "Navcam izquierda (RCE-A)",
+      "camera": "Left Navcam (RCE-A)",
       "sol": 2224,
       "captured_at": "2018-11-08T08:42:51Z",
       "credit": "NASA/JPL-Caltech",
@@ -93,9 +93,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Navcam del sol de perforación de Highfield.",
-        "La ubicación es la del rover (site/drive 73_550 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Navcam from the Highfield drilling sol.",
+        "The location is the rover's (site/drive 73_550 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",
@@ -106,7 +106,7 @@
       "photo_id": "photo-msl-2224-543723",
       "objective_id": "obj-vrr-highfield",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/fcam/FLA_594936755EDR_F0730550FHAZ00337M_.JPG",
-      "camera": "Hazcam frontal izquierda (RCE-A)",
+      "camera": "Front left Hazcam (RCE-A)",
       "sol": 2224,
       "captured_at": "2018-11-08T08:45:46Z",
       "credit": "NASA/JPL-Caltech",
@@ -125,9 +125,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Hazcam frontal: espacio de trabajo del brazo en Highfield.",
-        "La ubicación es la del rover (site/drive 73_550 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Front Hazcam: arm workspace at Highfield.",
+        "The location is the rover's (site/drive 73_550 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",
@@ -138,7 +138,7 @@
       "photo_id": "photo-msl-2370-580044",
       "objective_id": "obj-glen-torridon-aberlady",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02370/opgs/edr/ncam/NLB_607886379EDR_F0751386NCAM00309M_.JPG",
-      "camera": "Navcam izquierda (RCE-B)",
+      "camera": "Left Navcam (RCE-B)",
       "sol": 2370,
       "captured_at": "2019-04-07T05:54:52Z",
       "credit": "NASA/JPL-Caltech",
@@ -157,9 +157,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Navcam del sol de perforación de Aberlady.",
-        "La ubicación es la del rover (site/drive 75_1386 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Navcam from the Aberlady drilling sol.",
+        "The location is the rover's (site/drive 75_1386 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",
@@ -170,7 +170,7 @@
       "photo_id": "photo-msl-2370-580059",
       "objective_id": "obj-glen-torridon-aberlady",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02370/opgs/edr/fcam/FLB_607886624EDR_F0751386FHAZ00337M_.JPG",
-      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "camera": "Front left Hazcam (RCE-B)",
       "sol": 2370,
       "captured_at": "2019-04-07T05:58:57Z",
       "credit": "NASA/JPL-Caltech",
@@ -189,9 +189,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Hazcam frontal: espacio de trabajo en Aberlady.",
-        "La ubicación es la del rover (site/drive 75_1386 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Front Hazcam: workspace at Aberlady.",
+        "The location is the rover's (site/drive 75_1386 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",
@@ -202,7 +202,7 @@
       "photo_id": "photo-msl-2384-582595",
       "objective_id": "obj-glen-torridon-aberlady",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02384/opgs/edr/fcam/FLB_609132715EDR_F0751398FHAZ00337M_.JPG",
-      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "camera": "Front left Hazcam (RCE-B)",
       "sol": 2384,
       "captured_at": "2019-04-21T16:07:20Z",
       "credit": "NASA/JPL-Caltech",
@@ -221,9 +221,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Hazcam frontal del sol de perforación de Kilmarie.",
-        "La ubicación es la del rover (site/drive 75_1398 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Front Hazcam from the Kilmarie drilling sol.",
+        "The location is the rover's (site/drive 75_1398 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",
@@ -234,7 +234,7 @@
       "photo_id": "photo-msl-4219-1346655",
       "objective_id": "obj-gediz-vallis-mammoth-lakes",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/04219/opgs/edr/ncam/NLB_772032056EDR_F1072496NCAM00309M_.JPG",
-      "camera": "Navcam izquierda (RCE-B)",
+      "camera": "Left Navcam (RCE-B)",
       "sol": 4219,
       "captured_at": "2024-06-19T02:21:53Z",
       "credit": "NASA/JPL-Caltech",
@@ -253,9 +253,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Navcam del sol planificado para perforar Mammoth Lakes.",
-        "La ubicación es la del rover (site/drive 107_2496 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Navcam from the sol planned for drilling Mammoth Lakes.",
+        "The location is the rover's (site/drive 107_2496 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",
@@ -266,7 +266,7 @@
       "photo_id": "photo-msl-4219-1346664",
       "objective_id": "obj-gediz-vallis-mammoth-lakes",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/04219/opgs/edr/fcam/FLB_772034139EDR_F1072496FHAZ00337M_.JPG",
-      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "camera": "Front left Hazcam (RCE-B)",
       "sol": 4219,
       "captured_at": "2024-06-19T02:56:36Z",
       "credit": "NASA/JPL-Caltech",
@@ -285,9 +285,9 @@
       },
       "location_quality": "verified",
       "limitations": [
-        "Hazcam frontal: espacio de trabajo en Mammoth Lakes.",
-        "La ubicación es la del rover (site/drive 107_2496 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
-        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+        "Front Hazcam: workspace at Mammoth Lakes.",
+        "The location is the rover's (site/drive 107_2496 labeled in the image and present in the localized waypoints), not the pixel's or the photographed target's.",
+        "Raw image (EDR JPEG) served from NASA; no optimized local copy yet."
       ],
       "evidence_ids": [
         "ev-nasa-msl-raw-images",

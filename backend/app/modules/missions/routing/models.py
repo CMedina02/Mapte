@@ -31,11 +31,11 @@ class RoutePlanningConstraints:
 
     def __post_init__(self) -> None:
         if not isfinite(self.max_slope_deg) or not 0 <= self.max_slope_deg < 90:
-            raise ValueError("max_slope_deg debe ser finito y estar entre 0 y 90")
+            raise ValueError("max_slope_deg must be finite and between 0 and 90")
         if not isfinite(self.speed_m_per_min) or self.speed_m_per_min <= 0:
-            raise ValueError("speed_m_per_min debe ser positivo y finito")
+            raise ValueError("speed_m_per_min must be positive and finite")
         if not isfinite(self.ascent_cost_factor) or self.ascent_cost_factor < 0:
-            raise ValueError("ascent_cost_factor debe ser finito y no negativo")
+            raise ValueError("ascent_cost_factor must be finite and non-negative")
 
 
 @dataclass(frozen=True, slots=True)

@@ -47,17 +47,17 @@ _PRESERVE_ORDER_CODES = frozenset(
 def decide_observation(objective: MissionObjective, finding_code: str) -> ObservationDecision:
     if finding_code not in objective.possible_findings:
         raise InvalidFindingError(
-            f"El hallazgo {finding_code!r} no está permitido para {objective.objective_id!r}"
+            f"Finding {finding_code!r} is not allowed for {objective.objective_id!r}"
         )
     if finding_code not in _PRESERVE_ORDER_CODES:
         raise ObservationRuleNotConfiguredError(
-            f"El hallazgo {finding_code!r} no tiene una regla de adaptación aprobada"
+            f"Finding {finding_code!r} has no approved adaptation rule"
         )
     return ObservationDecision(
         finding_code=finding_code,
         action=ObservationAction.COMPLETE_AND_PRESERVE_ORDER,
         reason=(
-            "Hallazgo registrado con código validado; se conserva el orden restante porque "
-            "no existe una regla científica aprobada para priorizar otro objetivo."
+            "Finding recorded with a validated code; the remaining order is kept because "
+            "there is no approved science rule to prioritize another objective."
         ),
     )

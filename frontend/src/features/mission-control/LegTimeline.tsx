@@ -9,7 +9,7 @@ const verdict = (ok: boolean | null, label: string) =>
   ok === null ? (
     <span className="text-space-500">—</span>
   ) : (
-    <span className={ok ? 'text-green-400' : 'text-alert-400'} aria-label={`${label}: ${ok ? 'sí' : 'no'}`}>
+    <span className={ok ? 'text-green-400' : 'text-alert-400'} aria-label={`${label}: ${ok ? 'yes' : 'no'}`}>
       <Icon name={ok ? 'check' : 'close'} size={18} />
     </span>
   );
@@ -31,7 +31,7 @@ export default function LegTimeline({
   const letters = stopLetters(mission);
   // En los tramos la base es destino ('Base'); en los puntos de decisión es el inicio ('Salida')
   const name = (id: string, start = false) =>
-    id === 'base' ? (start ? 'Salida' : 'Base') : (objectives.find((o) => o.objective_id === id)?.title.split(' — ')[0] ?? id);
+    id === 'base' ? (start ? 'Start' : 'Base') : (objectives.find((o) => o.objective_id === id)?.title.split(' — ')[0] ?? id);
   const points = decisionPoints(mission);
   const excluded = excludedObjectives(mission);
   // Punto límite (lo decide el backend): última parada aceptada cuando quedaron objetivos fuera del plan
@@ -41,7 +41,7 @@ export default function LegTimeline({
     <section className="space-y-5 text-sm">
       {mission.objective_ids.length > 0 && (
         <div className="space-y-2">
-          <h2 className="eyebrow">Recorrido</h2>
+          <h2 className="eyebrow">Route</h2>
         <ol className="card space-y-0 p-0">
           {mission.legs.map((leg, i) => {
             const crossed = exclusionsCrossed(leg.path, hazards).length > 0;
@@ -53,7 +53,7 @@ export default function LegTimeline({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-space-50">{name(leg.end_label)}</span>
                   <span className="block text-xs text-space-400">
-                    {letters[leg.start_label]} a {letters[leg.end_label]}
+                    {letters[leg.start_label]} to {letters[leg.end_label]}
                   </span>
                 </span>
                 {status !== 'viable' && <span className={`chip ${s.cls}`}>{s.label}</span>}
@@ -72,7 +72,7 @@ export default function LegTimeline({
               <p className="flex items-start gap-2">
                 <Icon name="block" size={18} className="mt-px" />
                 <span>
-                  <span className="font-medium">{name(x.objective_id)}</span> no entra en el plan: {shortReason(x.reason)}.
+                  <span className="font-medium">{name(x.objective_id)}</span> is not in the plan: {shortReason(x.reason)}.
                 </span>
               </p>
               {/* Solo el primero: los siguientes se excluyen porque dependen de él */}
@@ -92,15 +92,15 @@ export default function LegTimeline({
 
       {points.length > 1 && (
         <div className="space-y-2">
-          <h2 className="eyebrow">Puntos de decisión</h2>
+          <h2 className="eyebrow">Decision points</h2>
           <div className="card p-0">
             <table className="w-full table-fixed">
               <thead className="text-xs text-space-400">
                 <tr>
-                  <th className="w-[44%] px-4 pt-3 pb-1 text-left font-normal">Parada</th>
-                  <th className="pt-3 pb-1 text-right font-normal">Oxígeno</th>
-                  <th className="pt-3 pb-1 text-center font-normal">Seguir</th>
-                  <th className="pt-3 pb-1 pr-3 text-center font-normal">Volver</th>
+                  <th className="w-[44%] px-4 pt-3 pb-1 text-left font-normal">Stop</th>
+                  <th className="pt-3 pb-1 text-right font-normal">Oxygen</th>
+                  <th className="pt-3 pb-1 text-center font-normal">Continue</th>
+                  <th className="pt-3 pb-1 pr-3 text-center font-normal">Return</th>
                 </tr>
               </thead>
               <tbody>
@@ -112,10 +112,10 @@ export default function LegTimeline({
                     </td>
                     <td className="py-2.5 text-right tabular-nums">{fmtDuration(p.oxygen_left_min)}</td>
                     <td className="py-2.5">
-                      <span className="flex justify-center">{verdict(p.can_continue, 'Seguir')}</span>
+                      <span className="flex justify-center">{verdict(p.can_continue, 'Continue')}</span>
                     </td>
                     <td className="py-2.5 pr-3">
-                      <span className="flex justify-center">{verdict(p.can_return, 'Volver')}</span>
+                      <span className="flex justify-center">{verdict(p.can_return, 'Return')}</span>
                     </td>
                   </tr>
                 ))}
@@ -123,7 +123,7 @@ export default function LegTimeline({
             </table>
           </div>
           {limit && (
-            <p className="px-1 text-xs text-space-400">Desde la parada {letters[limit.stop]} solo es seguro volver a la base.</p>
+            <p className="px-1 text-xs text-space-400">From stop {letters[limit.stop]} it is only safe to return to base.</p>
           )}
         </div>
       )}

@@ -2,7 +2,7 @@
 // No calcula métricas de ruta: distancias, tiempos y pendientes siempre vienen del backend.
 import type { Frame, Position } from '../../../shared/types/contracts';
 
-const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const MARS_RADIUS_M = 3_396_190;
 const M_PER_DEG = (Math.PI * MARS_RADIUS_M) / 180;
 

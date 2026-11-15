@@ -20,10 +20,10 @@ class ResourceEvaluator:
         segments: Sequence[OperationalSegment],
     ) -> ResourceEvaluation:
         if not segments:
-            raise ValueError("Se requiere al menos un segmento operativo")
+            raise ValueError("At least one operational segment is required")
         segment_ids = [segment.segment_id for segment in segments]
         if len(segment_ids) != len(set(segment_ids)):
-            raise ValueError("Los segment_id no pueden repetirse")
+            raise ValueError("segment_id values cannot repeat")
 
         known_consumption = sum(
             segment.duration_min for segment in segments if segment.duration_min is not None
@@ -52,13 +52,13 @@ class ResourceEvaluator:
             reasons.append("SEGMENT_NOT_VIABLE")
         if has_unknown_duration:
             reasons.append("DURATION_UNKNOWN")
-            warnings.append("No se conocen todas las duraciones operativas")
+            warnings.append("Not all operational durations are known")
         if has_unknown_status:
             reasons.append("SEGMENT_STATUS_UNKNOWN")
-            warnings.append("Al menos un segmento depende de información incierta")
+            warnings.append("At least one segment depends on uncertain information")
         if reserve_margin is not None and reserve_margin < 0:
             reasons.append("INSUFFICIENT_RETURN_RESERVE")
-            warnings.append("El soporte restante no conserva la reserva de retorno requerida")
+            warnings.append("Remaining support does not keep the required return reserve")
 
         if has_non_viable_segment or (reserve_margin is not None and reserve_margin < 0):
             status = ResourceEvaluationStatus.NOT_VIABLE
@@ -76,10 +76,10 @@ class ResourceEvaluator:
             reason_codes=tuple(reasons),
             warnings=tuple(warnings),
             assumptions=(
-                "oxygen_available_min representa minutos simulados de soporte EVA restante",
-                "El consumo provisional es 1 minuto de soporte por minuto transcurrido",
-                "return_reserve_min es el margen mínimo que debe permanecer al volver a la base",
-                "No se modelan todavía fisiología, radiación, polvo, temperatura "
-                "ni carga del traje",
+                "oxygen_available_min represents simulated minutes of remaining EVA support",
+                "Provisional consumption is 1 minute of support per elapsed minute",
+                "return_reserve_min is the minimum margin that must remain on return to base",
+                "Physiology, radiation, dust, temperature "
+                "and suit load are not modeled yet",
             ),
         )

@@ -59,13 +59,13 @@ class MissionPlanner:
                 + [f"OBJECTIVE_EXCLUDED:{objective_id}" for objective_id, _, _ in exclusions]
             )
         )
-        ordered_titles = " → ".join(objective.title for objective in objectives) or "sin objetivos"
+        ordered_titles = " → ".join(objective.title for objective in objectives) or "no objectives"
         decisions = [
             MissionDecision(
                 event_type="plan_created",
                 message=(
-                    f"Orden seguro planificado: base → {ordered_titles} → base. "
-                    f"Viabilidad del modelo: {viability.value}."
+                    f"Safe order planned: base → {ordered_titles} → base. "
+                    f"Model viability: {viability.value}."
                 ),
                 evidence_ids=evidence_ids,
             )
@@ -73,7 +73,7 @@ class MissionPlanner:
         decisions.extend(
             MissionDecision(
                 event_type="objective_excluded",
-                message=f"Objetivo {objective_id} excluido: {reason}.",
+                message=f"Objective {objective_id} excluded: {reason}.",
                 evidence_ids=objective.evidence_ids,
             )
             for objective_id, reason, objective in exclusions
@@ -151,19 +151,19 @@ class MissionPlanner:
                 None,
             )
             if failed is not None:
-                reason = f"la ruta {failed.start_label}→{failed.end_label} no es viable"
+                reason = f"the route {failed.start_label}→{failed.end_label} is not viable"
             elif uncertain is not None:
                 reason = (
-                    f"la búsqueda de la ruta {uncertain.start_label}→{uncertain.end_label} "
-                    "alcanzó su límite de cálculo"
+                    f"the route search {uncertain.start_label}→{uncertain.end_label} "
+                    "reached its computation limit"
                     if "ROUTE_SEARCH_LIMIT_REACHED" in uncertain.route.warnings
-                    else f"la ruta {uncertain.start_label}→{uncertain.end_label} "
-                    "depende de terreno desconocido"
+                    else f"the route {uncertain.start_label}→{uncertain.end_label} "
+                    "depends on unknown terrain"
                 )
             elif evaluation.status is ResourceEvaluationStatus.NOT_VIABLE:
-                reason = "no quedan recursos para completar el regreso y conservar la reserva"
+                reason = "not enough resources left to complete the return and keep the reserve"
             elif evaluation.status is ResourceEvaluationStatus.UNKNOWN:
-                reason = "no se puede confirmar el consumo con los datos disponibles"
+                reason = "consumption cannot be confirmed with the available data"
             else:
                 accepted.append(objective)
                 outbound_legs.append(outbound)
@@ -175,7 +175,7 @@ class MissionPlanner:
             exclusions.extend(
                 (
                     later.objective_id,
-                    "omitido porque depende de un objetivo anterior excluido",
+                    "skipped because it depends on an earlier excluded objective",
                     later,
                 )
                 for later in requested[objective_index + 1 :]
@@ -225,11 +225,11 @@ class MissionPlanner:
             objective = self._objectives.get_objective(request.region_id, objective_id)
             if objective is None:
                 raise UnknownObjectiveError(
-                    f"Objetivo desconocido en {request.region_id!r}: {objective_id!r}"
+                    f"Unknown objective in {request.region_id!r}: {objective_id!r}"
                 )
             if objective.position.frame_id != request.base_position.frame_id:
                 raise ValueError(
-                    f"El objetivo {objective_id!r} usa un frame_id distinto al de la base"
+                    f"Objective {objective_id!r} uses a different frame_id than the base"
                 )
             resolved.append(objective)
         return tuple(resolved)

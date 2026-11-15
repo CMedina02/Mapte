@@ -16,7 +16,7 @@ class InMemoryObjectiveRepository:
         for objective in objectives:
             key = (objective.region_id, objective.objective_id)
             if key in self._objectives:
-                raise ValueError(f"Objetivo duplicado: {key!r}")
+                raise ValueError(f"Duplicate objective: {key!r}")
             self._objectives[key] = objective
 
     def get_objective(self, region_id: str, objective_id: str) -> MissionObjective | None:

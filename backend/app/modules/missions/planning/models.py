@@ -30,7 +30,7 @@ class MissionObjective:
 
     def __post_init__(self) -> None:
         if not self.objective_id.strip() or not self.region_id.strip() or not self.title.strip():
-            raise ValueError("objective_id, region_id y title no pueden estar vacíos")
+            raise ValueError("objective_id, region_id and title cannot be empty")
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,20 +45,20 @@ class MissionPlanningRequest:
 
     def __post_init__(self) -> None:
         if not self.region_id.strip():
-            raise ValueError("region_id no puede estar vacío")
+            raise ValueError("region_id cannot be empty")
         if len(self.objective_ids) != len(set(self.objective_ids)):
-            raise ValueError("objective_ids no puede contener duplicados")
+            raise ValueError("objective_ids cannot contain duplicates")
         duration_ids = [objective_id for objective_id, _ in self.activity_durations_min]
         if len(duration_ids) != len(set(duration_ids)):
             raise ValueError("activity_durations_min contiene objective_id duplicados")
         unknown_ids = set(duration_ids).difference(self.objective_ids)
         if unknown_ids:
-            raise ValueError(f"Hay duraciones para objetivos no solicitados: {sorted(unknown_ids)}")
+            raise ValueError(f"Durations given for objectives not requested: {sorted(unknown_ids)}")
         for objective_id, duration_min in self.activity_durations_min:
             if not objective_id.strip() or not isfinite(duration_min) or duration_min < 0:
-                raise ValueError("Las duraciones requieren ID válido y minutos no negativos")
+                raise ValueError("Durations require a valid ID and non-negative minutes")
         if self.return_position and self.return_position.frame_id != self.base_position.frame_id:
-            raise ValueError("return_position debe usar el mismo frame_id que base_position")
+            raise ValueError("return_position must use the same frame_id as base_position")
 
     def activity_duration_for(self, objective_id: str) -> float | None:
         return dict(self.activity_durations_min).get(objective_id)

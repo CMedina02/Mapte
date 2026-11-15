@@ -16,8 +16,8 @@
       "captured_at": null,
       "resolution_m": null,
       "caveats": [
-        "Posición del rover al final de cada drive (RMC site_drive), no del blanco exacto; el blanco queda al alcance del brazo (~2 m).",
-        "Lat/lon planetocéntricas sobre la esfera Mars 2000; proyectadas al marco local con la definición PROJ de MARS_GALE_MS_LOCAL_V1 (verificado con gdaltransform)."
+        "Rover position at the end of each drive (RMC site_drive), not the exact target; the target is within arm's reach (~2 m).",
+        "Planetocentric lat/lon on the Mars 2000 sphere; projected to the local frame with the MARS_GALE_MS_LOCAL_V1 PROJ definition (verified with gdaltransform)."
       ]
     },
     {
@@ -30,7 +30,7 @@
       "captured_at": null,
       "resolution_m": null,
       "caveats": [
-        "Imágenes crudas (EDR JPEG) sin calibrar; no son productos PDS calibrados."
+        "Uncalibrated raw images (EDR JPEG); not calibrated PDS products."
       ]
     },
     {
@@ -65,7 +65,7 @@
       "captured_at": null,
       "resolution_m": null,
       "caveats": [
-        "Fuente secundaria (resumen de la misión); fechas de perforación: Aberlady sol 2370, Kilmarie sol 2384."
+        "Secondary source (mission summary); drilling dates: Aberlady sol 2370, Kilmarie sol 2384."
       ]
     },
     {
@@ -89,7 +89,7 @@
       "captured_at": "2024-06-18",
       "resolution_m": null,
       "caveats": [
-        "El blog planifica la perforación de Mammoth Lakes en el sol 4219; NASA indica que el primer agujero limpio fue 'Mammoth Lakes 2' (sol 4222) tras mover ligeramente el rover."
+        "The blog plans the Mammoth Lakes drilling on sol 4219; NASA reports the first clean hole was 'Mammoth Lakes 2' (sol 4222) after moving the rover slightly."
       ]
     },
     {
@@ -102,7 +102,7 @@
       "captured_at": null,
       "resolution_m": null,
       "caveats": [
-        "Fija la perforación de Buckskin en el sol 1060; Morris et al. (2016) sitúa el inicio de la preparación en el sol 1057. El rover permaneció en site/drive 48_2542 del sol 1057 al 1064."
+        "Dates the Buckskin drilling to sol 1060; Morris et al. (2016) places the start of preparation on sol 1057. The rover stayed at site/drive 48_2542 from sol 1057 to 1064."
       ]
     },
     {
@@ -132,8 +132,8 @@
     {
       "objective_id": "obj-vrr-highfield",
       "region_id": "mc23-gale-mount-sharp",
-      "title": "Vera Rubin Ridge — sitio de perforación Highfield",
-      "description": "Afloramiento gris de la cresta Vera Rubin, perforado por Curiosity en el sol 2224 (8 nov 2018) tras el intento fallido en Inverness por la dureza de la roca.",
+      "title": "Vera Rubin Ridge — Highfield drill site",
+      "description": "Gray outcrop on Vera Rubin Ridge, drilled by Curiosity on sol 2224 (Nov 8, 2018) after the failed attempt at Inverness due to the rock's hardness.",
       "position": {
         "x_m": 3675.0,
         "y_m": 6273.6,
@@ -146,14 +146,14 @@
           "elev_geoid_m": -4146.95
         }
       },
-      "science_question": "¿La resistencia de Vera Rubin Ridge y su hematita se deben a alteración diagenética por agua subterránea y no a una capa de composición distinta?",
+      "science_question": "Are Vera Rubin Ridge's resistance and its hematite due to diagenetic alteration by groundwater rather than a layer of different composition?",
       "priority_weight": 2.0,
       "activities": [
-        "Raspado con el DRT (Dust Removal Tool)",
-        "Perforación y toma de muestra",
-        "Mineralogía con CheMin",
-        "Análisis de gases con SAM",
-        "Imágenes de contexto Mastcam/MAHLI"
+        "Brushing with the DRT (Dust Removal Tool)",
+        "Drilling and sampling",
+        "Mineralogy with CheMin",
+        "Gas analysis with SAM",
+        "Mastcam/MAHLI context imaging"
       ],
       "possible_findings": [
         "HEMATITE_DETECTED",
@@ -170,8 +170,8 @@
     {
       "objective_id": "obj-glen-torridon-aberlady",
       "region_id": "mc23-gale-mount-sharp",
-      "title": "Glen Torridon (unidad con arcillas) — Aberlady y Kilmarie",
-      "description": "Unidad con arcillas al sur de Vera Rubin Ridge; Aberlady se perforó en el sol 2370 y Kilmarie, a ~80 cm, en el sol 2384. CheMin midió las mayores abundancias de arcilla de la misión hasta ese momento.",
+      "title": "Glen Torridon (clay-bearing unit) — Aberlady and Kilmarie",
+      "description": "Clay-bearing unit south of Vera Rubin Ridge; Aberlady was drilled on sol 2370 and Kilmarie, ~80 cm away, on sol 2384. CheMin measured the highest clay abundances of the mission up to that point.",
       "position": {
         "x_m": 4034.4,
         "y_m": 6417.9,
@@ -184,13 +184,13 @@
           "elev_geoid_m": -4157.94
         }
       },
-      "science_question": "¿Qué abundancia de minerales arcillosos conserva la unidad de Glen Torridon y qué indica sobre la persistencia del antiguo lago de Gale?",
+      "science_question": "How abundant are the clay minerals preserved in the Glen Torridon unit, and what does that say about the persistence of Gale's ancient lake?",
       "priority_weight": 3.0,
       "activities": [
-        "Perforación y toma de muestra",
-        "Mineralogía con CheMin",
-        "Prueba de gases desprendidos con SAM",
-        "Química con ChemCam/APXS"
+        "Drilling and sampling",
+        "Mineralogy with CheMin",
+        "Evolved gas test with SAM",
+        "Chemistry with ChemCam/APXS"
       ],
       "possible_findings": [
         "CLAY_MINERALS_DETECTED",
@@ -205,8 +205,8 @@
     {
       "objective_id": "obj-gediz-vallis-mammoth-lakes",
       "region_id": "mc23-gale-mount-sharp",
-      "title": "Canal Gediz Vallis — perforación Mammoth Lakes (azufre elemental)",
-      "description": "Campo de rocas claras en el canal Gediz Vallis donde Curiosity rompió una roca (30 may 2024) y expuso cristales de azufre elemental; la perforación se hizo en la roca cercana 'Mammoth Lakes' (18 jun 2024).",
+      "title": "Gediz Vallis channel — Mammoth Lakes drilling (elemental sulfur)",
+      "description": "Field of light-toned rocks in the Gediz Vallis channel where Curiosity cracked a rock (May 30, 2024) and exposed elemental sulfur crystals; drilling was done on the nearby rock 'Mammoth Lakes' (Jun 18, 2024).",
       "position": {
         "x_m": 5523.3,
         "y_m": 2882.8,
@@ -219,13 +219,13 @@
           "elev_geoid_m": -3688.18
         }
       },
-      "science_question": "¿Cómo se formó el azufre elemental del canal Gediz Vallis, en condiciones que no se asociaban con la historia de este lugar?",
+      "science_question": "How did the elemental sulfur in the Gediz Vallis channel form, under conditions not associated with this site's history?",
       "priority_weight": 3.0,
       "activities": [
-        "Perforación y toma de muestra",
-        "Química con APXS/ChemCam",
-        "Mineralogía con CheMin",
-        "Panorámica Mastcam del campo de rocas"
+        "Drilling and sampling",
+        "Chemistry with APXS/ChemCam",
+        "Mineralogy with CheMin",
+        "Mastcam panorama of the rock field"
       ],
       "possible_findings": [
         "ELEMENTAL_SULFUR_DETECTED",
@@ -241,8 +241,8 @@
     {
       "objective_id": "obj-marias-pass-buckskin",
       "region_id": "mc23-gale-mount-sharp",
-      "title": "Marias Pass — perforación Buckskin (sílice y tridimita)",
-      "description": "Afloramiento de la formación Murray en Marias Pass, con alto contenido en sílice (~74 % en peso de SiO2), perforado en el sol 1060 (31 jul 2015). CheMin identificó tridimita, un mineral de sílice que se forma a alta temperatura y que no se había encontrado antes en Marte.",
+      "title": "Marias Pass — Buckskin drilling (silica and tridymite)",
+      "description": "Murray formation outcrop at Marias Pass with high silica content (~74 wt% SiO2), drilled on sol 1060 (Jul 31, 2015). CheMin identified tridymite, a high-temperature silica mineral never before found on Mars.",
       "position": {
         "x_m": 3245.3,
         "y_m": 9859.0,
@@ -255,13 +255,13 @@
           "elev_geoid_m": -4446.831
         }
       },
-      "science_question": "¿La tridimita de Buckskin procede de vulcanismo silícico en la cuenca del lago de Gale o de otro proceso de alteración?",
+      "science_question": "Does Buckskin's tridymite come from silicic volcanism in the Gale lake basin or from another alteration process?",
       "priority_weight": 2.0,
       "activities": [
-        "Perforación y toma de muestra",
-        "Mineralogía con CheMin",
-        "Química con APXS",
-        "Imágenes de contexto Mastcam/MAHLI"
+        "Drilling and sampling",
+        "Mineralogy with CheMin",
+        "Chemistry with APXS",
+        "Mastcam/MAHLI context imaging"
       ],
       "possible_findings": [
         "TRIDYMITE_DETECTED",

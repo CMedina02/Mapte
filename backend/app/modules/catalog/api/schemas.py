@@ -158,7 +158,7 @@ class TerrainManifestSchema(BaseModel):
     def _validate_heightmap_url(cls, value: str) -> str:
         expected_prefix = f"{ASSETS_URL_PREFIX}/"
         if not value.startswith(expected_prefix):
-            raise ValueError(f"heightmap_url debe iniciar con {expected_prefix!r}.")
+            raise ValueError(f"heightmap_url must start with {expected_prefix!r}.")
         if not value.endswith(".f32"):
             raise ValueError("heightmap_url debe apuntar a un archivo '.f32'.")
         return value
@@ -168,7 +168,7 @@ class TerrainManifestSchema(BaseModel):
     def _validate_optional_asset_url(cls, value: str | None) -> str | None:
         expected_prefix = f"{ASSETS_URL_PREFIX}/"
         if value is not None and not value.startswith(expected_prefix):
-            raise ValueError(f"La URL del asset debe iniciar con {expected_prefix!r}.")
+            raise ValueError(f"The asset URL must start with {expected_prefix!r}.")
         return value
 
     @classmethod
@@ -290,7 +290,7 @@ class ObjectiveSchema(BaseModel):
     position: PositionSchema
     science_question: str = Field(min_length=1)
     priority_weight: float = Field(
-        ge=0, description="Parámetro del escenario de misión; no es una puntuación de NASA."
+        ge=0, description="Mission scenario parameter; not a NASA score."
     )
     activities: list[str]
     possible_findings: list[str]

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Constraints, Mission, Position, RouteResult } from './types/contracts';
 import { marsApi } from './api/client';
+import { reasonKind } from './mission';
 
 export type ExcludedRoute = { out: RouteResult; back: RouteResult } | 'error' | null;
 
@@ -9,8 +10,9 @@ export const RELAXED_SLOPE = 35;
 
 // Se afloja solo el parámetro que hizo fallar el objetivo (según el motivo del backend)
 export function relaxedConstraints(reason: string, c: Constraints): Constraints {
-  if (reason.includes('no es viable')) return { ...c, max_slope_deg: Math.max(c.max_slope_deg, RELAXED_SLOPE), avoid_unknown: false };
-  if (reason.includes('desconocido')) return { ...c, avoid_unknown: false };
+  const kind = reasonKind(reason);
+  if (kind === 'slope') return { ...c, max_slope_deg: Math.max(c.max_slope_deg, RELAXED_SLOPE), avoid_unknown: false };
+  if (kind === 'unknown') return { ...c, avoid_unknown: false };
   return c;
 }
 
@@ -22,7 +24,7 @@ export function useExcludedRoute(
   constraints: Constraints,
 ): ExcludedRoute {
   const [route, setRoute] = useState<ExcludedRoute>(null);
-  const enabled = !!target && !target.reason.includes('consumo');
+  const enabled = !!target && reasonKind(target.reason) !== 'consumption';
 
   useEffect(() => {
     if (!enabled || !target) return;

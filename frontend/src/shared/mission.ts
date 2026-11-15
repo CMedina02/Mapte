@@ -63,9 +63,11 @@ export function missionRoute(mission: Mission): RouteResult {
 }
 
 // Letra de cada parada para identificar los tramos: base = A, objetivos en orden = B, C, …
+// Un tramo recalculado desde un punto libre del radar sale de «You».
 export function stopLetters(mission: Mission): Record<string, string> {
   return Object.fromEntries([
     ['base', 'A'],
+    ['current_position', 'You'],
     ...mission.objective_ids.map((id, i) => [id, String.fromCharCode(66 + i)]),
   ]);
 }
@@ -90,7 +92,7 @@ export function excludedObjectives(mission: Mission): ExcludedObjective[] {
     .map((a) => {
       const id = a.slice(prefix.length);
       const msg = mission.decision_log.find((d) => d.event_type === 'objective_excluded' && d.message.includes(id))?.message;
-      return { objective_id: id, reason: msg?.split('excluido: ')[1]?.replace(/\.$/, '') ?? 'sin motivo registrado' };
+      return { objective_id: id, reason: msg?.split(/excluded: |excluido: /)[1]?.replace(/\.$/, '') ?? 'no reason recorded' };
     });
 }
 
@@ -118,21 +120,31 @@ export function decisionPoints(mission: Mission): DecisionPoint[] {
   });
 }
 
+// Tipo de motivo del backend (acepta también los textos en español de misiones guardadas antes)
+export type ReasonKind = 'resources' | 'previous' | 'slope' | 'unknown' | 'consumption' | 'limit';
+export function reasonKind(r: string): ReasonKind | null {
+  if (/resources|recursos/.test(r)) return 'resources';
+  if (/earlier excluded|anterior excluido/.test(r)) return 'previous';
+  if (/not viable|no es viable/.test(r)) return 'slope';
+  if (/unknown terrain|desconocido/.test(r)) return 'unknown';
+  if (/consumption|consumo/.test(r)) return 'consumption';
+  if (/limit|límite/.test(r)) return 'limit';
+  return null;
+}
+
 // Motivos del backend en pocas palabras
-export const shortReason = (r: string) =>
-  r.includes('recursos')
-    ? 'no alcanza el oxígeno para volver con reserva'
-    : r.includes('anterior excluido')
-      ? 'depende de un objetivo anterior'
-      : r.includes('no es viable')
-        ? 'no hay un camino seguro'
-        : r.includes('desconocido')
-          ? 'el camino cruza terreno sin datos'
-          : r.includes('consumo')
-            ? 'falta el tiempo de trabajo'
-            : r.includes('límite')
-              ? 'el cálculo no terminó'
-              : r;
+const SHORT_REASON: Record<ReasonKind, string> = {
+  resources: 'not enough oxygen to return with reserve',
+  previous: 'depends on an earlier objective',
+  slope: 'no safe path',
+  unknown: 'the path crosses terrain with no data',
+  consumption: 'work time is missing',
+  limit: 'the calculation did not finish',
+};
+export const shortReason = (r: string) => {
+  const k = reasonKind(r);
+  return k ? SHORT_REASON[k] : r;
+};
 
 // Punto dentro de polígono (ray casting) en el marco local
 function insidePolygon(p: Position, poly: Position[]): boolean {

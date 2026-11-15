@@ -181,9 +181,9 @@ def test_unknown_objective_and_invalid_request_are_rejected() -> None:
     with pytest.raises(UnknownObjectiveError):
         planner().plan(invalid_objective)
 
-    with pytest.raises(ValueError, match="duplicados"):
+    with pytest.raises(ValueError, match="duplicates"):
         replace(request(), objective_ids=("obj-a", "obj-a"))
-    with pytest.raises(ValueError, match="no solicitados"):
+    with pytest.raises(ValueError, match="not requested"):
         replace(request(), activity_durations_min=(("other", 10),))
 
 
@@ -445,6 +445,12 @@ def test_active_mission_can_complete_after_all_objectives(tmp_path) -> None:
     assert observed.completed_objective_ids == ["obj-a"]
     assert observed.viability_status == "unknown"
     assert completed.mission_version == 5
+    # Al cerrar la caminata el astronauta queda en la base (antes seguía en el último objetivo)
+    assert completed.current_position is not None
+    assert (completed.current_position.x_m, completed.current_position.y_m) == (
+        completed.return_position.x_m,
+        completed.return_position.y_m,
+    )
     assert completed.lifecycle_status == "completed"
 
 
