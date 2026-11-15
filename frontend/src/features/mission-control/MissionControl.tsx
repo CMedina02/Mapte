@@ -39,6 +39,8 @@ export default function MissionControl({ mission, onMission }: Props) {
   const [tab, setTab] = useState<Tab>('plan');
   // Solicitud del último plan hecho aquí: con ella se explica qué parámetro faltó a un objetivo excluido
   const [planReq, setPlanReq] = useState<{ id: string; req: MissionPlanRequest } | null>(null);
+  // Ruta que haría falta para el objetivo excluido (en rojo), de la misión que la calculó
+  const [failed, setFailed] = useState<{ id: string; paths: Position[][] } | null>(null);
 
   useEffect(() => {
     marsApi
@@ -153,6 +155,7 @@ export default function MissionControl({ mission, onMission }: Props) {
             onMapClick={setBase}
             route={mission ? missionRoute(mission) : null}
             legs={mission?.legs}
+            failedPaths={failed && failed.id === mission?.mission_id ? failed.paths : undefined}
             stopLetters={mission ? stopLetters(mission) : undefined}
             here={mission?.current_position}
           />
@@ -165,7 +168,7 @@ export default function MissionControl({ mission, onMission }: Props) {
       {mission && (
         <aside className="order-4 w-full space-y-6 border-t border-space-800 p-3 sm:p-4 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-96">
           <RouteDetails mission={mission} hazards={manifest?.hazards} />
-          <LegTimeline mission={mission} objectives={objectives} hazards={manifest?.hazards} request={planReq?.id === mission.mission_id ? planReq.req : null} />
+          <LegTimeline mission={mission} objectives={objectives} hazards={manifest?.hazards} onFailedPaths={(paths) => setFailed({ id: mission.mission_id, paths })} request={planReq?.id === mission.mission_id ? planReq.req : null} />
           <DecisionLog mission={mission} objectives={objectives} />
         </aside>
       )}

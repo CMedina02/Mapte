@@ -36,16 +36,21 @@ interface Props {
   pendingBase?: Position | null;
   // Tramos de una multirruta (A→B, B→C, C→A): cada uno con su color. Si se dan, sustituyen a `route`.
   legs?: { path: Position[]; status: RouteStatus }[];
+  // Caminos que no se pueden recorrer con los parámetros actuales: se dibujan en rojo como referencia
+  failedPaths?: Position[][];
   // Letra de cada parada ('base' u objective_id) para identificar los tramos
   stopLetters?: Record<string, string>;
   // Globo de información anclado a un punto del mapa
   pin?: { position: Position; content: ReactNode } | null;
 }
 
+const FAILED_COLOR = '#fc3d21';
+const failedStyle = new Style({ stroke: new Stroke({ color: FAILED_COLOR, width: 3, lineDash: [10, 6] }) });
+// Un tramo no viable se dibuja en rojo, sea cual sea su color de tramo
 const legStyle = (color: string, status: RouteStatus) =>
   new Style({
     stroke: new Stroke({
-      color,
+      color: status === 'not_viable' ? FAILED_COLOR : color,
       width: 3,
       lineDash: status === 'viable' ? undefined : status === 'not_viable' ? [2, 6] : [8, 6],
     }),
@@ -148,6 +153,7 @@ export default function MarsMap({
   here,
   pendingBase,
   legs,
+  failedPaths,
   stopLetters,
   pin,
 }: Props) {
@@ -300,6 +306,12 @@ export default function MarsMap({
 
   useEffect(() => {
     routeSource.current?.clear();
+    for (const path of failedPaths ?? []) {
+      if (path.length < 2) continue;
+      const f = new Feature(new LineString(path.map((p) => [p.x_m, p.y_m])));
+      f.setStyle(failedStyle);
+      routeSource.current?.addFeature(f);
+    }
     if (!route || route.path.length < 2) return;
     const frameId = manifest.frame.frame_id;
     if (route.path.some((p) => p.frame_id !== frameId)) {
@@ -318,7 +330,7 @@ export default function MarsMap({
     const f = new Feature(new LineString(route.path.map((p) => [p.x_m, p.y_m])));
     f.setStyle(routeStyle(route.status));
     routeSource.current?.addFeature(f);
-  }, [route, legs, manifest]);
+  }, [route, legs, failedPaths, manifest]);
   return (
     <>
       <div ref={targetRef} className="h-full w-full cursor-crosshair" />

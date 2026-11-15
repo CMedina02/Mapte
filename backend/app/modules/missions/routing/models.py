@@ -14,6 +14,14 @@ class RouteNotFoundError(ValueError):
     """No route satisfies the requested safety constraints."""
 
 
+class RouteSearchLimitError(ValueError):
+    """The search hit its expansion budget before proving a route exists or not."""
+
+    def __init__(self, message: str, expanded_nodes: int) -> None:
+        super().__init__(message)
+        self.expanded_nodes = expanded_nodes
+
+
 @dataclass(frozen=True, slots=True)
 class RoutePlanningConstraints:
     max_slope_deg: float = 15.0

@@ -1,11 +1,12 @@
 """Mission hazard reports layered over the immutable catalog terrain."""
 
 import json
+from array import array
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import StrEnum
 from functools import lru_cache
-from math import floor, isfinite
+from math import ceil, floor, inf, isfinite
 from pathlib import Path
 
 from app.modules.catalog.domain import DataQuality, TerrainRepository
@@ -21,6 +22,36 @@ from app.modules.missions.terrain.models import (
 )
 
 _CELL_CACHE_LIMIT = 100_000
+
+# Estado de cada celda en la rejilla de búsqueda (mismo orden que la combinación conservadora de
+# apply_restrictions: bloqueado domina a desconocido, que domina a transitable)
+GRID_TRAVERSABLE = 0
+GRID_UNKNOWN = 1
+GRID_BLOCKED = 2
+
+
+@dataclass(frozen=True, slots=True)
+class RoutingGrid:
+    """Terreno + calidad + zonas del catálogo + reportes, precalculado por celda para el A*.
+
+    Índice plano = fila * width + columna. Misma regla que sample_cell, sin crear objetos.
+    """
+
+    width: int
+    height: int
+    elevations: array  # 'f'; NaN/inf = sin dato
+    status: bytearray  # GRID_TRAVERSABLE | GRID_UNKNOWN | GRID_BLOCKED
+    multipliers: array  # 'f'; multiplicador de costo (>= 1)
+    # Cajas (fila0, col0, fila1, col1) fuera de las cuales el multiplicador es 1 (precaución
+    # y reportes): así la rejilla gruesa no recorre toda la fina.
+    cost_boxes: tuple[tuple[int, int, int, int], ...] = ()
+
+
+# Rejilla base por terreno (sin reportes del astronauta): se construye una vez por proceso y región.
+# Se guarda también el objeto terreno para que su id() no se reutilice mientras esté en caché, y la
+# caché de rutas calculadas sobre ese terreno (se descarta junto con la rejilla).
+_BASE_GRIDS: dict[tuple[int, str, str], tuple[object, RoutingGrid, OrderedDict]] = {}
+_BASE_GRID_LIMIT = 4
 _CATALOG_DATA = Path(__file__).resolve().parents[2] / "catalog" / "data"
 
 
@@ -55,7 +86,7 @@ class StaticHazardZone:
 @lru_cache(maxsize=16)
 def load_static_hazards(region_id: str) -> tuple[StaticHazardZone, ...]:
     """Hazard zones published with the region catalog (empty if the region has none)."""
-    # ponytail: lee el JSON del catálogo directamente; pasar por el repositorio de catálogo si se versiona aparte
+    # ponytail: lee el JSON del catálogo directamente; usar el repositorio si se versiona aparte
     path = _CATALOG_DATA / region_id / "hazards.json"
     if not path.exists():
         return ()
@@ -135,6 +166,135 @@ class MissionHazardOverlay:
     @property
     def has_static_hazards(self) -> bool:
         return bool(self._static_zones)
+
+    def routing_grid(self) -> RoutingGrid:
+        """Rejilla precalculada para el buscador (base en caché + reportes de esta misión)."""
+        grid = getattr(self, "_routing_grid", None)
+        if grid is None:
+            grid = self._base_grid()
+            if self._reports:
+                grid = self._apply_reports(grid)
+            self._routing_grid = grid
+        return grid
+
+    def _box_rows_cols(
+        self, x0: float, y0: float, x1: float, y1: float
+    ) -> tuple[int, int, int, int]:
+        """(fila0, col0, fila1, col1) que cubren el rectángulo con una celda de margen."""
+        g = self._grid
+        c0 = max(floor((x0 - g.origin_center_x_m) / g.pixel_size_x_m) - 1, 0)
+        c1 = min(ceil((x1 - g.origin_center_x_m) / g.pixel_size_x_m) + 1, g.width_px - 1)
+        r0 = max(floor((g.origin_center_y_m - y1) / g.pixel_size_y_m) - 1, 0)
+        r1 = min(ceil((g.origin_center_y_m - y0) / g.pixel_size_y_m) + 1, g.height_px - 1)
+        return r0, c0, r1, c1
+
+    def _cells_in_box(self, x0: float, y0: float, x1: float, y1: float):
+        """Celdas cuyo centro puede caer en el rectángulo (con una celda de margen)."""
+        g = self._grid
+        r0, c0, r1, c1 = self._box_rows_cols(x0, y0, x1, y1)
+        for row in range(r0, r1 + 1):
+            y = g.origin_center_y_m - row * g.pixel_size_y_m
+            for col in range(c0, c1 + 1):
+                yield row, col, g.origin_center_x_m + col * g.pixel_size_x_m, y
+
+    def _base_grid(self) -> RoutingGrid:
+        key = (id(self._terrain), self._region_id, self.terrain_version)
+        cached = _BASE_GRIDS.get(key)
+        if cached is not None:
+            return cached[1]
+        return self._build_base_grid(key)
+
+    def route_cache(self) -> OrderedDict:
+        """Rutas ya calculadas sobre este terreno (la clave debe incluir self.version)."""
+        self._base_grid()
+        return _BASE_GRIDS[(id(self._terrain), self._region_id, self.terrain_version)][2]
+
+    def _build_base_grid(self, key: tuple[int, str, str]) -> RoutingGrid:
+
+        g = self._grid
+        width, height = g.width_px, g.height_px
+        n = width * height
+        terrain = self._terrain
+        elevations = terrain.elevations_m
+        if not isinstance(elevations, array) or elevations.typecode != "f":
+            elevations = array("f", elevations)
+
+        # Sin dato o bloqueado en el catálogo → bloqueado (igual que sample_cell: NODATA / BLOCKED)
+        status = bytearray(n)
+        if (
+            getattr(terrain, "_explicit_valid", None) is None
+            and getattr(terrain, "_blocked", None) is None
+        ):
+            for i, value in enumerate(elevations):
+                if not -inf < value < inf:
+                    status[i] = GRID_BLOCKED
+        else:
+            for i in range(n):
+                if terrain.is_blocked_at(i):
+                    status[i] = GRID_BLOCKED
+
+        # Calidad desconocida (el centro de la celda dentro de la zona)
+        for zone in self._metadata.quality_zones:
+            if zone.quality is not DataQuality.UNKNOWN:
+                continue
+            e = zone.extent_m
+            for row, col, x, y in self._cells_in_box(e.x_min_m, e.y_min_m, e.x_max_m, e.y_max_m):
+                i = row * width + col
+                if status[i] == GRID_TRAVERSABLE and e.contains(x, y):
+                    status[i] = GRID_UNKNOWN
+
+        # Zonas del catálogo: exclusión bloquea; precaución sube el costo
+        multipliers = array("f", [1.0]) * n
+        for zone, (x0, y0, x1, y1) in self._static_zones:
+            for row, col, x, y in self._cells_in_box(x0, y0, x1, y1):
+                if not (x0 <= x <= x1 and y0 <= y <= y1) or not zone.contains(x, y):
+                    continue
+                i = row * width + col
+                if zone.kind == "exclusion":
+                    status[i] = GRID_BLOCKED
+                elif zone.cost_multiplier > multipliers[i]:
+                    multipliers[i] = zone.cost_multiplier
+
+        cost_boxes = tuple(
+            self._box_rows_cols(*bbox)
+            for zone, bbox in self._static_zones
+            if zone.kind != "exclusion"
+        )
+        grid = RoutingGrid(width, height, elevations, status, multipliers, cost_boxes)
+        if len(_BASE_GRIDS) >= _BASE_GRID_LIMIT:
+            _BASE_GRIDS.pop(next(iter(_BASE_GRIDS)))
+        _BASE_GRIDS[key] = (terrain, grid, OrderedDict())
+        return grid
+
+    def _apply_reports(self, base: RoutingGrid) -> RoutingGrid:
+        status = bytearray(base.status)
+        multipliers = array("f", base.multipliers)
+        width = base.width
+        for report in self._reports:
+            r = report.affected_radius_m
+            px, py = report.position.x_m, report.position.y_m
+            for row, col, _x, _y in self._cells_in_box(px - r, py - r, px + r, py + r):
+                if not self._report_affects_cell(report, GridCell(row, col)):
+                    continue
+                i = row * width + col
+                if report.effect is HazardEffect.BLOCKED:
+                    status[i] = GRID_BLOCKED
+                elif report.effect is HazardEffect.UNKNOWN:
+                    status[i] = max(status[i], GRID_UNKNOWN)
+                if report.cost_multiplier > multipliers[i]:
+                    multipliers[i] = report.cost_multiplier
+        boxes = tuple(
+            self._box_rows_cols(
+                report.position.x_m - report.affected_radius_m,
+                report.position.y_m - report.affected_radius_m,
+                report.position.x_m + report.affected_radius_m,
+                report.position.y_m + report.affected_radius_m,
+            )
+            for report in self._reports
+        )
+        return RoutingGrid(
+            base.width, base.height, base.elevations, status, multipliers, base.cost_boxes + boxes
+        )
 
     @property
     def region_id(self) -> str:

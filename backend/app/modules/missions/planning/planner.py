@@ -139,24 +139,25 @@ class MissionPlanner:
             )
 
             failed = next(
-                (leg for leg in candidate_legs if leg.route.status is RouteOutcomeStatus.NOT_VIABLE),
-                None,
-            )
-            uncertain = next(
                 (
                     leg
                     for leg in candidate_legs
-                    if leg.route.status is RouteOutcomeStatus.UNKNOWN
+                    if leg.route.status is RouteOutcomeStatus.NOT_VIABLE
                 ),
                 None,
             )
+            uncertain = next(
+                (leg for leg in candidate_legs if leg.route.status is RouteOutcomeStatus.UNKNOWN),
+                None,
+            )
             if failed is not None:
-                reason = (
-                    f"la ruta {failed.start_label}→{failed.end_label} no es viable"
-                )
+                reason = f"la ruta {failed.start_label}→{failed.end_label} no es viable"
             elif uncertain is not None:
                 reason = (
-                    f"la ruta {uncertain.start_label}→{uncertain.end_label} "
+                    f"la búsqueda de la ruta {uncertain.start_label}→{uncertain.end_label} "
+                    "alcanzó su límite de cálculo"
+                    if "ROUTE_SEARCH_LIMIT_REACHED" in uncertain.route.warnings
+                    else f"la ruta {uncertain.start_label}→{uncertain.end_label} "
                     "depende de terreno desconocido"
                 )
             elif evaluation.status is ResourceEvaluationStatus.NOT_VIABLE:
@@ -172,7 +173,11 @@ class MissionPlanner:
 
             exclusions.append((objective.objective_id, reason, objective))
             exclusions.extend(
-                (later.objective_id, "omitido porque depende de un objetivo anterior excluido", later)
+                (
+                    later.objective_id,
+                    "omitido porque depende de un objetivo anterior excluido",
+                    later,
+                )
                 for later in requested[objective_index + 1 :]
             )
             break

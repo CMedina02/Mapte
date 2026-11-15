@@ -20,6 +20,8 @@ from app.modules.missions.planning import (
     ObjectiveRepository,
     objective_repository_from_catalogs,
 )
+from app.modules.missions.routing.coarse import coarse_grid
+from app.modules.missions.terrain import MissionHazardOverlay
 
 DATA_ROOT_ENV = "MAPTE_DATA_ROOT"
 ACTIVE_REGION_ENV = "MAPTE_ACTIVE_REGION"
@@ -70,6 +72,13 @@ def create_app(
         store = catalog_store or _load_configured_catalog()
         application.state.catalog_store = store
         application.state.terrain_repository = store.terrain_repository
+        if catalog_store is None:
+            # Rejillas del buscador (4 m y 20 m): se precalculan al arrancar (~1.7 s/región),
+            # no en la primera ruta que pida un usuario
+            for region_id in store.region_ids():
+                coarse_grid(
+                    MissionHazardOverlay(store.terrain_repository, region_id).routing_grid()
+                )
         loaded_objectives = objective_repository
         if loaded_objectives is None and catalog_store is None:
             science_catalogs = [

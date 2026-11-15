@@ -20,6 +20,7 @@ import ElevationProfile from './nav/ElevationProfile';
 import { bearingDeg, norm360, samePlace } from './nav/geo';
 import { compassAvailable, useDeviceCompass } from './nav/useDeviceCompass';
 import { activeMissionLeg, excludedObjectives, exclusionsCrossed, missionRoute, shortReason } from '../../shared/mission';
+import { excludedPaths, useExcludedRoute } from '../../shared/useExcludedRoute';
 
 // three.js pesa: se descarga solo al abrir la vista 3D
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
@@ -125,6 +126,17 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       : []),
     ...(custom ? [{ id: 'custom', title: 'Punto marcado', position: custom, recommended: false }] : []),
   ];
+  // Ruta que haría falta para el primer objetivo fuera del plan: en rojo en el radar y en el mapa
+  const firstExcluded = excludedObjectives(mission)[0];
+  const excludedObj = firstExcluded && pkg.objectives.find((o) => o.objective_id === firstExcluded.objective_id);
+  const failedPaths = excludedPaths(
+    useExcludedRoute(
+      mission,
+      excludedObj ? { objective_id: excludedObj.objective_id, position: excludedObj.position, reason: firstExcluded.reason } : null,
+      mission.routing_constraints ?? EVA_CONSTRAINTS,
+    ),
+  );
+
   // Objetivos que el plan dejó fuera: se muestran bloqueados con su motivo, como en el panel
   const unreachable: Destination[] = excludedObjectives(mission).flatMap((x) => {
     const o = pkg.objectives.find((ob) => ob.objective_id === x.objective_id);
@@ -250,6 +262,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       focus={[here, dest.position, ...shownRoute.path]}
       onMapClick={picker ? pickNear : undefined}
       here={here}
+      failedPaths={failedPaths}
       pin={picker ? pin : null}
     />
   );
@@ -370,6 +383,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
               heading={view3d ? heading : null}
               imagery={imagery}
               unknownZones={manifest.terrain?.quality_zones?.filter((z) => z.quality === 'unknown')}
+              failedPaths={failedPaths}
             />
             <span
               aria-hidden="true"

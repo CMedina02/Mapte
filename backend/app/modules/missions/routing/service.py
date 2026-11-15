@@ -10,6 +10,7 @@ from app.modules.missions.routing.models import (
     PlannedRoute,
     RouteNotFoundError,
     RoutePlanningConstraints,
+    RouteSearchLimitError,
 )
 from app.modules.missions.routing.planner import AStarRoutePlanner
 from app.modules.missions.terrain import (
@@ -40,6 +41,14 @@ class RouteComputation:
     assumptions: tuple[str, ...]
 
 
+# Rutas repetidas (panel y visor piden la misma, replanes, tramos de regreso) se sirven de caché
+_ROUTE_CACHE_LIMIT = 256
+_LIMIT_ASSUMPTION = "La búsqueda alcanzó su límite de cálculo sin confirmar si existe una ruta"
+_NO_ROUTE_ASSUMPTION = (
+    "No se encontró una ruta ni siquiera permitiendo datos de calidad desconocida"
+)
+
+
 class RouteApplicationService:
     def __init__(
         self,
@@ -48,6 +57,15 @@ class RouteApplicationService:
     ) -> None:
         self._repository = terrain_repository
         self._reports = reports
+        self._overlays: dict[str, MissionHazardOverlay] = {}
+
+    def _overlay(self, region_id: str) -> MissionHazardOverlay:
+        # Una vista por región y servicio: un plan calcula varios tramos sobre los mismos reportes
+        overlay = self._overlays.get(region_id)
+        if overlay is None:
+            overlay = MissionHazardOverlay(self._repository, region_id, self._reports)
+            self._overlays[region_id] = overlay
+        return overlay
 
     def compute(
         self,
@@ -56,43 +74,80 @@ class RouteApplicationService:
         end: LocalPosition,
         constraints: RoutePlanningConstraints,
     ) -> RouteComputation:
+        terrain = self._overlay(region_id)
+        cache = terrain.route_cache()
+        key = (
+            terrain.version,
+            start.x_m,
+            start.y_m,
+            start.frame_id,
+            end.x_m,
+            end.y_m,
+            end.frame_id,
+            constraints,
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            cache.move_to_end(key)
+            return replace(cached, route_id=str(uuid4()))
+        result = self._compute(region_id, terrain, start, end, constraints)
+        cache[key] = result
+        if len(cache) > _ROUTE_CACHE_LIMIT:
+            cache.popitem(last=False)
+        return result
+
+    def _compute(
+        self,
+        region_id: str,
+        terrain: MissionHazardOverlay,
+        start: LocalPosition,
+        end: LocalPosition,
+        constraints: RoutePlanningConstraints,
+    ) -> RouteComputation:
         metadata = self._repository.get_metadata(region_id)
-        terrain = MissionHazardOverlay(self._repository, region_id, self._reports)
         planner = AStarRoutePlanner(terrain)
 
         route: PlannedRoute | None = None
-        strict_failure: InvalidRouteEndpointError | RouteNotFoundError | None = None
+        strict_failure: Exception | None = None
         try:
             route = planner.plan(start, end, constraints)
-        except (InvalidRouteEndpointError, RouteNotFoundError) as exc:
+        except (InvalidRouteEndpointError, RouteNotFoundError, RouteSearchLimitError) as exc:
             strict_failure = exc
+        limit_reached = isinstance(strict_failure, RouteSearchLimitError)
 
         used_unknown_fallback = False
-        if route is None and constraints.avoid_unknown:
+        if route is None and constraints.avoid_unknown and not limit_reached:
             try:
                 route = planner.plan(start, end, replace(constraints, avoid_unknown=False))
                 used_unknown_fallback = True
             except (InvalidRouteEndpointError, RouteNotFoundError):
                 pass
+            except RouteSearchLimitError:
+                limit_reached = True
 
         if route is None:
             if isinstance(strict_failure, InvalidRouteEndpointError):
                 raise strict_failure
+            # Tope de búsqueda: no se probó que no exista ruta → desconocido, nunca "no viable"
             return RouteComputation(
                 route_id=str(uuid4()),
                 region_id=region_id,
                 frame_id=metadata.sector.frame_id,
                 terrain_version=metadata.consistency.terrain_version,
-                status=RouteOutcomeStatus.NOT_VIABLE,
+                status=RouteOutcomeStatus.UNKNOWN
+                if limit_reached
+                else RouteOutcomeStatus.NOT_VIABLE,
                 route=None,
                 unknown_segments=0,
                 warnings=(
-                    "NO_ROUTE_WITHIN_CONSTRAINTS",
+                    "ROUTE_SEARCH_LIMIT_REACHED"
+                    if limit_reached
+                    else "NO_ROUTE_WITHIN_CONSTRAINTS",
                     *self._hazard_warnings(terrain),
                 ),
                 evidence_ids=metadata.consistency.evidence_ids,
                 assumptions=(
-                    "No se encontró una ruta ni siquiera permitiendo datos de calidad desconocida",
+                    _LIMIT_ASSUMPTION if limit_reached else _NO_ROUTE_ASSUMPTION,
                     self._hazard_assumption(terrain),
                 ),
             )
