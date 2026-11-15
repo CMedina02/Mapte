@@ -11,3 +11,8 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Datos raster: solo data/regions/*/derived/ se commitea
+data/regions/*/raw/
+data/regions/*/work/
+*.aux.xml
