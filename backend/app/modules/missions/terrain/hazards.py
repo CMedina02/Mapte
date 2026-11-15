@@ -42,6 +42,9 @@ class RoutingGrid:
     elevations: array  # 'f'; NaN/inf = sin dato
     status: bytearray  # GRID_TRAVERSABLE | GRID_UNKNOWN | GRID_BLOCKED
     multipliers: array  # 'f'; multiplicador de costo (>= 1)
+    # Cajas (fila0, col0, fila1, col1) fuera de las cuales el multiplicador es 1 (precaución
+    # y reportes): así la rejilla gruesa no recorre toda la fina.
+    cost_boxes: tuple[tuple[int, int, int, int], ...] = ()
 
 
 # Rejilla base por terreno (sin reportes del astronauta): se construye una vez por proceso y región.
@@ -174,13 +177,21 @@ class MissionHazardOverlay:
             self._routing_grid = grid
         return grid
 
-    def _cells_in_box(self, x0: float, y0: float, x1: float, y1: float):
-        """Celdas cuyo centro puede caer en el rectángulo (con una celda de margen)."""
+    def _box_rows_cols(
+        self, x0: float, y0: float, x1: float, y1: float
+    ) -> tuple[int, int, int, int]:
+        """(fila0, col0, fila1, col1) que cubren el rectángulo con una celda de margen."""
         g = self._grid
         c0 = max(floor((x0 - g.origin_center_x_m) / g.pixel_size_x_m) - 1, 0)
         c1 = min(ceil((x1 - g.origin_center_x_m) / g.pixel_size_x_m) + 1, g.width_px - 1)
         r0 = max(floor((g.origin_center_y_m - y1) / g.pixel_size_y_m) - 1, 0)
         r1 = min(ceil((g.origin_center_y_m - y0) / g.pixel_size_y_m) + 1, g.height_px - 1)
+        return r0, c0, r1, c1
+
+    def _cells_in_box(self, x0: float, y0: float, x1: float, y1: float):
+        """Celdas cuyo centro puede caer en el rectángulo (con una celda de margen)."""
+        g = self._grid
+        r0, c0, r1, c1 = self._box_rows_cols(x0, y0, x1, y1)
         for row in range(r0, r1 + 1):
             y = g.origin_center_y_m - row * g.pixel_size_y_m
             for col in range(c0, c1 + 1):
@@ -244,7 +255,12 @@ class MissionHazardOverlay:
                 elif zone.cost_multiplier > multipliers[i]:
                     multipliers[i] = zone.cost_multiplier
 
-        grid = RoutingGrid(width, height, elevations, status, multipliers)
+        cost_boxes = tuple(
+            self._box_rows_cols(*bbox)
+            for zone, bbox in self._static_zones
+            if zone.kind != "exclusion"
+        )
+        grid = RoutingGrid(width, height, elevations, status, multipliers, cost_boxes)
         if len(_BASE_GRIDS) >= _BASE_GRID_LIMIT:
             _BASE_GRIDS.pop(next(iter(_BASE_GRIDS)))
         _BASE_GRIDS[key] = (terrain, grid, OrderedDict())
@@ -267,7 +283,18 @@ class MissionHazardOverlay:
                     status[i] = max(status[i], GRID_UNKNOWN)
                 if report.cost_multiplier > multipliers[i]:
                     multipliers[i] = report.cost_multiplier
-        return RoutingGrid(base.width, base.height, base.elevations, status, multipliers)
+        boxes = tuple(
+            self._box_rows_cols(
+                report.position.x_m - report.affected_radius_m,
+                report.position.y_m - report.affected_radius_m,
+                report.position.x_m + report.affected_radius_m,
+                report.position.y_m + report.affected_radius_m,
+            )
+            for report in self._reports
+        )
+        return RoutingGrid(
+            base.width, base.height, base.elevations, status, multipliers, base.cost_boxes + boxes
+        )
 
     @property
     def region_id(self) -> str:

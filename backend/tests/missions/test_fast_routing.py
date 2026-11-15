@@ -137,7 +137,7 @@ def _reference_cost(overlay, planner, start, end, constraints, margin=80) -> flo
 )
 def test_fast_search_finds_the_least_cost_route(repository, start_xy, end_xy, slope, avoid_unknown):
     overlay = MissionHazardOverlay(repository, REGION_ID)
-    planner = AStarRoutePlanner(overlay)
+    planner = AStarRoutePlanner(overlay, exact=True)
     constraints = RoutePlanningConstraints(max_slope_deg=slope, avoid_unknown=avoid_unknown)
     start = LocalPosition(*start_xy, FRAME_ID)
     end = LocalPosition(*end_xy, FRAME_ID)
@@ -181,3 +181,43 @@ def test_repeated_route_is_served_from_cache(repository):
     assert second.route_id != first.route_id
     other = service.compute(*args[:3], replace(args[3], max_slope_deg=14))
     assert other.route is not first.route
+
+
+LONG_ROUTES = [
+    ((5523.3, 2882.8), (4034.4, 6417.9), 15, True),  # Gediz → Glen Torridon (~4 km)
+    ((4034.4, 6417.9), (3245.3, 9859.0), 15, True),  # Glen Torridon → Marias Pass
+    ((4950.0, 5350.0), (5900.0, 5350.0), 25, False),  # rodea las dunas
+]
+
+
+@pytest.mark.parametrize(("start_xy", "end_xy", "slope", "avoid_unknown"), LONG_ROUTES)
+def test_two_level_search_stays_close_to_optimum(
+    repository, start_xy, end_xy, slope, avoid_unknown
+):
+    overlay = MissionHazardOverlay(repository, REGION_ID)
+    constraints = RoutePlanningConstraints(max_slope_deg=slope, avoid_unknown=avoid_unknown)
+    start = LocalPosition(*start_xy, FRAME_ID)
+    end = LocalPosition(*end_xy, FRAME_ID)
+    exact = AStarRoutePlanner(overlay, exact=True)
+    fast = AStarRoutePlanner(overlay)
+
+    best = _route_cost(exact, exact.plan(start, end, constraints).cells, constraints)
+    route = fast.plan(
+        start, end, constraints
+    )  # _build_result revalida cada paso con la regla exacta
+    assert best <= _route_cost(fast, route.cells, constraints) <= best * 1.03
+
+
+def test_failed_corridor_falls_back_to_full_search(repository, monkeypatch):
+    overlay = MissionHazardOverlay(repository, REGION_ID)
+    constraints = RoutePlanningConstraints(max_slope_deg=15)
+    start = LocalPosition(5523.3, 2882.8, FRAME_ID)
+    end = LocalPosition(4034.4, 6417.9, FRAME_ID)
+    exact_route = AStarRoutePlanner(overlay, exact=True).plan(start, end, constraints)
+
+    def no_corridor(*_args, **_kwargs):
+        raise planner_module.RouteNotFoundError("sin trazo grueso")
+
+    planner = AStarRoutePlanner(overlay)
+    monkeypatch.setattr(planner, "_corridor", no_corridor)
+    assert planner.plan(start, end, constraints).cells == exact_route.cells
