@@ -6,7 +6,7 @@ import { mutateMission } from '../../shared/api/mutateMission';
 import MarsMap from '../mars-map/MarsMap';
 import { initialLayerState } from '../mars-map/mapUtils';
 import {
-  isNewerMission, loadPackage, saveLastPosition, sendQueue, updatePackageMission, useOnline, usePackageUpdates, usePendingQueue,
+  isNewerMission, loadPackage, saveLastPosition, savePackage, sendQueue, updatePackageMission, useOnline, usePackageUpdates, usePendingQueue,
 } from '../offline-sync/offline';
 import ErrorBoundary from '../../shared/ui/ErrorBoundary';
 import ResourceCheck from './ResourceCheck';
@@ -60,7 +60,18 @@ export default function Visor() {
   }, [online, missionId]);
 
   // Sin misión: mapa con la posición del astronauta mientras el panel asigna una
-  if (!pkg || !mission) return <IdleVisor />;
+  if (!pkg || !mission) {
+    return (
+      <IdleVisor
+        onPackage={(p) => {
+          // El astronauta planificó su propia misión: se guarda como paquete y el visor pasa a navegar
+          savePackage(p);
+          setPkg(p);
+          setMission(p.mission);
+        }}
+      />
+    );
+  }
   // key: una misión nueva desde el panel reinicia el flujo del visor (destino, fase)
   return <VisorHud key={mission.mission_id} pkg={pkg} mission={mission} setMission={setMission} />;
 }
