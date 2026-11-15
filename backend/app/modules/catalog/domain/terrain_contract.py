@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from array import array
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 import math
 import struct
+import sys
 from typing import Literal, Protocol
 
 F32_EXTENSION: str = ".f32"
@@ -16,6 +18,11 @@ F32_MEMORY_ORDER: str = "row_major"
 F32_BYTES_PER_SAMPLE: int = 4
 
 ASSETS_URL_PREFIX: str = "/api/v1/assets"
+
+# Tolerancia al comparar extensiones (m) y rangos de elevación declarados frente a los datos
+# cargados como float32 (m).
+EXTENT_TOLERANCE_M: float = 1e-6
+ELEVATION_RANGE_TOLERANCE_M: float = 0.01
 
 
 class RowOrder(StrEnum):
@@ -81,6 +88,15 @@ class LocalExtentM:
             and math.isfinite(y_m)
             and self.x_min_m <= x_m <= self.x_max_m
             and self.y_min_m <= y_m <= self.y_max_m
+        )
+
+    def matches(self, other: LocalExtentM, tolerance_m: float = EXTENT_TOLERANCE_M) -> bool:
+        """True when both extents cover the same rectangle within tolerance."""
+        return (
+            abs(self.x_min_m - other.x_min_m) <= tolerance_m
+            and abs(self.x_max_m - other.x_max_m) <= tolerance_m
+            and abs(self.y_min_m - other.y_min_m) <= tolerance_m
+            and abs(self.y_max_m - other.y_max_m) <= tolerance_m
         )
 
 
@@ -241,6 +257,25 @@ class TerrainAssetPaths:
         if not url.startswith(expected_prefix):
             raise ValueError(f"{field_name} debe iniciar con {expected_prefix!r}; recibido {url!r}")
 
+    def iter_urls(self) -> tuple[tuple[str, str], ...]:
+        """Return (field_name, url) for every declared asset URL."""
+        urls = [("heightmap_url", self.heightmap_url)]
+        if self.texture_url is not None:
+            urls.append(("texture_url", self.texture_url))
+        if self.blocked_mask_url is not None:
+            urls.append(("blocked_mask_url", self.blocked_mask_url))
+        return tuple(urls)
+
+    def ensure_region(self, region_id: str) -> None:
+        """Check that every asset URL lives under /api/v1/assets/{region_id}/."""
+        expected_prefix = f"{ASSETS_URL_PREFIX}/{region_id.strip('/')}/"
+        for field_name, url in self.iter_urls():
+            if not url.startswith(expected_prefix):
+                raise ValueError(
+                    f"{field_name} debe pertenecer a la región {region_id!r} "
+                    f"(prefijo {expected_prefix!r}); recibido {url!r}."
+                )
+
 
 @dataclass(frozen=True, slots=True)
 class TerrainMetadata:
@@ -252,6 +287,22 @@ class TerrainMetadata:
     consistency: TerrainConsistencySpec
     assets: TerrainAssetPaths
     routing_grid: TerrainGridSpec | None = None
+
+    def __post_init__(self) -> None:
+        self.assets.ensure_region(self.sector.region_id)
+        terrain_extent = self.grid.bounds_pixel_edges_m()
+        texture_grid = self.consistency.texture_grid
+        if texture_grid is not None and not texture_grid.bounds_pixel_edges_m().matches(
+            terrain_extent
+        ):
+            raise ValueError(
+                "texture_grid no cubre la misma extensión que grid; "
+                "la textura no está alineada con las alturas."
+            )
+        if self.routing_grid is not None and not self.routing_grid.bounds_pixel_edges_m().matches(
+            terrain_extent
+        ):
+            raise ValueError("routing_grid no cubre la misma extensión que grid.")
 
     @property
     def effective_routing_grid(self) -> TerrainGridSpec:
@@ -316,17 +367,30 @@ def decode_f32_heightmap(raw: bytes, width_px: int, height_px: int) -> tuple[flo
 
 
 class TerrainGridData:
-    """In-memory elevation grid with validity and blocked masks."""
+    """In-memory elevation grid with validity and blocked masks.
+
+    Elevations are stored as a compact ``array('f')`` (4 bytes per cell). The validity mask is
+    derived on demand from the elevations (NaN -> invalid); explicit masks, when given, are
+    stored as ``bytearray`` (1 byte per cell).
+
+    By default the data must match ``metadata.grid`` (the served ``.f32``). Pass
+    ``grid=metadata.routing_grid`` to load a separate, finer routing grid.
+    """
 
     def __init__(
         self,
         metadata: TerrainMetadata,
-        elevations_m: Sequence[float],
+        elevations_m: Sequence[float] | array,
         valid_mask: Sequence[bool] | None = None,
         blocked_mask: Sequence[bool] | None = None,
+        grid: TerrainGridSpec | None = None,
     ) -> None:
         self.metadata = metadata
-        self._grid = metadata.effective_routing_grid
+        if grid is None:
+            grid = metadata.grid
+        elif grid != metadata.grid and grid != metadata.routing_grid:
+            raise ValueError("grid debe ser metadata.grid o metadata.routing_grid.")
+        self._grid = grid
         expected = self._grid.total_samples
 
         if len(elevations_m) != expected:
@@ -334,34 +398,92 @@ class TerrainGridData:
                 f"elevations_m debe tener {expected} elementos; tiene {len(elevations_m)}."
             )
 
-        elevations_tuple = tuple(float(v) for v in elevations_m)
-        if valid_mask is None:
-            derived_valid = tuple(math.isfinite(v) for v in elevations_tuple)
+        if isinstance(elevations_m, array) and elevations_m.typecode == "f":
+            elevations = elevations_m
         else:
+            elevations = array("f", (float(v) for v in elevations_m))
+
+        self._explicit_valid: bytearray | None = None
+        if valid_mask is not None:
             if len(valid_mask) != expected:
                 raise ValueError(
                     f"valid_mask debe tener {expected} elementos; tiene {len(valid_mask)}."
                 )
-            derived_valid = tuple(
-                bool(flag) and math.isfinite(val)
-                for flag, val in zip(valid_mask, elevations_tuple, strict=True)
-            )
+            self._explicit_valid = bytearray(1 if flag else 0 for flag in valid_mask)
 
-        if blocked_mask is None:
-            derived_blocked = tuple(not is_ok for is_ok in derived_valid)
-        else:
+        self._blocked: bytearray | None = None
+        if blocked_mask is not None:
             if len(blocked_mask) != expected:
                 raise ValueError(
                     f"blocked_mask debe tener {expected} elementos; tiene {len(blocked_mask)}."
                 )
-            derived_blocked = tuple(
-                bool(blocked) or (not is_ok)
-                for blocked, is_ok in zip(blocked_mask, derived_valid, strict=True)
+            self._blocked = bytearray(1 if flag else 0 for flag in blocked_mask)
+
+        self.elevations_m: array = elevations
+        self._check_declared_elevation_range()
+
+    @classmethod
+    def from_f32_bytes(
+        cls,
+        metadata: TerrainMetadata,
+        raw: bytes,
+        blocked_mask: Sequence[bool] | None = None,
+        grid: TerrainGridSpec | None = None,
+    ) -> TerrainGridData:
+        """Load a headerless little-endian ``.f32`` without expanding it to Python floats."""
+        target = grid or metadata.grid
+        expected_bytes = target.expected_f32_byte_size
+        if len(raw) != expected_bytes:
+            raise ValueError(
+                f"Tamaño inválido de archivo .f32: se esperaban {expected_bytes} bytes, "
+                f"se recibieron {len(raw)}."
+            )
+        elevations = array("f")
+        elevations.frombytes(raw)
+        if sys.byteorder != "little":
+            elevations.byteswap()
+        return cls(metadata, elevations, blocked_mask=blocked_mask, grid=grid)
+
+    def _check_declared_elevation_range(self) -> None:
+        data_min = math.inf
+        data_max = -math.inf
+        isfinite = math.isfinite
+        for value in self.elevations_m:
+            if not isfinite(value):
+                continue
+            if value < data_min:
+                data_min = value
+            if value > data_max:
+                data_max = value
+        if data_min > data_max:
+            return  # Grid without finite samples.
+        vertical = self.metadata.vertical
+        tol = ELEVATION_RANGE_TOLERANCE_M
+        if data_min < vertical.elevation_min_m - tol or data_max > vertical.elevation_max_m + tol:
+            raise ValueError(
+                f"Los datos ({data_min:.3f}..{data_max:.3f} m) se salen del rango declarado "
+                f"en metadata ({vertical.elevation_min_m:.3f}..{vertical.elevation_max_m:.3f} m)."
             )
 
-        self.elevations_m: tuple[float, ...] = elevations_tuple
-        self.valid_mask: tuple[bool, ...] = derived_valid
-        self.blocked_mask: tuple[bool, ...] = derived_blocked
+    def is_valid_at(self, idx: int) -> bool:
+        if not math.isfinite(self.elevations_m[idx]):
+            return False
+        return self._explicit_valid is None or bool(self._explicit_valid[idx])
+
+    def is_blocked_at(self, idx: int) -> bool:
+        if not self.is_valid_at(idx):
+            return True
+        return self._blocked is not None and bool(self._blocked[idx])
+
+    @property
+    def valid_mask(self) -> tuple[bool, ...]:
+        """Full validity mask (materialized on demand; avoid on large grids)."""
+        return tuple(self.is_valid_at(i) for i in range(len(self.elevations_m)))
+
+    @property
+    def blocked_mask(self) -> tuple[bool, ...]:
+        """Full blocked mask (materialized on demand; avoid on large grids)."""
+        return tuple(self.is_blocked_at(i) for i in range(len(self.elevations_m)))
 
     def _flat_index(self, row: int, col: int) -> int:
         if not (0 <= row < self._grid.height_px and 0 <= col < self._grid.width_px):
@@ -374,14 +496,14 @@ class TerrainGridData:
         """Sample cell by (row, col) grid indices."""
         idx = self._flat_index(row, col)
         x_m, y_m = self._grid.index_to_center_xy(row, col)
-        is_valid = self.valid_mask[idx]
+        is_valid = self.is_valid_at(idx)
         elevation = self.elevations_m[idx] if is_valid else None
         return TerrainSample(
             x_m=x_m,
             y_m=y_m,
             elevation_m=elevation,
             is_valid=is_valid,
-            is_blocked=self.blocked_mask[idx],
+            is_blocked=self.is_blocked_at(idx),
             in_bounds=True,
             row=row,
             col=col,
@@ -446,9 +568,9 @@ class TerrainGridData:
             if weight == 0.0:
                 continue
             idx = self._flat_index(r, c)
-            if self.blocked_mask[idx]:
+            if self.is_blocked_at(idx):
                 any_blocked = True
-            if not self.valid_mask[idx]:
+            if not self.is_valid_at(idx):
                 return TerrainSample(
                     x_m=x_m,
                     y_m=y_m,
@@ -477,12 +599,20 @@ class TerrainGridData:
         return [self.sample_at_xy(x_m, y_m, method=method).elevation_m for x_m, y_m in points_xy]
 
     def to_f32_bytes(self) -> bytes:
-        """Export current elevations to .f32 binary format."""
-        return encode_f32_heightmap(
-            self.elevations_m,
-            width_px=self._grid.width_px,
-            height_px=self._grid.height_px,
-        )
+        """Export current elevations to .f32 binary format (same dims as the loaded grid)."""
+        for value in self.elevations_m:
+            if math.isinf(value):
+                raise ValueError("No se permiten valores infinitos en el archivo .f32; use NaN.")
+        if sys.byteorder == "little":
+            return self.elevations_m.tobytes()
+        swapped = array("f", self.elevations_m)
+        swapped.byteswap()
+        return swapped.tobytes()
+
+    @property
+    def grid(self) -> TerrainGridSpec:
+        """Grid geometry these elevations follow."""
+        return self._grid
 
 
 @dataclass(frozen=True, slots=True)
@@ -566,14 +696,14 @@ class InMemoryTerrainRepository:
 
 
 def build_synthetic_terrain(
-    region_id: str = "MC-09",
-    region_name: str = "Tharsis",
-    sector_id: str = "MC-09-SYNTHETIC-PILOT",
-    frame_id: str = "MARS_MC09_LOCAL_V1",
+    region_id: str = "gale-mount-sharp",
+    region_name: str = "Monte Sharp (Aeolis Mons), cráter Gale",
+    sector_id: str = "gale-mount-sharp-synthetic-pilot",
+    frame_id: str = "MARS_GALE_MS_LOCAL_V1",
     width_px: int = 32,
     height_px: int = 32,
     pixel_size_m: float = 100.0,
-    base_elevation_m: float = 2100.0,
+    base_elevation_m: float = -3500.0,
     terrain_version: str = "synthetic-v1",
 ) -> TerrainDataset:
     """Generate deterministic synthetic terrain dataset with sample NoData and blocked cells."""
@@ -621,7 +751,7 @@ def build_synthetic_terrain(
         ),
         consistency=TerrainConsistencySpec(
             terrain_version=terrain_version,
-            evidence_ids=("ev-synthetic-terrain-mc09",),
+            evidence_ids=("ev-synthetic-terrain-gale-ms",),
             texture_layer_id="imagery",
             texture_aligned_to_terrain=True,
         ),

@@ -12,6 +12,7 @@ from app.modules.catalog.domain.terrain_contract import (
     F32_MEMORY_ORDER,
     NoDataPolicy,
     RowOrder,
+    TerrainGridSpec,
     TerrainMetadata,
 )
 
@@ -42,6 +43,35 @@ class TerrainGridMetadataSchema(BaseModel):
     row_order: Literal["north_to_south"] = RowOrder.NORTH_TO_SOUTH.value
 
 
+class TextureGridMetadataSchema(TerrainGridMetadataSchema):
+    """Texture raster geometry (may differ in resolution from the heightmap)."""
+
+    width_px: int = Field(gt=0)
+    height_px: int = Field(gt=0)
+
+    @classmethod
+    def from_grid(cls, grid: TerrainGridSpec) -> TextureGridMetadataSchema:
+        return cls(
+            width_px=grid.width_px,
+            height_px=grid.height_px,
+            origin_center_x_m=grid.origin_center_x_m,
+            origin_center_y_m=grid.origin_center_y_m,
+            pixel_size_x_m=grid.pixel_size_x_m,
+            pixel_size_y_m=grid.pixel_size_y_m,
+        )
+
+
+class SectorExtentSchema(BaseModel):
+    """Sector extent in local frame meters."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    x_min_m: float
+    x_max_m: float
+    y_min_m: float
+    y_max_m: float
+
+
 class TerrainManifestSchema(BaseModel):
     """Terrain block within RegionManifest for 3D rendering."""
 
@@ -68,6 +98,16 @@ class TerrainManifestSchema(BaseModel):
     texture_aligned: bool = True
     grid: TerrainGridMetadataSchema
 
+    # Optional assets and texture geometry.
+    texture_url: str | None = None
+    texture_grid: TextureGridMetadataSchema | None = None
+    blocked_mask_url: str | None = None
+    dataset_checksum_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    # Sector covered by the terrain.
+    sector_id: str = Field(min_length=1)
+    extent_m: SectorExtentSchema
+
     @field_validator("heightmap_url")
     @classmethod
     def _validate_heightmap_url(cls, value: str) -> str:
@@ -78,9 +118,19 @@ class TerrainManifestSchema(BaseModel):
             raise ValueError("heightmap_url debe apuntar a un archivo '.f32'.")
         return value
 
+    @field_validator("texture_url", "blocked_mask_url")
+    @classmethod
+    def _validate_optional_asset_url(cls, value: str | None) -> str | None:
+        expected_prefix = f"{ASSETS_URL_PREFIX}/"
+        if value is not None and not value.startswith(expected_prefix):
+            raise ValueError(f"La URL del asset debe iniciar con {expected_prefix!r}.")
+        return value
+
     @classmethod
     def from_terrain_metadata(cls, metadata: TerrainMetadata) -> TerrainManifestSchema:
         """Build schema from domain TerrainMetadata."""
+        texture_grid = metadata.consistency.texture_grid
+        extent = metadata.sector.extent_m
         return cls(
             heightmap_url=metadata.assets.heightmap_url,
             width_px=metadata.grid.width_px,
@@ -98,5 +148,20 @@ class TerrainManifestSchema(BaseModel):
                 origin_center_y_m=metadata.grid.origin_center_y_m,
                 pixel_size_x_m=metadata.grid.pixel_size_x_m,
                 pixel_size_y_m=metadata.grid.pixel_size_y_m,
+            ),
+            texture_url=metadata.assets.texture_url,
+            texture_grid=(
+                TextureGridMetadataSchema.from_grid(texture_grid)
+                if texture_grid is not None
+                else None
+            ),
+            blocked_mask_url=metadata.assets.blocked_mask_url,
+            dataset_checksum_sha256=metadata.consistency.dataset_checksum_sha256,
+            sector_id=metadata.sector.sector_id,
+            extent_m=SectorExtentSchema(
+                x_min_m=extent.x_min_m,
+                x_max_m=extent.x_max_m,
+                y_min_m=extent.y_min_m,
+                y_max_m=extent.y_max_m,
             ),
         )
