@@ -19,7 +19,7 @@ import CompassTape from './nav/CompassTape';
 import ElevationProfile from './nav/ElevationProfile';
 import { bearingDeg, norm360, samePlace } from './nav/geo';
 import { compassAvailable, useDeviceCompass } from './nav/useDeviceCompass';
-import { activeMissionLeg, excludedObjectives, missionRoute, shortReason } from '../../shared/mission';
+import { activeMissionLeg, excludedObjectives, exclusionsCrossed, missionRoute, shortReason } from '../../shared/mission';
 
 // three.js pesa: se descarga solo al abrir la vista 3D
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
@@ -165,7 +165,11 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
 
   const { oxygen_available_min: o2, return_reserve_min: reserve } = mission.resources;
   // Al astronauta solo lo accionable (sin avisos implícitos ni del modelo)
-  const alerts = notices([], mission.alerts);
+  const alerts = [
+    // el A* del backend aún no evita estas zonas: al astronauta se le avisa primero
+    ...exclusionsCrossed(shownRoute.path, manifest.hazards ?? []).map((z) => `La ruta cruza ${z}`),
+    ...notices([], mission.alerts),
+  ];
   const reservePct = o2 > 0 ? Math.min(100, (reserve / o2) * 100) : 100;
 
   const imageryLayer =

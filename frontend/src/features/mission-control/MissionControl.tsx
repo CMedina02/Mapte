@@ -164,8 +164,8 @@ export default function MissionControl({ mission, onMission }: Props) {
       {/* Derecha: información de la misión planificada (ruta + bitácora) */}
       {mission && (
         <aside className="order-4 w-full space-y-6 border-t border-space-800 p-3 sm:p-4 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-96">
-          <RouteDetails mission={mission} />
-          <LegTimeline mission={mission} objectives={objectives} request={planReq?.id === mission.mission_id ? planReq.req : null} />
+          <RouteDetails mission={mission} hazards={manifest?.hazards} />
+          <LegTimeline mission={mission} objectives={objectives} hazards={manifest?.hazards} request={planReq?.id === mission.mission_id ? planReq.req : null} />
           <DecisionLog mission={mission} objectives={objectives} />
         </aside>
       )}

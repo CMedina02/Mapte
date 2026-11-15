@@ -1,7 +1,7 @@
-import type { Mission, MissionPlanRequest, Objective } from '../../shared/types/contracts';
+import type { Hazard, Mission, MissionPlanRequest, Objective } from '../../shared/types/contracts';
 import ExclusionHint from './ExclusionHint';
 import { fmt, ROUTE_STATUS } from '../../shared/format';
-import { decisionPoints, excludedObjectives, shortReason, stopLetters } from '../../shared/mission';
+import { decisionPoints, excludedObjectives, exclusionsCrossed, shortReason, stopLetters } from '../../shared/mission';
 import { LEG_COLORS } from '../mars-map/mapUtils';
 
 const verdict = (ok: boolean | null) =>
@@ -12,9 +12,11 @@ export default function LegTimeline({
   mission,
   objectives,
   request,
+  hazards = [],
 }: {
   mission: Mission;
   objectives: Objective[];
+  hazards?: Hazard[];
   request?: MissionPlanRequest | null; // la solicitud del plan, si se hizo desde este panel
 }) {
   const letters = stopLetters(mission);
@@ -30,7 +32,9 @@ export default function LegTimeline({
       <h2 className="eyebrow">Tramos</h2>
       <ol className="space-y-1.5">
         {mission.legs.map((leg, i) => {
-          const s = ROUTE_STATUS[leg.status] ?? ROUTE_STATUS.unknown;
+          const crossed = exclusionsCrossed(leg.path, hazards).length > 0;
+          const status = crossed ? 'not_viable' : leg.status;
+          const s = ROUTE_STATUS[status] ?? ROUTE_STATUS.unknown;
           return (
             <li key={leg.leg_id} className="flex items-center gap-2 text-xs">
               <span className="h-1 w-5 shrink-0 rounded" style={{ background: LEG_COLORS[i % LEG_COLORS.length] }} />
@@ -41,7 +45,7 @@ export default function LegTimeline({
                 {name(leg.end_label)}
               </span>
               <span className="font-mono">{fmt(leg.metrics.duration_min, 'min')}</span>
-              {leg.status !== 'viable' && <span className={`rounded border px-1 text-[10px] ${s.cls}`}>{s.label.split(' ')[0]}</span>}
+              {status !== 'viable' && <span className={`rounded border px-1 text-[10px] ${s.cls}`}>{s.label.split(' ')[0]}</span>}
             </li>
           );
         })}

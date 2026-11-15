@@ -1,4 +1,4 @@
-import type { Mission, MissionLeg, RouteResult, RouteStatus } from './types/contracts';
+import type { Hazard, Mission, MissionLeg, Position, RouteResult, RouteStatus } from './types/contracts';
 
 const statusRank: Record<RouteStatus, number> = { viable: 0, unknown: 1, not_viable: 2 };
 
@@ -129,3 +129,22 @@ export const shortReason = (r: string) =>
           : r.includes('consumo')
             ? 'consumo sin confirmar'
             : r;
+
+// Punto dentro de polígono (ray casting) en el marco local
+function insidePolygon(p: Position, poly: Position[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i];
+    const b = poly[j];
+    if (a.y_m > p.y_m !== b.y_m > p.y_m && p.x_m < ((b.x_m - a.x_m) * (p.y_m - a.y_m)) / (b.y_m - a.y_m) + a.x_m) inside = !inside;
+  }
+  return inside;
+}
+
+// Zonas de exclusión que pisa un camino. El A* del backend aún no las usa (STATIC_HAZARDS_NOT_AVAILABLE),
+// así que el cliente lo detecta para no presentar como segura una ruta que las cruza.
+export function exclusionsCrossed(path: Position[], hazards: Hazard[]): string[] {
+  return hazards
+    .filter((h) => h.kind === 'exclusion' && path.some((p) => insidePolygon(p, h.polygon)))
+    .map((h) => h.risk_factor);
+}
