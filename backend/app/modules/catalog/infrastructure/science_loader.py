@@ -10,6 +10,7 @@ Validaciones antes de aceptar el catálogo:
 - URLs ``https`` absolutas y nunca de exploradores visuales (``trek.nasa.gov``).
 - ``location_quality`` en ``verified|approximate|unknown``; ``verified`` exige ``location``.
 - Cada objetivo tiene al menos una evidencia.
+- Un objetivo con ``active: false`` debe declarar ``inactive_reason``.
 
 La comprobación de que las posiciones caen dentro del terreno publicado se hace contra el
 ``TerrainMetadata`` de la región (``check_within_extent``), porque depende del terreno cargado.
@@ -83,6 +84,10 @@ class ObjectiveRecord(_Strict):
     activities: list[str]
     possible_findings: list[str]
     evidence_ids: list[str] = Field(min_length=1)
+    # ``active: false`` "comenta" el objetivo: se conserva en los datos y se sigue validando,
+    # pero los endpoints no lo publican ni publican sus fotos.
+    active: bool = True
+    inactive_reason: str | None = None
 
 
 class PhotoRecord(_Strict):
@@ -122,6 +127,16 @@ class ScienceCatalog:
     evidence: tuple[EvidenceRecord, ...]
     objectives: tuple[ObjectiveRecord, ...]
     photos: tuple[PhotoRecord, ...]
+
+    @property
+    def active_objectives(self) -> tuple[ObjectiveRecord, ...]:
+        return tuple(item for item in self.objectives if item.active)
+
+    @property
+    def active_photos(self) -> tuple[PhotoRecord, ...]:
+        """Photos whose objective is active."""
+        active_ids = {item.objective_id for item in self.active_objectives}
+        return tuple(item for item in self.photos if item.objective_id in active_ids)
 
     def check_within_extent(self, metadata: TerrainMetadata) -> None:
         """Every objective and located photo must lie inside the published terrain."""
@@ -189,6 +204,8 @@ def _load(region_id: str, data_dir: Path) -> ScienceCatalog | None:
             raise ScienceDataError(f"{objective.objective_id}: region_id distinto de la región.")
         _check_frame(objective.objective_id, objective.position, frame_id)
         _check_refs(objective.objective_id, objective.evidence_ids, evidence_ids)
+        if not objective.active and not objective.inactive_reason:
+            raise ScienceDataError(f"{objective.objective_id}: inactivo sin inactive_reason.")
     for photo in photos_doc.photos:
         if photo.objective_id not in objective_ids:
             raise ScienceDataError(

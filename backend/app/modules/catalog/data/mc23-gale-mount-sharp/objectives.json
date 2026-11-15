@@ -91,12 +91,49 @@
       "caveats": [
         "El blog planifica la perforación de Mammoth Lakes en el sol 4219; NASA indica que el primer agujero limpio fue 'Mammoth Lakes 2' (sol 4222) tras mover ligeramente el rover."
       ]
+    },
+    {
+      "evidence_id": "ev-abbey-2020-msl-drilling-part-ii",
+      "title": "A look back, part II: The drilling campaign of the Curiosity rover during the Mars Science Laboratory's second and third Martian years (Abbey et al., 2020, Icarus)",
+      "mission": "MSL",
+      "instrument": "Drill",
+      "source_url": "https://www-robotics.jpl.nasa.gov/media/documents/1-s2.0-S0019103520302657-main_look_back_drilling_on_curiosity_part_ii.pdf",
+      "credit": "Abbey et al. (2020), Icarus; NASA/JPL-Caltech",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": [
+        "Fija la perforación de Buckskin en el sol 1060; Morris et al. (2016) sitúa el inicio de la preparación en el sol 1057. El rover permaneció en site/drive 48_2542 del sol 1057 al 1064."
+      ]
+    },
+    {
+      "evidence_id": "ev-morris-2016-buckskin-tridymite",
+      "title": "Silicic volcanism on Mars evidenced by tridymite in high-SiO2 sedimentary rock at Gale crater (Morris et al., 2016, PNAS 113(26):7071-7076)",
+      "mission": "MSL",
+      "instrument": "CheMin / APXS",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4932983/",
+      "credit": "Morris et al. (2016), PNAS, doi:10.1073/pnas.1607098113",
+      "captured_at": null,
+      "resolution_m": null,
+      "caveats": []
+    },
+    {
+      "evidence_id": "ev-jpl-2015-silica-puzzles",
+      "title": "Rocks Rich in Silica Present Puzzles for Mars Rover Team",
+      "mission": "MSL",
+      "instrument": "CheMin",
+      "source_url": "https://www.jpl.nasa.gov/news/rocks-rich-in-silica-present-puzzles-for-mars-rover-team/",
+      "credit": "NASA/JPL-Caltech",
+      "captured_at": "2015-12-17",
+      "resolution_m": null,
+      "caveats": []
     }
   ],
   "objectives": [
     {
       "objective_id": "obj-vrr-highfield",
       "region_id": "mc23-gale-mount-sharp",
+      "active": false,
+      "inactive_reason": "Desactivado: está a ~387 m de obj-glen-torridon-aberlady; se sustituye por un objetivo más alejado (obj-marias-pass-buckskin).",
       "title": "Vera Rubin Ridge — sitio de perforación Highfield",
       "description": "Afloramiento gris de la cresta Vera Rubin, perforado por Curiosity en el sol 2224 (8 nov 2018) tras el intento fallido en Inverness por la dureza de la roca.",
       "position": {
@@ -201,6 +238,43 @@
         "ev-nasa-msl-localized-waypoints",
         "ev-jpl-2024-gediz-vallis-sulfur",
         "ev-nasa-msl-blog-sols-4219-4221"
+      ]
+    },
+    {
+      "objective_id": "obj-marias-pass-buckskin",
+      "region_id": "mc23-gale-mount-sharp",
+      "title": "Marias Pass — perforación Buckskin (sílice y tridimita)",
+      "description": "Afloramiento de la formación Murray en Marias Pass, con alto contenido en sílice (~74 % en peso de SiO2), perforado en el sol 1060 (31 jul 2015). CheMin identificó tridimita, un mineral de sílice que se forma a alta temperatura y que no se había encontrado antes en Marte.",
+      "position": {
+        "x_m": 3245.3,
+        "y_m": 9859.0,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "48_2542",
+          "sol": 1056,
+          "east_lon_deg": 137.3702986,
+          "planetocentric_lat_deg": -4.66802505,
+          "elev_geoid_m": -4446.831
+        }
+      },
+      "science_question": "¿La tridimita de Buckskin procede de vulcanismo silícico en la cuenca del lago de Gale o de otro proceso de alteración?",
+      "priority_weight": 2.0,
+      "activities": [
+        "Perforación y toma de muestra",
+        "Mineralogía con CheMin",
+        "Química con APXS",
+        "Imágenes de contexto Mastcam/MAHLI"
+      ],
+      "possible_findings": [
+        "TRIDYMITE_DETECTED",
+        "HIGH_SILICA_AMORPHOUS",
+        "NO_TRIDYMITE_DETECTED"
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-localized-waypoints",
+        "ev-abbey-2020-msl-drilling-part-ii",
+        "ev-morris-2016-buckskin-tridymite",
+        "ev-jpl-2015-silica-puzzles"
       ]
     }
   ]

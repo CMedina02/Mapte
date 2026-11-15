@@ -107,7 +107,7 @@ def get_objectives(region_id: str, store: StoreDep) -> ObjectivesResponse:
                 possible_findings=list(item.possible_findings),
                 evidence_ids=list(item.evidence_ids),
             )
-            for item in catalog.objectives
+            for item in catalog.active_objectives
         ]
     )
 
@@ -119,7 +119,7 @@ def get_photos(region_id: str, store: StoreDep, objective_id: str | None = None)
     if catalog is None:
         return PhotosResponse(photos=[])
     if objective_id is not None and objective_id not in {
-        item.objective_id for item in catalog.objectives
+        item.objective_id for item in catalog.active_objectives
     }:
         raise HTTPException(status_code=404, detail=f"Objetivo desconocido: {objective_id!r}.")
     return PhotosResponse(
@@ -137,7 +137,7 @@ def get_photos(region_id: str, store: StoreDep, objective_id: str | None = None)
                 location_quality=item.location_quality,
                 limitations=list(item.limitations),
             )
-            for item in catalog.photos
+            for item in catalog.active_photos
             if objective_id is None or item.objective_id == objective_id
         ]
     )

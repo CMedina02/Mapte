@@ -7,6 +7,70 @@
   ],
   "photos": [
     {
+      "photo_id": "photo-msl-1060-268059",
+      "objective_id": "obj-marias-pass-buckskin",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/01060/opgs/edr/ncam/NLB_491598575EDR_F0482542NCAM00226M_.JPG",
+      "camera": "Navcam izquierda (RCE-B)",
+      "sol": 1060,
+      "captured_at": "2015-07-31T07:26:30Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/268059/",
+      "location": {
+        "x_m": 3245.3,
+        "y_m": 9859.0,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "48_2542",
+          "sol": 1056,
+          "east_lon_deg": 137.3702986,
+          "planetocentric_lat_deg": -4.66802505,
+          "elev_geoid_m": -4446.831
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Navcam del sol de perforación de Buckskin.",
+        "La ubicación es la del rover (site/drive 48_2542 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    },
+    {
+      "photo_id": "photo-msl-1060-268053",
+      "objective_id": "obj-marias-pass-buckskin",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/01060/opgs/edr/fcam/FLB_491598488EDR_F0482542FHAZ00400M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-B)",
+      "sol": 1060,
+      "captured_at": "2015-07-31T07:25:03Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/268053/",
+      "location": {
+        "x_m": 3245.3,
+        "y_m": 9859.0,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "source": {
+          "rmc": "48_2542",
+          "sol": 1056,
+          "east_lon_deg": 137.3702986,
+          "planetocentric_lat_deg": -4.66802505,
+          "elev_geoid_m": -4446.831
+        }
+      },
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal: espacio de trabajo del brazo en Buckskin.",
+        "La ubicación es la del rover (site/drive 48_2542 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-raw-images",
+        "ev-nasa-msl-localized-waypoints"
+      ]
+    },
+    {
       "photo_id": "photo-msl-2224-543711",
       "objective_id": "obj-vrr-highfield",
       "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/ncam/NLA_594936581EDR_F0730550NCAM00309M_.JPG",
