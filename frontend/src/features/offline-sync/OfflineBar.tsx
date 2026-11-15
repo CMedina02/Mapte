@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { marsApi } from '../../shared/api/client';
 import type { Mission } from '../../shared/types/contracts';
 import { loadPackage, savePackage, sendQueue, useOnline, type PendingObservation } from './offline';
@@ -15,28 +15,36 @@ const action = 'btn-ghost min-h-9 px-3 py-1 text-xs';
 
 export default function OfflineBar({ mission, onMission, queue, setQueue }: Props) {
   const online = useOnline();
-  const [pkgMissionId, setPkgMissionId] = useState(() => loadPackage()?.mission.mission_id ?? null);
+  const [synced, setSynced] = useState(() => {
+    const m = loadPackage()?.mission;
+    return m ? { id: m.mission_id, version: m.version } : null;
+  });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const hasPkg = !!mission && pkgMissionId === mission.mission_id;
+  const missionId = mission?.mission_id ?? null;
+  const version = mission?.version ?? null;
+  const hasPkg = !!mission && synced?.id === mission.mission_id;
+  const upToDate = hasPkg && synced?.version === version;
 
-  async function transfer() {
-    if (!mission) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      const pkg = await marsApi.getMissionPackage(mission.mission_id);
-      savePackage(pkg);
-      await Promise.allSettled(pkg.offline_assets.map((url) => fetch(url)));
-      setPkgMissionId(pkg.mission.mission_id);
-      onMission(pkg.mission);
-      setMsg('Paquete transferido ✓');
-    } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  // Transferencia automática al visor: cada misión nueva o versión nueva se empaqueta sin pulsar nada.
+  // El visor (otra pestaña) recibe el cambio por el evento 'storage'; en otro dispositivo, por sondeo.
+  useEffect(() => {
+    if (!online || !missionId) return;
+    let alive = true;
+    marsApi
+      .getMissionPackage(missionId)
+      .then((pkg) => {
+        if (!alive) return;
+        savePackage(pkg);
+        setSynced({ id: pkg.mission.mission_id, version: pkg.mission.version });
+        setMsg(null);
+        void Promise.allSettled(pkg.offline_assets.map((url) => fetch(url))); // precarga para uso sin red
+      })
+      .catch((e: unknown) => alive && setMsg(`Visor sin actualizar: ${e instanceof Error ? e.message : String(e)}`));
+    return () => {
+      alive = false;
+    };
+  }, [online, missionId, version]);
 
   async function sync() {
     if (!mission) return;
@@ -61,6 +69,12 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
         </span>
       )}
 
+      {mission && (
+        <span className={`${badge} ${upToDate ? 'bg-primary-900 text-primary-200' : 'bg-space-800 text-space-300'}`} title="Paquete que usa el visor del astronauta">
+          Visor {upToDate ? `al día · v${synced?.version}` : 'sincronizando…'}
+        </span>
+      )}
+
       {queue.length > 0 && (
         <span className={`${badge} bg-primary-900 text-primary-300`}>● Cambios pendientes ({queue.length})</span>
       )}
@@ -68,12 +82,6 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
       {online && queue.length > 0 && (
         <button type="button" className={action} onClick={sync} disabled={busy}>
           Sincronizar
-        </button>
-      )}
-
-      {online && mission && (
-        <button type="button" className={action} onClick={transfer} disabled={busy}>
-          {hasPkg ? 'Actualizar paquete' : 'Transferir paquete'}
         </button>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from 'react';
 import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
 import type { Mission, MissionPackage, ObservationRequest } from '../../shared/types/contracts';
@@ -29,7 +29,32 @@ export function updatePackageMission(m: Mission) {
   }
 }
 
-export type PendingObservation = Omit<ObservationRequest, 'mission_version'>;
+// ¿b reemplaza a a? Otra misión, o la misma con versión mayor (las versiones solo suben)
+export const isNewerMission = (a: Mission | null, b: Mission) =>
+  !a || a.mission_id !== b.mission_id || b.version > a.version;
+
+// Otra pestaña (panel ↔ visor) guardó el paquete: el evento 'storage' llega al instante en el mismo navegador.
+// ponytail: entre dispositivos distintos lo cubre el sondeo de GET /missions/{id}; WebSocket/SSE si hace falta < 1 s.
+export function usePackageUpdates(onPkg: (pkg: MissionPackage) => void) {
+  const ref = useRef(onPkg);
+  useEffect(() => {
+    ref.current = onPkg;
+  });
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key !== PKG_KEY || !e.newValue) return;
+      try {
+        ref.current(JSON.parse(e.newValue) as MissionPackage);
+      } catch {
+        /* paquete corrupto: se ignora */
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+}
+
+export type PendingObservation =Omit<ObservationRequest, 'mission_version'>;
 
 function loadQueue(): PendingObservation[] {
   try {

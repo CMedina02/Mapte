@@ -3,7 +3,7 @@ import type { Mission } from './shared/types/contracts';
 import MissionControl from './features/mission-control/MissionControl';
 import Explorer from './features/explorer/Explorer';
 import OfflineBar from './features/offline-sync/OfflineBar';
-import { loadPackage, updatePackageMission, usePendingQueue } from './features/offline-sync/offline';
+import { isNewerMission, loadPackage, updatePackageMission, usePackageUpdates, usePendingQueue } from './features/offline-sync/offline';
 
 type View = 'control' | 'explorer';
 
@@ -16,6 +16,9 @@ export default function App() {
   useEffect(() => {
     if (mission) updatePackageMission(mission);
   }, [mission]);
+
+  // Cambios hechos desde el visor (hallazgos, avance) llegan al panel sin recargar
+  usePackageUpdates((pkg) => setMission((m) => (m?.mission_id === pkg.mission.mission_id && isNewerMission(m, pkg.mission) ? pkg.mission : m)));
 
   // Pestaña activa: subrayado rojo NASA, como la navegación de un sitio de misión
   const tab = (v: View, label: string, disabled = false) => (

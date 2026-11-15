@@ -199,7 +199,7 @@ export const mockApi = {
     return save({
       constraints: req.constraints,
       mission: {
-        mission_id: 'mission-sharp-001',
+        mission_id: `mission-sharp-${Date.now().toString(36)}`, // cada plan es una misión nueva (como en el backend)
         region_id: req.region_id,
         version: 1,
         status: 'planned',
