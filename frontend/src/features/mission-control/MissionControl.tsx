@@ -46,12 +46,12 @@ export default function MissionControl({ mission, onMission }: Props) {
       .catch((e) => setError(String(e)));
   }, [regionId]);
 
-  if (error) return <p className="p-6 text-red-500">{error}</p>;
+  if (error) return <p className="p-6 text-alert-500">{error}</p>;
 
   return (
     // Móvil y tableta vertical: mapa arriba y panel debajo (scroll de página). Desde lg: panel lateral + mapa.
     <div className="flex flex-col lg:h-full lg:flex-row">
-      <aside className="order-2 w-full space-y-6 p-3 sm:p-4 lg:order-1 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-neutral-800 xl:w-96">
+      <aside className="order-2 w-full space-y-6 p-3 sm:p-4 lg:order-1 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-space-800 xl:w-96">
         <section>
           <label htmlFor="region" className="eyebrow">
             Región
@@ -71,7 +71,7 @@ export default function MissionControl({ mission, onMission }: Props) {
               </option>
             ))}
           </select>
-          {manifest && <p className="mt-1 text-xs text-neutral-500">Frame: {manifest.frame.frame_id}</p>}
+          {manifest && <p className="mt-1 text-xs text-space-400">Frame: {manifest.frame.frame_id}</p>}
         </section>
 
         {manifest && (
@@ -94,7 +94,7 @@ export default function MissionControl({ mission, onMission }: Props) {
         )}
       </aside>
 
-      <main className="relative order-1 h-[60dvh] shrink-0 border-b border-neutral-800 lg:order-2 lg:h-auto lg:flex-1 lg:border-b-0">
+      <main className="relative order-1 h-[60dvh] shrink-0 border-b border-space-800 lg:order-2 lg:h-auto lg:flex-1 lg:border-b-0">
         {manifest ? (
           <MarsMap
             manifest={manifest}

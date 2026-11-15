@@ -1,5 +1,48 @@
 @import "tailwindcss";
 
+/* ---------- Paleta inspirada en NASA ----------
+   primary = azul NASA (#0B3D91 en 700): acciones, selección, líneas del HUD.
+   alert   = rojo NASA (#FC3D21 en 500): peligro, bloqueos, alertas críticas.
+   space   = azul espacio: fondos, superficies, bordes y texto secundario.
+   Verde (viable) y ámbar (precaución) se mantienen por su significado universal. */
+@theme {
+  --color-primary-50: #eef3fc;
+  --color-primary-100: #d9e4f8;
+  --color-primary-200: #b3c8f0;
+  --color-primary-300: #82a5e5;
+  --color-primary-400: #5182d8;
+  --color-primary-500: #2c63c4;
+  --color-primary-600: #1a4fa8;
+  --color-primary-700: #0b3d91;
+  --color-primary-800: #0a3275;
+  --color-primary-900: #08275b;
+  --color-primary-950: #051a3d;
+
+  --color-alert-50: #fff2f0;
+  --color-alert-100: #ffe0db;
+  --color-alert-200: #ffc0b6;
+  --color-alert-300: #ff9583;
+  --color-alert-400: #ff6650;
+  --color-alert-500: #fc3d21;
+  --color-alert-600: #e02a10;
+  --color-alert-700: #b9200b;
+  --color-alert-800: #961d0f;
+  --color-alert-900: #7a1d12;
+  --color-alert-950: #430b05;
+
+  --color-space-50: #f3f6fb;
+  --color-space-100: #e3e9f4;
+  --color-space-200: #c5d0e6;
+  --color-space-300: #9aabcb;
+  --color-space-400: #6f84ab;
+  --color-space-500: #50648c;
+  --color-space-600: #3b4d72;
+  --color-space-700: #2a3a5c;
+  --color-space-800: #1b2744;
+  --color-space-900: #111a33;
+  --color-space-950: #070d1f;
+}
+
 /* ---------- Base ---------- */
 
 :root {
@@ -8,15 +51,16 @@
 }
 
 body {
-  @apply bg-neutral-950 font-mono text-neutral-100 antialiased;
+  @apply font-sans text-space-100 antialiased;
+  font-variant-numeric: tabular-nums; /* cifras alineadas en métricas */
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, var(--color-primary-950), var(--color-space-950) 60%) fixed;
 }
 
 /* Foco visible para teclado (no para clic/toque) */
 :focus-visible {
-  outline: 2px solid var(--color-orange-400);
+  outline: 2px solid var(--color-primary-300);
   outline-offset: 2px;
 }
-
 button,
 select,
 input,
@@ -27,7 +71,7 @@ summary {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-neutral-700) transparent;
+  scrollbar-color: var(--color-space-700) transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -45,31 +89,31 @@ summary {
 
 /* Título pequeño de sección */
 @utility eyebrow {
-  @apply text-xs tracking-widest text-neutral-400 uppercase;
+  @apply text-[11px] font-semibold tracking-[0.18em] text-primary-300 uppercase;
 }
 
 @utility card {
-  @apply space-y-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 sm:p-4;
+  @apply space-y-3 rounded-xl border border-space-800 bg-space-900/70 p-3 shadow-lg shadow-black/20 sm:p-4;
 }
 
 @utility field {
-  @apply w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-orange-500;
+  @apply w-full rounded-md border border-space-700 bg-space-950/70 px-3 py-2 text-sm text-space-50 placeholder:text-space-400 focus:border-primary-400;
 }
 
 @utility btn {
   @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40;
 }
 @utility btn-primary {
-  @apply btn bg-orange-600 text-white enabled:hover:bg-orange-500;
+  @apply btn bg-primary-600 text-white enabled:hover:bg-primary-500;
 }
 @utility btn-danger {
-  @apply btn bg-red-700 text-white enabled:hover:bg-red-600;
+  @apply btn bg-alert-600 text-white enabled:hover:bg-alert-500;
 }
 @utility btn-go {
-  @apply btn bg-sky-600 text-white enabled:hover:bg-sky-500;
+  @apply btn bg-white text-primary-800 enabled:hover:bg-primary-100;
 }
 @utility btn-ghost {
-  @apply btn border border-neutral-700 bg-neutral-900 text-neutral-200 enabled:hover:border-neutral-500;
+  @apply btn border border-space-700 bg-space-900/70 text-space-100 enabled:hover:border-primary-400;
 }
 
 @utility chip {
@@ -78,7 +122,7 @@ summary {
 
 /* Marco HUD del visor: borde naranja con esquinas marcadas */
 @utility hud {
-  @apply relative rounded-md border border-orange-500/40 bg-black/80;
+  @apply relative rounded-md border border-primary-400/35 bg-space-950/85;
 
   &::before,
   &::after {
@@ -88,7 +132,7 @@ summary {
     width: 14px;
     height: 14px;
     pointer-events: none;
-    border-color: var(--color-orange-400);
+    border-color: var(--color-alert-500);
   }
   &::before {
     top: -1px;
@@ -107,17 +151,17 @@ summary {
 /* ---------- OpenLayers en tema oscuro ---------- */
 
 .ol-control button {
-  @apply bg-neutral-900/90 text-orange-300;
+  @apply bg-space-900/90 text-primary-200;
   width: 2.25rem;
   height: 2.25rem;
   font-size: 1.25rem;
 }
 .ol-control button:hover,
 .ol-control button:focus {
-  @apply bg-neutral-800 text-orange-200;
+  @apply bg-space-800 text-white;
 }
 .ol-mouse-position {
-  @apply rounded bg-neutral-950/80 px-2 py-1 font-mono text-xs text-neutral-300;
+  @apply rounded bg-space-950/80 px-2 py-1 font-mono text-xs text-space-200;
   top: 0.5rem;
   right: 0.5rem;
 }
@@ -125,7 +169,7 @@ summary {
 /* Checkboxes y sliders con el color de acento */
 input[type='checkbox'],
 input[type='range'] {
-  accent-color: var(--color-orange-500);
+  accent-color: var(--color-primary-400);
 }
 
 /* Sin cursor sobre el mapa no se muestra el recuadro de coordenadas */

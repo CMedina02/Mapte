@@ -48,8 +48,8 @@ export default function ContingencyPanel({ mission, onMission }: Props) {
     }
 
     return (
-        <section className="card border-red-900">
-            <p className="eyebrow text-red-400">Simulador de contingencias</p>
+        <section className="card border-alert-900">
+            <p className="eyebrow text-alert-400">Simulador de contingencias</p>
 
             <select
                 className="field"
@@ -89,7 +89,7 @@ export default function ContingencyPanel({ mission, onMission }: Props) {
                 />
             </label>
 
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <p className="text-sm text-alert-500">{error}</p>}
             {!online && <p className="text-sm text-amber-400">Requiere conexión: el retorno lo evalúa el servidor.</p>}
             <button
                 type="button"

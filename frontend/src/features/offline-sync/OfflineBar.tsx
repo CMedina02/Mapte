@@ -48,7 +48,7 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       {msg && (
-        <span role="status" className="text-xs text-neutral-400">
+        <span role="status" className="text-xs text-space-300">
           {msg}
         </span>
       )}
@@ -56,13 +56,13 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
       {online ? (
         <span className={`${badge} bg-green-900 text-green-300`}>● Online</span>
       ) : (
-        <span className={`${badge} ${hasPkg ? 'bg-amber-900 text-amber-300' : 'bg-red-950 text-red-300'}`}>
+        <span className={`${badge} ${hasPkg ? 'bg-amber-900 text-amber-300' : 'bg-alert-950 text-alert-300'}`}>
           ● Offline {hasPkg ? '(Paquete Local)' : '(sin paquete)'}
         </span>
       )}
 
       {queue.length > 0 && (
-        <span className={`${badge} bg-sky-900 text-sky-300`}>● Cambios pendientes ({queue.length})</span>
+        <span className={`${badge} bg-primary-900 text-primary-300`}>● Cambios pendientes ({queue.length})</span>
       )}
 
       {online && queue.length > 0 && (

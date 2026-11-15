@@ -16,20 +16,20 @@ export default function DecisionLog({ mission }: { mission: Mission }) {
         <p className="text-xs text-amber-400">Datos de muestra (sample_only): no usar para navegación real.</p>
       )}
       {mission.alerts.map((a) => (
-        <p key={a} className="rounded bg-red-950 p-2 text-xs text-red-300">
+        <p key={a} className="rounded bg-alert-950 p-2 text-xs text-alert-300">
           {a}
         </p>
       ))}
       <ol className="space-y-2">
         {mission.decision_log.map((d, i) => (
-          <li key={i} className="border-l-2 border-orange-600 pl-2">
-            <span className="text-xs uppercase text-neutral-400">
+          <li key={i} className="border-l-2 border-primary-600 pl-2">
+            <span className="text-xs uppercase text-space-300">
               {d.event_type}
               {d.simulated && ' · simulado'}
             </span>
             <p>{d.message}</p>
             {d.evidence_ids.length > 0 && (
-              <p className="text-xs text-neutral-500">Evidencia: {d.evidence_ids.join(', ')}</p>
+              <p className="text-xs text-space-400">Evidencia: {d.evidence_ids.join(', ')}</p>
             )}
           </li>
         ))}

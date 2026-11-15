@@ -83,7 +83,7 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
     <section className="space-y-3 text-sm">
       <h2 className="eyebrow">Objetivos</h2>
       {objectives.map((o) => (
-        <label key={o.objective_id} className="flex cursor-pointer gap-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 has-checked:border-orange-600">
+        <label key={o.objective_id} className="flex cursor-pointer gap-3 rounded-lg border border-space-800 bg-space-900/40 p-3 has-checked:border-primary-600">
           <input
             type="checkbox"
             checked={selectedIds.includes(o.objective_id)}
@@ -91,15 +91,15 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
           />
           <span>
             <span className="block">{o.title}</span>
-            <span className="block text-xs text-neutral-500">{o.science_question}</span>
-            <span className="block text-xs text-neutral-500">
+            <span className="block text-xs text-space-400">{o.science_question}</span>
+            <span className="block text-xs text-space-400">
               Prioridad {o.priority_weight} · ({o.position.x_m}, {o.position.y_m}) m
             </span>
           </span>
         </label>
       ))}
 
-      <p className="text-xs text-neutral-400">
+      <p className="text-xs text-space-300">
         Base: {base ? `(${base.x_m}, ${base.y_m}) m` : 'sin fijar (clic en el mapa)'}
       </p>
 
@@ -113,7 +113,7 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
       <NumberField label="O₂ disponible (min)" value={oxygen} onChange={setOxygen} min={0} />
       <NumberField label="Reserva retorno (min)" value={reserve} onChange={setReserve} min={0} />
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-alert-500">{error}</p>}
       {!error && problem && <p className="text-xs text-amber-400">{problem}</p>}
 
       <button

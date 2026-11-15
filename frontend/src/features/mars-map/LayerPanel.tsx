@@ -42,7 +42,7 @@ export default function LayerPanel({ layers, state, onChange }: Props) {
                 Formato no soportado aún (.{l.asset_url.split('.').pop()})
               </p>
             )}
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="mt-1 text-xs text-space-400">
               {l.kind} · {l.resolution_m_per_pixel} m/px
             </p>
           </div>

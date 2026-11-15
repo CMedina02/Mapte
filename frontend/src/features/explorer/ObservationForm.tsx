@@ -94,7 +94,7 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
               type="button"
               aria-pressed={finding === code}
               onClick={() => setFinding(code)}
-              className={`btn break-all ${finding === code ? 'bg-orange-600 text-white' : 'border border-neutral-700 bg-neutral-900'}`}
+              className={`btn break-all ${finding === code ? 'bg-primary-600 text-white' : 'border border-space-700 bg-space-900'}`}
             >
               {code}
             </button>
@@ -111,7 +111,7 @@ export default function ObservationForm({ mission, objectives, onUpdated, onQueu
         onChange={(e) => setNotes(e.target.value)}
       />
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-alert-500">{error}</p>}
 
       <button
         type="button"

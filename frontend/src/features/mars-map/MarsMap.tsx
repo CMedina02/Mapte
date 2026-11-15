@@ -31,12 +31,12 @@ interface Props {
 }
 
 const boundsStyle = new Style({
-  stroke: new Stroke({ color: '#f97316', width: 1, lineDash: [6, 6] }),
+  stroke: new Stroke({ color: '#5182d8', width: 1, lineDash: [6, 6] }),
 });
 
 // exclusión = rojo (no se cruza); precaución = ámbar punteado. Texto además de color.
 const hazardStyle = (kind: Hazard['kind'], label: string) => {
-  const color = kind === 'exclusion' ? '239,68,68' : '245,158,11';
+  const color = kind === 'exclusion' ? '252,61,33' : '245,158,11';
   return new Style({
     fill: new Fill({ color: `rgba(${color},0.22)` }),
     stroke: new Stroke({ color: `rgb(${color})`, width: 2, lineDash: kind === 'exclusion' ? undefined : [6, 4] }),
@@ -52,7 +52,7 @@ const hazardStyle = (kind: Hazard['kind'], label: string) => {
 
 const ROUTE_COLOR: Record<RouteStatus, string> = {
   viable: '#22c55e',
-  not_viable: '#ef4444',
+  not_viable: '#fc3d21',
   unknown: '#f59e0b',
 };
 
@@ -191,9 +191,9 @@ export default function MarsMap({
 
     markers.current?.clear();
     markers.current?.addFeatures([
-      ...(basePosition ? point(basePosition, 'BASE', '#38bdf8') : []),
+      ...(basePosition ? point(basePosition, 'BASE', '#ffffff') : []),
       ...objectives.flatMap((o) =>
-        point(o.position, o.title, selectedObjectiveIds.includes(o.objective_id) ? '#22c55e' : '#f97316'),
+        point(o.position, o.title, selectedObjectiveIds.includes(o.objective_id) ? '#22c55e' : '#9aabcb'),
       ),
     ]);
   }, [objectives, selectedObjectiveIds, basePosition, manifest]);

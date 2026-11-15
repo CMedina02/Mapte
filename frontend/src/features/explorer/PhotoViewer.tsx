@@ -4,7 +4,7 @@ import type { LocationQuality, Photo } from '../../shared/types/contracts';
 const QUALITY: Record<LocationQuality, { label: string; cls: string }> = {
   verified: { label: 'Ubicación verificada', cls: 'bg-green-900 text-green-300' },
   approximate: { label: 'Ubicación aproximada', cls: 'bg-amber-900 text-amber-300' },
-  unknown: { label: 'Ubicación desconocida', cls: 'bg-red-950 text-red-300' },
+  unknown: { label: 'Ubicación desconocida', cls: 'bg-alert-950 text-alert-300' },
 };
 
 export default function PhotoViewer({ photos }: { photos: Photo[] }) {
@@ -13,7 +13,7 @@ export default function PhotoViewer({ photos }: { photos: Photo[] }) {
 
   if (photos.length === 0) {
     return (
-      <section className="card text-sm text-neutral-500">
+      <section className="card text-sm text-space-400">
         Sin fotografías para este objetivo.
       </section>
     );
@@ -31,14 +31,14 @@ export default function PhotoViewer({ photos }: { photos: Photo[] }) {
       </p>
 
       {broken[p.photo_id] ? (
-        <div className="flex aspect-video items-center justify-center rounded bg-neutral-900 text-neutral-500">
+        <div className="flex aspect-video items-center justify-center rounded bg-space-900 text-space-400">
           Imagen no disponible
         </div>
       ) : (
         <img
           src={p.image_url}
           alt={`Cámara ${p.camera}, sol ${p.sol ?? 'desconocido'}`}
-          className="aspect-video w-full rounded bg-neutral-900 object-cover"
+          className="aspect-video w-full rounded bg-space-900 object-cover"
           onError={() => setBroken((b) => ({ ...b, [p.photo_id]: true }))}
         />
       )}
@@ -47,7 +47,7 @@ export default function PhotoViewer({ photos }: { photos: Photo[] }) {
       <p>
         Cámara {p.camera} · Sol {p.sol ?? 'desconocido'} · {p.captured_at ?? 'fecha desconocida'}
       </p>
-      <p className="text-xs text-neutral-400">
+      <p className="text-xs text-space-300">
         Crédito:{' '}
         <a href={p.source_url} target="_blank" rel="noreferrer" className="underline">
           {p.credit}

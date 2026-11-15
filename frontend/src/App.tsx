@@ -17,31 +17,38 @@ export default function App() {
     if (mission) updatePackageMission(mission);
   }, [mission]);
 
+  // Pestaña activa: subrayado rojo NASA, como la navegación de un sitio de misión
   const tab = (v: View, label: string, disabled = false) => (
     <button
       type="button"
       disabled={disabled}
       aria-current={view === v ? 'page' : undefined}
       onClick={() => setView(v)}
-      className={view === v ? 'btn-primary' : 'btn-ghost'}
+      className={`min-h-11 border-b-2 px-3 text-sm font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        view === v ? 'border-alert-500 text-white' : 'border-transparent text-space-300 enabled:hover:text-white'
+      }`}
     >
       {label}
     </button>
   );
 
   return (
-    <div className="flex h-dvh flex-col">
-      <header className="flex flex-wrap items-center gap-2 border-b border-neutral-800 px-2 py-2 sm:px-3">
-        <nav className="flex gap-2" aria-label="Vistas">
+    <div className="flex h-dvh flex-col border-t-4 border-alert-500">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-space-800 bg-space-950/80 px-3 backdrop-blur sm:px-4">
+        <div className="py-2 leading-tight">
+          <p className="text-sm font-bold tracking-[0.2em] text-white uppercase">Mars EVA</p>
+          <p className="text-[11px] text-primary-300">Planificación de caminatas</p>
+        </div>
+        <nav className="flex gap-1 self-stretch" aria-label="Vistas">
           {tab('control', 'Mission Control')}
           {tab('explorer', 'Explorer', !mission)}
         </nav>
         {mission && (
-          <span className="hidden text-xs text-neutral-400 lg:inline">
+          <span className="hidden text-xs text-space-300 xl:inline">
             {mission.mission_id} · v{mission.version} · {mission.status}
           </span>
         )}
-        <div className="ml-auto">
+        <div className="ml-auto py-2">
           <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
         </div>
       </header>
