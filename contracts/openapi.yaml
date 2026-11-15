@@ -832,9 +832,9 @@
             "required": false,
             "schema": {
               "type": "number",
-              "maximum": 120,
+              "maximum": 600.0,
               "exclusiveMinimum": 0,
-              "default": 30.0,
+              "default": 120.0,
               "title": "Speed Factor"
             }
           }
@@ -3052,10 +3052,10 @@
           },
           "speed_factor": {
             "type": "number",
-            "maximum": 120.0,
+            "maximum": 600.0,
             "exclusiveMinimum": 0.0,
             "title": "Speed Factor",
-            "default": 30.0
+            "default": 120.0
           },
           "deviation": {
             "anyOf": [

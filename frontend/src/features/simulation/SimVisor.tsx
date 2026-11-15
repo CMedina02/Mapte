@@ -2,7 +2,7 @@
 // El astronauta sigue la ruta A*, se desvía a propósito y el backend avisa y recalcula. El cliente
 // solo interpola la posición entre dos respuestas para que el 3D se vea fluido; no calcula nada.
 //
-// Parámetros opcionales: ?speed=30 (×tiempo), ?side=left|right, ?at=0.4 (fracción de la ruta), ?deviate=0
+// Parámetros opcionales: ?speed=120 (×tiempo, máx. 600), ?side=left|right, ?at=0.4 (fracción de la ruta), ?deviate=0
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { Objective, Position, RegionManifest } from '../../shared/types/contracts';
 import { marsApi } from '../../shared/api/client';
@@ -13,7 +13,7 @@ import ErrorBoundary from '../../shared/ui/ErrorBoundary';
 
 const Terrain3D = lazy(() => import('../terrain-3d/Terrain3D'));
 
-const STEP_MS = 1000; // un paso del backend por segundo real
+const STEP_MS = 500; // un paso del backend cada medio segundo real (avisos y recálculos no se pisan)
 const TICK_MS = 50; // refresco de la posición interpolada
 const ALERT_MS = 5000; // cuánto queda visible un aviso de recálculo o llegada
 
@@ -103,7 +103,7 @@ export default function SimVisor() {
     };
   }, [run, show]);
 
-  // Bucle automático: un paso por segundo mientras corre y no ha terminado
+  // Bucle automático: un paso cada STEP_MS mientras corre y no ha terminado
   const simId = sim?.sim_id ?? null;
   const finished = sim?.status === 'arrived' || sim?.status === 'stopped';
   const ready = !!region;

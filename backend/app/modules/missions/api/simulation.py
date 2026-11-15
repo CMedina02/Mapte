@@ -25,15 +25,19 @@ from app.modules.missions.terrain import FrameMismatchError, LocalPosition
 
 simulation_router = APIRouter(prefix="/sim", tags=["Simulation"])
 
-# Escenario preestablecido (Monte Sharp): ~1.2 km hasta Glen Torridon (arcillas).
+# Escenario preestablecido (Monte Sharp): hacia Gediz Vallis. El destino está a ~800 m en línea
+# recta, pero la pendiente obliga al A* a rodear el relieve: ~3.9 km de trayecto con ~270 m de
+# desnivel, para que se note que la ruta no es una recta.
 PRESET_REGION_ID = "mc23-gale-mount-sharp"
 PRESET_FRAME_ID = "MARS_GALE_MS_LOCAL_V1"
-PRESET_START = (2900.0, 6300.0)
-PRESET_END = (4034.4, 6417.9)  # obj-glen-torridon-aberlady
+PRESET_START = (5123.0, 2190.0)
+PRESET_END = (5523.0, 2883.0)  # obj-gediz-vallis-mammoth-lakes
 PRESET_CONSTRAINTS = RoutePlanningConstraints(
     max_slope_deg=15.0, speed_m_per_min=20.0, avoid_unknown=True
 )
 MAX_DEMO_STEPS = 5000
+DEFAULT_SPEED_FACTOR = 120.0
+MAX_SPEED_FACTOR = 600.0
 
 
 # --- schemas ----------------------------------------------------------------
@@ -54,7 +58,7 @@ class SimulationCreateSchema(BaseModel):
     start: PositionSchema | None = None
     end: PositionSchema | None = None
     constraints: RouteConstraintsSchema | None = None
-    speed_factor: float = Field(default=30.0, gt=0, le=120)
+    speed_factor: float = Field(default=DEFAULT_SPEED_FACTOR, gt=0, le=MAX_SPEED_FACTOR)
     deviation: DeviationSchema | None = Field(
         default_factory=DeviationSchema,
         description="Desvío automático; null para caminar sin desviarse.",
@@ -155,7 +159,7 @@ def create_simulation(
 def run_demo(
     terrain: TerrainDep,
     dt_s: Annotated[float, Query(gt=0, le=60)] = 1.0,
-    speed_factor: Annotated[float, Query(gt=0, le=120)] = 30.0,
+    speed_factor: Annotated[float, Query(gt=0, le=MAX_SPEED_FACTOR)] = DEFAULT_SPEED_FACTOR,
 ) -> SimulationDemoSchema:
     """Corre el escenario preestablecido de principio a fin y devuelve la línea de tiempo."""
     simulation = _build(terrain, SimulationCreateSchema(speed_factor=speed_factor))
