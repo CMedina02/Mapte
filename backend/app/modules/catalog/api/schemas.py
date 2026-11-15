@@ -10,10 +10,13 @@ from app.modules.catalog.domain.terrain_contract import (
     ASSETS_URL_PREFIX,
     F32_DTYPE,
     F32_MEMORY_ORDER,
+    DataQuality,
+    LocalExtentM,
     NoDataPolicy,
     RowOrder,
     TerrainGridSpec,
     TerrainMetadata,
+    TerrainQualityZone,
 )
 
 
@@ -72,6 +75,45 @@ class SectorExtentSchema(BaseModel):
     y_max_m: float
 
 
+class QualityZoneSchema(BaseModel):
+    """Zone whose terrain data must be treated with a non-nominal quality."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    zone_id: str = Field(min_length=1)
+    quality: Literal["nominal", "unknown"]
+    extent_m: SectorExtentSchema
+    reason: str = Field(min_length=1)
+
+    @classmethod
+    def from_zone(cls, zone: TerrainQualityZone) -> QualityZoneSchema:
+        extent = zone.extent_m
+        return cls(
+            zone_id=zone.zone_id,
+            quality=zone.quality.value,
+            extent_m=SectorExtentSchema(
+                x_min_m=extent.x_min_m,
+                x_max_m=extent.x_max_m,
+                y_min_m=extent.y_min_m,
+                y_max_m=extent.y_max_m,
+            ),
+            reason=zone.reason,
+        )
+
+    def to_zone(self) -> TerrainQualityZone:
+        return TerrainQualityZone(
+            zone_id=self.zone_id,
+            quality=DataQuality(self.quality),
+            extent_m=LocalExtentM(
+                x_min_m=self.extent_m.x_min_m,
+                x_max_m=self.extent_m.x_max_m,
+                y_min_m=self.extent_m.y_min_m,
+                y_max_m=self.extent_m.y_max_m,
+            ),
+            reason=self.reason,
+        )
+
+
 class TerrainManifestSchema(BaseModel):
     """Terrain block within RegionManifest for 3D rendering."""
 
@@ -107,6 +149,9 @@ class TerrainManifestSchema(BaseModel):
     # Sector covered by the terrain.
     sector_id: str = Field(min_length=1)
     extent_m: SectorExtentSchema
+
+    # Zones with non-nominal data quality (e.g. DEM artifacts -> "unknown").
+    quality_zones: list[QualityZoneSchema] = Field(default_factory=list)
 
     @field_validator("heightmap_url")
     @classmethod
@@ -164,4 +209,84 @@ class TerrainManifestSchema(BaseModel):
                 y_min_m=extent.y_min_m,
                 y_max_m=extent.y_max_m,
             ),
+            quality_zones=[QualityZoneSchema.from_zone(zone) for zone in metadata.quality_zones],
         )
+
+
+# --- HTTP responses of catalog_router (aligned with frontend/src/shared/types/contracts.ts) ---
+
+
+class RegionSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    region_id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    body: Literal["Mars"] = "Mars"
+    description: str
+    available: bool = True
+
+
+class RegionsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    regions: list[RegionSchema]
+
+
+class FrameSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    frame_id: str = Field(min_length=1)
+    units: Literal["m"] = "m"
+    origin_east_lon_deg: float
+    origin_planetocentric_lat_deg: float
+    projection_definition: str = Field(min_length=1)
+    longitude_direction: Literal["east", "west"] = "east"
+    latitude_type: Literal["planetocentric", "planetographic"] = "planetocentric"
+
+
+class BoundsSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    min_x: float
+    min_y: float
+    max_x: float
+    max_y: float
+
+
+class EvidenceSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    evidence_id: str = Field(min_length=1)
+    title: str
+    mission: str
+    instrument: str
+    source_url: str
+    credit: str
+    captured_at: str | None = None
+    resolution_m: float | None = None
+    caveats: list[str] = Field(default_factory=list)
+
+
+class LayerSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    layer_id: str = Field(min_length=1)
+    kind: Literal["optical", "topographic", "geologic", "thermal", "spectral", "other"]
+    title: str
+    asset_url: str
+    opacity_default: float = Field(ge=0, le=1)
+    resolution_m_per_pixel: float = Field(gt=0)
+    evidence_ids: list[str]
+    nodata_policy: Literal["unknown"] = "unknown"
+
+
+class RegionManifestResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    region_id: str = Field(min_length=1)
+    frame: FrameSchema
+    bounds_local_m: BoundsSchema
+    layers: list[LayerSchema]
+    evidence: list[EvidenceSchema]
+    sample_only: bool = False
+    terrain: TerrainManifestSchema

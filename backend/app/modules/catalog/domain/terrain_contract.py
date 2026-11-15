@@ -37,6 +37,13 @@ class NoDataPolicy(StrEnum):
     F32_NAN = "f32_nan"
 
 
+class DataQuality(StrEnum):
+    """Reliability of terrain data inside a zone."""
+
+    NOMINAL = "nominal"
+    UNKNOWN = "unknown"
+
+
 class TerrainPurpose(StrEnum):
     """Intended consumer for a terrain grid."""
 
@@ -278,6 +285,22 @@ class TerrainAssetPaths:
 
 
 @dataclass(frozen=True, slots=True)
+class TerrainQualityZone:
+    """Rectangular zone of the sector whose data quality differs from nominal."""
+
+    zone_id: str
+    quality: DataQuality
+    extent_m: LocalExtentM
+    reason: str
+
+    def __post_init__(self) -> None:
+        _ensure_non_empty("zone_id", self.zone_id)
+        _ensure_non_empty("reason", self.reason)
+        if not isinstance(self.quality, DataQuality):
+            raise ValueError(f"quality no soportada: {self.quality!r}")
+
+
+@dataclass(frozen=True, slots=True)
 class TerrainMetadata:
     """Complete 3D terrain metadata contract."""
 
@@ -287,9 +310,23 @@ class TerrainMetadata:
     consistency: TerrainConsistencySpec
     assets: TerrainAssetPaths
     routing_grid: TerrainGridSpec | None = None
+    quality_zones: tuple[TerrainQualityZone, ...] = ()
 
     def __post_init__(self) -> None:
         self.assets.ensure_region(self.sector.region_id)
+        zone_ids = [zone.zone_id for zone in self.quality_zones]
+        if len(zone_ids) != len(set(zone_ids)):
+            raise ValueError("quality_zones contiene zone_id duplicados.")
+        for zone in self.quality_zones:
+            sector = self.sector.extent_m
+            inside = (
+                sector.x_min_m - EXTENT_TOLERANCE_M <= zone.extent_m.x_min_m
+                and zone.extent_m.x_max_m <= sector.x_max_m + EXTENT_TOLERANCE_M
+                and sector.y_min_m - EXTENT_TOLERANCE_M <= zone.extent_m.y_min_m
+                and zone.extent_m.y_max_m <= sector.y_max_m + EXTENT_TOLERANCE_M
+            )
+            if not inside:
+                raise ValueError(f"La zona {zone.zone_id!r} se sale de la extensión del sector.")
         terrain_extent = self.grid.bounds_pixel_edges_m()
         texture_grid = self.consistency.texture_grid
         if texture_grid is not None and not texture_grid.bounds_pixel_edges_m().matches(
@@ -308,6 +345,13 @@ class TerrainMetadata:
     def effective_routing_grid(self) -> TerrainGridSpec:
         return self.routing_grid or self.grid
 
+    def quality_at(self, x_m: float, y_m: float) -> DataQuality:
+        """Worst data quality of the zones containing (x_m, y_m); nominal if none."""
+        for zone in self.quality_zones:
+            if zone.quality == DataQuality.UNKNOWN and zone.extent_m.contains(x_m, y_m):
+                return DataQuality.UNKNOWN
+        return DataQuality.NOMINAL
+
 
 @dataclass(frozen=True, slots=True)
 class TerrainSample:
@@ -321,6 +365,7 @@ class TerrainSample:
     in_bounds: bool
     row: int | None = None
     col: int | None = None
+    quality: DataQuality = DataQuality.NOMINAL
 
 
 def compute_elevation_range(elevations_m: Sequence[float]) -> tuple[float, float]:
@@ -420,6 +465,7 @@ class TerrainGridData:
             self._blocked = bytearray(1 if flag else 0 for flag in blocked_mask)
 
         self.elevations_m: array = elevations
+        self._stats = self._scan_elevations()
         self._check_declared_elevation_range()
 
     @classmethod
@@ -444,19 +490,42 @@ class TerrainGridData:
             elevations.byteswap()
         return cls(metadata, elevations, blocked_mask=blocked_mask, grid=grid)
 
-    def _check_declared_elevation_range(self) -> None:
+    def _scan_elevations(self) -> tuple[float | None, float | None, int]:
+        """Single pass: (min, max) of finite samples and count of non-finite ones."""
         data_min = math.inf
         data_max = -math.inf
+        non_finite = 0
         isfinite = math.isfinite
         for value in self.elevations_m:
             if not isfinite(value):
+                non_finite += 1
                 continue
             if value < data_min:
                 data_min = value
             if value > data_max:
                 data_max = value
         if data_min > data_max:
-            return  # Grid without finite samples.
+            return None, None, non_finite
+        return data_min, data_max, non_finite
+
+    @property
+    def elevation_range_m(self) -> tuple[float, float] | None:
+        """(min, max) of finite elevations, or None if the grid has no data."""
+        data_min, data_max, _ = self._stats
+        if data_min is None or data_max is None:
+            return None
+        return data_min, data_max
+
+    @property
+    def non_finite_count(self) -> int:
+        """Number of NaN/inf cells (NoData)."""
+        return self._stats[2]
+
+    def _check_declared_elevation_range(self) -> None:
+        data_range = self.elevation_range_m
+        if data_range is None:
+            return
+        data_min, data_max = data_range
         vertical = self.metadata.vertical
         tol = ELEVATION_RANGE_TOLERANCE_M
         if data_min < vertical.elevation_min_m - tol or data_max > vertical.elevation_max_m + tol:
@@ -515,7 +584,35 @@ class TerrainGridData:
         y_m: float,
         method: Literal["nearest", "bilinear"] = "bilinear",
     ) -> TerrainSample:
-        """Sample elevation at local (x_m, y_m); out-of-bounds or NaN returns None and blocked."""
+        """Sample elevation at local (x_m, y_m); out-of-bounds or NaN returns None and blocked.
+
+        ``quality`` is ``unknown`` inside a declared low-confidence zone or out of bounds.
+        """
+        sample = self._sample_at_xy(x_m, y_m, method)
+        if not sample.in_bounds:
+            quality = DataQuality.UNKNOWN
+        else:
+            quality = self.metadata.quality_at(x_m, y_m)
+        if quality == sample.quality:
+            return sample
+        return TerrainSample(
+            x_m=sample.x_m,
+            y_m=sample.y_m,
+            elevation_m=sample.elevation_m,
+            is_valid=sample.is_valid,
+            is_blocked=sample.is_blocked,
+            in_bounds=sample.in_bounds,
+            row=sample.row,
+            col=sample.col,
+            quality=quality,
+        )
+
+    def _sample_at_xy(
+        self,
+        x_m: float,
+        y_m: float,
+        method: Literal["nearest", "bilinear"],
+    ) -> TerrainSample:
         if not self._grid.contains_xy(x_m, y_m):
             return TerrainSample(
                 x_m=x_m,
@@ -696,9 +793,9 @@ class InMemoryTerrainRepository:
 
 
 def build_synthetic_terrain(
-    region_id: str = "gale-mount-sharp",
+    region_id: str = "mc23-gale-mount-sharp",
     region_name: str = "Monte Sharp (Aeolis Mons), cráter Gale",
-    sector_id: str = "gale-mount-sharp-synthetic-pilot",
+    sector_id: str = "mc23-gale-mount-sharp-synthetic-pilot",
     frame_id: str = "MARS_GALE_MS_LOCAL_V1",
     width_px: int = 32,
     height_px: int = 32,
