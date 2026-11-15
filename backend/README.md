@@ -68,13 +68,17 @@ responde; no afirma que el terreno, catálogo o motor de misiones estén listos.
 El proxy existente de Vite envía `/api` a `http://127.0.0.1:8000`. No requiere
 cambios para esta base ni CORS abierto. Frontend conserva su entorno y dependencias.
 Su cliente usa mocks por defecto; `VITE_USE_MOCK=false` activa HTTP real y requiere
-reiniciar Vite. Catálogo y rutas ya tienen endpoints; los demás flujos de misión siguen
-pendientes.
+reiniciar Vite. Catálogo, rutas, ciclo de misión, contingencias, paquete offline y apoyo
+preventivo exponen endpoints versionados.
 
-Monte Sharp y los formatos actuales acordados del frontend guían las próximas tareas.
-El archivo raíz `contracts/openapi.yaml` todavía corresponde a la propuesta anterior:
-su actualización y la de los ejemplos están pendientes de una tarea compartida.
-El OpenAPI generado por la aplicación describe lo implementado actualmente.
+`contracts/openapi.yaml` es una exportación exacta del OpenAPI generado por la aplicación
+(JSON indentado, también válido como YAML). Para regenerarlo:
+
+```powershell
+python scripts/export_openapi.py
+```
+
+La prueba `tests/test_openapi_contract.py` falla si el archivo y la aplicación divergen.
 
 ## Errores
 

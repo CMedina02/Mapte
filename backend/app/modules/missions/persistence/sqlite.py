@@ -179,7 +179,7 @@ class SQLiteMissionRepository:
                 return None
             routes = connection.execute(
                 """SELECT * FROM routes WHERE mission_id = ? AND mission_version = ?
-                ORDER BY created_at, route_id""",
+                ORDER BY rowid""",
                 (mission_id, selected_version),
             ).fetchall()
         return self._to_mission(mission, version_row, routes)
@@ -251,7 +251,7 @@ class SQLiteMissionRepository:
                 raise MissionNotFoundError(f"Misión no encontrada: {mission_id!r}")
             rows = connection.execute(
                 """SELECT * FROM mission_events WHERE mission_id = ?
-                ORDER BY mission_version, created_at, event_id""",
+                ORDER BY mission_version, rowid""",
                 (mission_id,),
             ).fetchall()
         return tuple(

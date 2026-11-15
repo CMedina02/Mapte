@@ -62,5 +62,18 @@
     "El DEM de origen muestra artefactos en rejilla en la franja este (x > ~6.6 km): relleno de menor resolución en el mosaico USGS; no usar ahí pendientes finas.",
     "Datum vertical pendiente de confirmar contra la etiqueta PDS del DEM.",
     "A 4 m no se resuelven rocas ni obstáculos menores a esa escala."
+  ],
+  "quality_zones": [
+    {
+      "zone_id": "east-dem-grid-artifacts",
+      "quality": "unknown",
+      "extent_m": {
+        "x_min_m": 6600.0,
+        "x_max_m": 10000.0,
+        "y_min_m": 0.0,
+        "y_max_m": 10000.0
+      },
+      "reason": "Artefactos en rejilla del DEM USGS (relleno de menor resolución); pendientes no fiables"
+    }
   ]
 }

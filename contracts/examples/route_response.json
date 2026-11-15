@@ -1,6 +1,8 @@
 {
   "route_id": "route-001",
   "region_id": "demo-jezero",
+  "frame_id": "DEMO_LOCAL_MARS_V1",
+  "terrain_version": "demo-terrain-v1",
   "path": [
     {
       "x_m": 100,

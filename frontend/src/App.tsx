@@ -38,17 +38,14 @@ export default function App() {
   return (
     <div className="flex h-dvh flex-col border-t-4 border-alert-500">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-space-800 bg-space-950/80 px-3 backdrop-blur sm:px-4">
-        <div className="py-2 leading-tight">
-          <p className="text-sm font-bold tracking-[0.2em] text-white uppercase">Mars EVA</p>
-          <p className="text-[11px] text-primary-300">Planificación de caminatas</p>
-        </div>
+        <p className="py-3 text-sm font-bold tracking-[0.2em] text-white uppercase">Mapte</p>
         <nav className="flex gap-1 self-stretch" aria-label="Vistas">
           {tab('control', 'Mission Control')}
           {tab('explorer', 'Explorer', !mission)}
         </nav>
         {mission && (
           <span className="hidden text-xs text-space-300 xl:inline">
-            {mission.mission_id} · v{mission.version} · {mission.status}
+            {mission.mission_id} · v{mission.mission_version} · {mission.lifecycle_status}
           </span>
         )}
         <div className="ml-auto py-2">

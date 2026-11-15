@@ -68,5 +68,53 @@
       ]
     }
   ],
-  "sample_only": true
+  "sample_only": true,
+  "terrain": {
+    "heightmap_url": "/api/v1/assets/demo-jezero/heightmap.f32",
+    "width_px": 100,
+    "height_px": 100,
+    "elevation_min_m": -2600,
+    "elevation_max_m": -2400,
+    "texture_layer_id": "imagery",
+    "evidence_ids": [
+      "ev-demo"
+    ],
+    "frame_id": "DEMO_LOCAL_MARS_V1",
+    "terrain_version": "demo-terrain-v1",
+    "vertical_datum": "DEMO_DATUM",
+    "units": "m",
+    "format": "f32",
+    "dtype": "float32_little_endian",
+    "header_bytes": 0,
+    "memory_order": "row_major",
+    "nodata_policy": "f32_nan",
+    "texture_aligned": true,
+    "grid": {
+      "origin_center_x_m": 5,
+      "origin_center_y_m": 995,
+      "pixel_size_x_m": 10,
+      "pixel_size_y_m": 10,
+      "row_order": "north_to_south"
+    },
+    "texture_url": "/api/v1/assets/demo-jezero/imagery.png",
+    "texture_grid": {
+      "origin_center_x_m": 5,
+      "origin_center_y_m": 995,
+      "pixel_size_x_m": 10,
+      "pixel_size_y_m": 10,
+      "row_order": "north_to_south",
+      "width_px": 100,
+      "height_px": 100
+    },
+    "blocked_mask_url": null,
+    "dataset_checksum_sha256": null,
+    "sector_id": "demo-sector",
+    "extent_m": {
+      "x_min_m": 0,
+      "x_max_m": 1000,
+      "y_min_m": 0,
+      "y_max_m": 1000
+    },
+    "quality_zones": []
+  }
 }

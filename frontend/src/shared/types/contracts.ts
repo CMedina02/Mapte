@@ -106,6 +106,14 @@ export interface TerrainGrid {
   row_order: 'north_to_south';
 }
 
+// Zona del DEM con calidad no nominal (p. ej. artefactos): 'unknown' nunca se presenta como segura
+export interface QualityZone {
+  zone_id: string;
+  quality: 'nominal' | 'unknown';
+  extent_m: { x_min_m: number; x_max_m: number; y_min_m: number; y_max_m: number };
+  reason: string;
+}
+
 export interface Terrain {
   heightmap_url: string; 
   width_px: number;
@@ -128,12 +136,19 @@ export interface Terrain {
   // con el relieve fino que el heightmap no representa; cubre la misma extensión que el heightmap.
   normal_map_url?: string | null;
   grid: TerrainGrid;
+  // Opcionales que ya publica el backend (schemas.py → TerrainManifestSchema)
+  texture_url?: string | null;
+  blocked_mask_url?: string | null;
+  dataset_checksum_sha256?: string | null;
+  sector_id?: string;
+  quality_zones?: QualityZone[];
 }
 
 export interface Objective {
   objective_id: string;
   region_id: string;
   title: string;
+  description?: string; // contexto del sitio (el backend lo envía; puede venir vacío)
   position: Position;
   science_question: string;
   priority_weight: number;
@@ -179,6 +194,8 @@ export type RouteStatus = 'viable' | 'not_viable' | 'unknown';
 export interface RouteResult {
   route_id: string;
   region_id: string;
+  frame_id: string;
+  terrain_version: string;
   path: Position[];
   distance_m: number | null;
   duration_min: number | null;
@@ -190,6 +207,7 @@ export interface RouteResult {
   evidence_ids: string[];
   assumptions: string[];
   sample_only?: boolean;
+  return_start_index?: number; // del cliente: índice de path donde empieza el regreso a base (solo para dibujar)
 }
 
 
@@ -199,6 +217,8 @@ export interface MissionPlanRequest {
   objective_ids: string[];
   constraints: Constraints;
   resources: Resources;
+  // Minutos de actividad en cada objetivo: sin ellos el backend no puede asegurar el O₂ (viabilidad 'unknown')
+  activity_durations_min?: Record<string, number>;
 }
 
 export interface Decision {
@@ -208,23 +228,71 @@ export interface Decision {
   simulated: boolean;
 }
 
-export type MissionStatus = 'planned' | 'in_progress' | 'contingency' | 'completed' | 'cancelled';
+export type MissionLifecycleStatus = 'draft' | 'active' | 'completed' | 'aborted';
+
+export interface MissionRouteMetrics {
+  distance_m: number | null;
+  duration_min: number | null;
+  ascent_m: number | null;
+  max_slope_deg: number | null;
+  unknown_segments: number;
+}
+
+export interface MissionLeg {
+  leg_id: string;
+  route_id: string;
+  start_label: string;
+  end_label: string;
+  status: RouteStatus;
+  path: Position[];
+  metrics: MissionRouteMetrics;
+  warnings: string[];
+  assumptions: string[];
+}
+
+export interface ResourceEvaluation {
+  status: RouteStatus;
+  known_consumption_min: number;
+  projected_consumption_min: number | null;
+  oxygen_remaining_min: number | null;
+  reserve_margin_min: number | null;
+  reason_codes: string[];
+  warnings: string[];
+  assumptions: string[];
+}
+
+export interface HazardReport {
+  report_id: string;
+  mission_version: number;
+  position: Position;
+  hazard_code: string;
+  effect: 'blocked' | 'unknown' | 'high_cost';
+  affected_radius_m: number;
+  cost_multiplier: number;
+}
 
 export interface Mission {
   mission_id: string;
+  mission_version: number;
   region_id: string;
-  version: number;
-  status: MissionStatus;
-  base_position: Position;
+  frame_id: string;
+  terrain_version: string;
+  lifecycle_status: MissionLifecycleStatus;
+  viability_status: RouteStatus;
+  start_position: Position;
+  current_position: Position | null;
+  return_position: Position;
   objective_ids: string[];
-  route: RouteResult;
-  resources: Resources;
   completed_objective_ids: string[];
   next_objective_id: string | null;
+  legs: MissionLeg[];
+  routing_constraints: Constraints | null;
+  resources: Resources;
+  resource_evaluation: ResourceEvaluation;
   alerts: string[];
   decision_log: Decision[];
   evidence_ids: string[];
-  sample_only?: boolean;
+  hazard_reports: HazardReport[];
 }
 
 export interface ObservationRequest {
@@ -243,14 +311,52 @@ export interface ContingencyRequest {
   oxygen_available_min: number;
 }
 
+export interface PreventiveSupportRequest {
+  mission_version: number;
+  crew_position: Position;
+  support_vehicle_position: Position;
+  oxygen_available_min: number;
+  vehicle_speed_m_per_min: number;
+  max_candidates?: number;
+}
+
+export interface PreventiveSupportOption {
+  option_id: string;
+  kind: 'direct_return' | 'rendezvous';
+  support_position: Position;
+  crew_route: RouteResult;
+  vehicle_route: RouteResult | null;
+  intervention_time_min: number | null;
+  total_distance_m: number | null;
+  resource_evaluation: ResourceEvaluation;
+}
+
+export interface PreventiveSupportResponse {
+  mission_id: string;
+  mission_version: number;
+  terrain_version: string;
+  options: PreventiveSupportOption[];
+  recommended_option_id: string | null;
+  warnings: string[];
+  assumptions: string[];
+  generated_at: string;
+}
+
 export interface MissionPackage {
-  package_version: string;
+  package_version: '1.0';
   mission: Mission;
   region_manifest: RegionManifest;
   objectives: Objective[];
   photos: Photo[];
   offline_assets: string[];
-  package_status: string;
+  missing_assets: string[];
+  package_status: 'ready_to_sync' | 'incomplete';
+  sync: {
+    mission_version: number;
+    requires_network: boolean;
+    remote_asset_count: number;
+    missing_asset_count: number;
+  };
   generated_at: string;
   sample_only?: boolean;
 }

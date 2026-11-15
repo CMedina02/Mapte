@@ -16,9 +16,17 @@ from app.modules.missions.planning.models import MissionPlan
 def mission_create_from_plan(plan: MissionPlan) -> MissionCreate:
     first_route = plan.legs[0].route
     snapshot = {
+        "start_position": _position_snapshot(plan.start_position),
+        "return_position": _position_snapshot(plan.return_position),
         "objective_ids": list(plan.objective_ids),
+        "completed_objective_ids": [],
         "next_objective_id": plan.next_objective_id,
         "legs": [_leg_snapshot(leg) for leg in plan.legs],
+        "routing_constraints": {
+            "max_slope_deg": plan.constraints.max_slope_deg,
+            "speed_m_per_min": plan.constraints.speed_m_per_min,
+            "avoid_unknown": plan.constraints.avoid_unknown,
+        },
         "resources": {
             "oxygen_available_min": plan.resources.oxygen_available_min,
             "return_reserve_min": plan.resources.return_reserve_min,
@@ -44,6 +52,7 @@ def mission_create_from_plan(plan: MissionPlan) -> MissionCreate:
             for decision in plan.decision_log
         ],
         "evidence_ids": list(plan.evidence_ids),
+        "hazard_reports": [],
     }
     routes = tuple(
         RouteDraft(
@@ -134,3 +143,7 @@ def _route_metrics(leg) -> dict:
         "max_slope_deg": route.max_slope_deg if route else None,
         "unknown_segments": leg.route.unknown_segments,
     }
+
+
+def _position_snapshot(position) -> dict:
+    return {"x_m": position.x_m, "y_m": position.y_m, "frame_id": position.frame_id}

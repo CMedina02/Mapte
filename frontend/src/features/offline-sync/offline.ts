@@ -3,7 +3,7 @@ import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
 import type { Mission, MissionPackage, ObservationRequest } from '../../shared/types/contracts';
 
-const PKG_KEY = 'mars.package.v1';
+const PKG_KEY = 'mars.package.v2'; // v2: objetivos reales del catálogo
 const QUEUE_KEY = 'mars.pending.v1';
 
 export function loadPackage(): MissionPackage | null {
@@ -31,7 +31,7 @@ export function updatePackageMission(m: Mission) {
 
 // ¿b reemplaza a a? Otra misión, o la misma con versión mayor (las versiones solo suben)
 export const isNewerMission = (a: Mission | null, b: Mission) =>
-  !a || a.mission_id !== b.mission_id || b.version > a.version;
+  !a || a.mission_id !== b.mission_id || b.mission_version > a.mission_version;
 
 // Otra pestaña (panel ↔ visor) guardó el paquete: el evento 'storage' llega al instante en el mismo navegador.
 // ponytail: entre dispositivos distintos lo cubre el sondeo de GET /missions/{id}; WebSocket/SSE si hace falta < 1 s.
@@ -101,7 +101,7 @@ export async function sendQueue(
   for (const item of queue) {
     const err = await mutateMission(
       current.mission_id,
-      () => marsApi.submitObservation(current.mission_id, { ...item, mission_version: current.version }),
+      () => marsApi.submitObservation(current.mission_id, { ...item, mission_version: current.mission_version }),
       (m) => {
         current = m;
         onMission(m);

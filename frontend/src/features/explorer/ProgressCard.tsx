@@ -1,7 +1,9 @@
 import type { Mission, Objective } from '../../shared/types/contracts';
-import { fmt } from '../../shared/format';
+import { fmt, warningText } from '../../shared/format';
+import { missionRoute } from '../../shared/mission';
 
 export default function ProgressCard({ mission, current }: { mission: Mission; current: Objective | null }) {
+  const route = missionRoute(mission);
   const { oxygen_available_min: o2, return_reserve_min: reserve } = mission.resources;
   // Resta simple de dos valores del backend; no es un modelo de consumo
   const margin = o2 == null || reserve == null ? null : o2 - reserve;
@@ -39,12 +41,12 @@ export default function ProgressCard({ mission, current }: { mission: Mission; c
       </dl>
 
       <p className="text-xs text-space-400">
-        Ruta: {mission.route.status} · {fmt(mission.route.distance_m, 'm')} · pendiente máx.{' '}
-        {fmt(mission.route.max_slope_deg, '°')}
+        Ruta: {route.status} · {fmt(route.distance_m, 'm')} · pendiente máx.{' '}
+        {fmt(route.max_slope_deg, '°')}
       </p>
-      {mission.route.warnings.map((w) => (
+      {route.warnings.map((w) => (
         <p key={w} className="text-xs text-amber-300">
-          ⚠ {w}
+          ⚠ {warningText(w)}
         </p>
       ))}
     </section>

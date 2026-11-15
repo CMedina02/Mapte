@@ -23,6 +23,7 @@ from app.modules.missions.routing import (
     RouteApplicationService,
     RouteOutcomeStatus,
 )
+from app.modules.missions.terrain import EnvironmentalHazardReport
 
 
 class UnknownObjectiveError(ValueError):
@@ -34,8 +35,9 @@ class MissionPlanner:
         self,
         terrain_repository: TerrainRepository,
         objective_repository: ObjectiveRepository,
+        hazard_reports: tuple[EnvironmentalHazardReport, ...] = (),
     ) -> None:
-        self._routes = RouteApplicationService(terrain_repository)
+        self._routes = RouteApplicationService(terrain_repository, hazard_reports)
         self._objectives = objective_repository
         self._resources = ResourceEvaluator()
 
@@ -57,9 +59,12 @@ class MissionPlanner:
             mission_id=str(uuid4()),
             region_id=request.region_id,
             version=1,
+            start_position=request.base_position,
+            return_position=request.return_position or request.base_position,
             objective_ids=request.objective_ids,
-            next_objective_id=request.objective_ids[0],
+            next_objective_id=request.objective_ids[0] if request.objective_ids else None,
             legs=legs,
+            constraints=request.constraints,
             resources=request.resources,
             resource_evaluation=evaluation,
             viability=viability,
@@ -100,7 +105,7 @@ class MissionPlanner:
         stops = (
             request.base_position,
             *(item.position for item in objectives),
-            request.base_position,
+            request.return_position or request.base_position,
         )
         labels = ("base", *(item.objective_id for item in objectives), "base")
         legs = []
@@ -128,7 +133,9 @@ class MissionPlanner:
     ) -> tuple[OperationalSegment, ...]:
         segments: list[OperationalSegment] = []
         for index, leg in enumerate(legs):
-            if index == 0:
+            if len(legs) == 1:
+                kind = OperationalSegmentKind.RETURN_TRAVEL
+            elif index == 0:
                 kind = OperationalSegmentKind.OUTBOUND_TRAVEL
             elif index == len(legs) - 1:
                 kind = OperationalSegmentKind.RETURN_TRAVEL

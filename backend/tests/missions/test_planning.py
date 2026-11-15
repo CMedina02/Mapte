@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 import pytest
+from fastapi import HTTPException
 
 from app.modules.catalog.domain import (
     InMemoryTerrainRepository,
@@ -9,9 +10,36 @@ from app.modules.catalog.domain import (
     VerticalReferenceSpec,
     build_synthetic_terrain,
 )
-from app.modules.missions.api.router import get_mission, plan_mission
-from app.modules.missions.api.schemas import MissionPlanRequestSchema
-from app.modules.missions.persistence import SQLiteMissionRepository, StoredRouteKind
+from app.modules.catalog.infrastructure.science_loader import load_science_catalog
+from app.modules.catalog.infrastructure.terrain_loader import load_catalog
+from app.modules.missions.api.router import (
+    change_mission_status,
+    evaluate_contingency,
+    get_mission,
+    get_mission_events,
+    get_mission_package,
+    optimize_preventive_support,
+    plan_mission,
+    report_hazard_and_replan,
+    submit_observation,
+    update_mission_progress,
+)
+from app.modules.missions.api.schemas import (
+    ContingencyRequestSchema,
+    MissionPlanRequestSchema,
+    MissionProgressRequestSchema,
+    MissionReplanRequestSchema,
+    MissionStatusRequestSchema,
+    ObservationRequestSchema,
+    PreventiveSupportRequestSchema,
+)
+from app.modules.missions.observations import decide_observation
+from app.modules.missions.persistence import (
+    MissionLifecycleStatus,
+    MissionUpdate,
+    SQLiteMissionRepository,
+    StoredRouteKind,
+)
 from app.modules.missions.planning import (
     InMemoryObjectiveRepository,
     MissionObjective,
@@ -19,11 +47,14 @@ from app.modules.missions.planning import (
     MissionPlanningRequest,
     MissionPlanViability,
     UnknownObjectiveError,
+    objective_repository_from_catalogs,
 )
 from app.modules.missions.planning.persistence import mission_create_from_plan
+from app.modules.missions.preventive_support import sample_route_positions
 from app.modules.missions.resources import SupportResources
 from app.modules.missions.routing import RoutePlanningConstraints
 from app.modules.missions.terrain import GridCell, LocalPosition
+from tests.catalog._region_fixture import write_region
 
 REGION_ID = "mc23-gale-mount-sharp"
 FRAME_ID = "MARS_GALE_MS_LOCAL_V1"
@@ -67,6 +98,7 @@ def objectives() -> InMemoryObjectiveRepository:
                 position=position(0, 2),
                 activities=("Fotografía",),
                 evidence_ids=("ev-a",),
+                possible_findings=("HEMATITE_DETECTED",),
             ),
             MissionObjective(
                 objective_id="obj-b",
@@ -75,6 +107,7 @@ def objectives() -> InMemoryObjectiveRepository:
                 position=position(1, 2),
                 activities=("Muestreo",),
                 evidence_ids=("ev-b",),
+                possible_findings=("CLAY_MINERALS_DETECTED",),
             ),
         )
     )
@@ -190,3 +223,563 @@ def test_plan_and_get_api_functions_share_persisted_mission(tmp_path) -> None:
     assert created.mission_version == 1
     assert restored == created
     assert restored.viability_status == "viable"
+
+    replanned = report_hazard_and_replan(
+        created.mission_id,
+        MissionReplanRequestSchema.model_validate(
+            {
+                "expected_version": 1,
+                "current_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+                "completed_objective_ids": [],
+                "report": {
+                    "hazard_code": "LOOSE_ROCKS",
+                    "position": {"x_m": 15, "y_m": 15, "frame_id": FRAME_ID},
+                    "effect": "blocked",
+                    "affected_radius_m": 0,
+                },
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+                "resources": {"oxygen_available_min": 180, "return_reserve_min": 30},
+                "activity_durations_min": {"obj-a": 10, "obj-b": 20},
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+
+    assert replanned.mission_version == 2
+    assert replanned.hazard_reports[0].hazard_code == "LOOSE_ROCKS"
+    original = repository.get(created.mission_id, version=1)
+    assert original is not None
+    assert original.snapshot["hazard_reports"] == []
+
+    second_replan = report_hazard_and_replan(
+        created.mission_id,
+        MissionReplanRequestSchema.model_validate(
+            {
+                "expected_version": 2,
+                "current_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                "completed_objective_ids": ["obj-a"],
+                "report": {
+                    "hazard_code": "SOFT_SOIL",
+                    "position": {"x_m": 15, "y_m": 5, "frame_id": FRAME_ID},
+                    "effect": "high_cost",
+                    "affected_radius_m": 0,
+                    "cost_multiplier": 3,
+                },
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+                "resources": {"oxygen_available_min": 150, "return_reserve_min": 30},
+                "activity_durations_min": {"obj-b": 20},
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+
+    assert second_replan.mission_version == 3
+    assert [item.hazard_code for item in second_replan.hazard_reports] == [
+        "LOOSE_ROCKS",
+        "SOFT_SOIL",
+    ]
+
+    started = change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema(expected_version=3, action="start"),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    progressed = update_mission_progress(
+        created.mission_id,
+        MissionProgressRequestSchema.model_validate(
+            {
+                "expected_version": 4,
+                "current_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                "completed_objective_ids": ["obj-a"],
+                "resources": {"oxygen_available_min": 120, "return_reserve_min": 30},
+            }
+        ),
+        repository,
+    )
+    contingency = evaluate_contingency(
+        created.mission_id,
+        ContingencyRequestSchema(
+            mission_version=5,
+            contingency_type="oxygen_reduced",
+            position={"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+            oxygen_available_min=100,
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    aborted = change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema.model_validate(
+            {
+                "expected_version": 6,
+                "action": "abort",
+                "current_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                "resources": {"oxygen_available_min": 100, "return_reserve_min": 30},
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    events = get_mission_events(created.mission_id, repository)
+
+    assert started.lifecycle_status == "active"
+    assert progressed.viability_status == "unknown"
+    assert progressed.next_objective_id == "obj-b"
+    assert contingency.hazard_reports == second_replan.hazard_reports
+    contingency_event = next(
+        event for event in events.events if event.event_type == "contingency_evaluated"
+    )
+    assert contingency_event.payload["hazard_report_ids"] == [
+        item.report_id for item in second_replan.hazard_reports
+    ]
+    assert aborted.lifecycle_status == "aborted"
+    assert aborted.legs[-1].end_label == "base"
+    assert events.events[-1].event_type == "mission_aborted"
+
+
+def test_active_mission_can_complete_after_all_objectives(tmp_path) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "complete.sqlite3")
+    created = plan_mission(
+        MissionPlanRequestSchema.model_validate(
+            {
+                "region_id": REGION_ID,
+                "base_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+                "objective_ids": ["obj-a", "obj-b"],
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+                "resources": {"oxygen_available_min": 200, "return_reserve_min": 30},
+                "activity_durations_min": {"obj-a": 10, "obj-b": 20},
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema(expected_version=1, action="start"),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    with pytest.raises(HTTPException) as invalid:
+        submit_observation(
+            created.mission_id,
+            ObservationRequestSchema(
+                mission_version=2,
+                objective_id="obj-a",
+                finding_code="INVENTED_BY_FREE_TEXT",
+            ),
+            objectives(),
+            repository,
+        )
+    assert invalid.value.status_code == 400
+    observed = submit_observation(
+        created.mission_id,
+        ObservationRequestSchema(
+            mission_version=2,
+            objective_id="obj-a",
+            finding_code="HEMATITE_DETECTED",
+            notes="Hallazgo simulado",
+        ),
+        objectives(),
+        repository,
+    )
+    with pytest.raises(HTTPException) as stale:
+        submit_observation(
+            created.mission_id,
+            ObservationRequestSchema(
+                mission_version=2,
+                objective_id="obj-a",
+                finding_code="HEMATITE_DETECTED",
+            ),
+            objectives(),
+            repository,
+        )
+    assert stale.value.status_code == 409
+    update_mission_progress(
+        created.mission_id,
+        MissionProgressRequestSchema.model_validate(
+            {
+                "expected_version": 3,
+                "current_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+                "completed_objective_ids": ["obj-a", "obj-b"],
+                "resources": {"oxygen_available_min": 100, "return_reserve_min": 30},
+            }
+        ),
+        repository,
+    )
+    completed = change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema(expected_version=4, action="complete"),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+
+    assert observed.next_objective_id == "obj-b"
+    assert observed.completed_objective_ids == ["obj-a"]
+    assert observed.viability_status == "unknown"
+    assert completed.mission_version == 5
+    assert completed.lifecycle_status == "completed"
+
+
+def test_oxygen_contingency_reuses_mission_safety_model_and_is_audited(tmp_path) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "contingency.sqlite3")
+    created = plan_mission(
+        MissionPlanRequestSchema.model_validate(
+            {
+                "region_id": REGION_ID,
+                "base_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+                "objective_ids": ["obj-a"],
+                "constraints": {
+                    "max_slope_deg": 15,
+                    "speed_m_per_min": 10,
+                    "avoid_unknown": True,
+                },
+                "resources": {"oxygen_available_min": 200, "return_reserve_min": 30},
+                "activity_durations_min": {"obj-a": 10},
+            }
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    started = change_mission_status(
+        created.mission_id,
+        MissionStatusRequestSchema(expected_version=1, action="start"),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+
+    contingency = evaluate_contingency(
+        created.mission_id,
+        ContingencyRequestSchema(
+            mission_version=started.mission_version,
+            contingency_type="oxygen_reduced",
+            position={"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+            oxygen_available_min=31,
+        ),
+        terrain_repository(),
+        objectives(),
+        repository,
+    )
+    events = get_mission_events(created.mission_id, repository)
+
+    assert contingency.mission_version == 3
+    assert contingency.lifecycle_status == "active"
+    assert contingency.viability_status == "not_viable"
+    assert contingency.next_objective_id is None
+    assert contingency.routing_constraints is not None
+    assert contingency.routing_constraints.speed_m_per_min == 10
+    assert contingency.resources.oxygen_available_min == 31
+    assert contingency.resource_evaluation.reserve_margin_min < 0
+    assert [(leg.start_label, leg.end_label) for leg in contingency.legs] == [
+        ("current_position", "base")
+    ]
+    assert "OXYGEN_REDUCED" in contingency.alerts
+    assert events.events[-1].event_type == "contingency_evaluated"
+    assert events.events[-1].payload["return_status"] == "not_viable"
+    assert events.events[-1].payload["assumptions"]
+    historical = repository.get(created.mission_id, version=2)
+    assert historical is not None
+    assert historical.snapshot["next_objective_id"] == "obj-a"
+    with pytest.raises(HTTPException) as stale:
+        evaluate_contingency(
+            created.mission_id,
+            ContingencyRequestSchema(
+                mission_version=started.mission_version,
+                contingency_type="oxygen_reduced",
+                position={"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                oxygen_available_min=30,
+            ),
+            terrain_repository(),
+            objectives(),
+            repository,
+        )
+    assert stale.value.status_code == 409
+    assert repository.get(created.mission_id).current_version == 3
+
+
+def test_contingency_rejects_unmodeled_or_invalid_scenarios_without_new_version(
+    tmp_path,
+) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "invalid-contingency.sqlite3")
+    created = repository.create(mission_create_from_plan(planner().plan(request())))
+    repository.update(
+        created.mission_id,
+        MissionUpdate(
+            expected_version=1,
+            lifecycle_status=MissionLifecycleStatus.ACTIVE,
+            viability_status=created.viability_status,
+            snapshot=created.snapshot,
+        ),
+    )
+
+    for contingency_type, oxygen, expected_status in (
+        ("rover_unavailable", 100, 400),
+        ("oxygen_reduced", 200, 400),
+    ):
+        with pytest.raises(HTTPException) as invalid:
+            evaluate_contingency(
+                created.mission_id,
+                ContingencyRequestSchema(
+                    mission_version=2,
+                    contingency_type=contingency_type,
+                    position={"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                    oxygen_available_min=oxygen,
+                ),
+                terrain_repository(),
+                objectives(),
+                repository,
+            )
+        assert invalid.value.status_code == expected_status
+        assert repository.get(created.mission_id).current_version == 2
+
+    legacy_snapshot = {
+        key: value for key, value in created.snapshot.items() if key != "routing_constraints"
+    }
+    repository.update(
+        created.mission_id,
+        MissionUpdate(
+            expected_version=2,
+            lifecycle_status=MissionLifecycleStatus.ACTIVE,
+            viability_status=created.viability_status,
+            snapshot=legacy_snapshot,
+        ),
+    )
+    with pytest.raises(HTTPException) as missing_constraints:
+        evaluate_contingency(
+            created.mission_id,
+            ContingencyRequestSchema(
+                mission_version=3,
+                contingency_type="oxygen_reduced",
+                position={"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+                oxygen_available_min=100,
+            ),
+            terrain_repository(),
+            objectives(),
+            repository,
+        )
+    assert missing_constraints.value.status_code == 409
+    assert repository.get(created.mission_id).current_version == 3
+
+
+def test_mission_package_is_self_contained_and_reports_sync_assets(tmp_path, monkeypatch) -> None:
+    write_region(tmp_path)
+    catalog_store = load_catalog(tmp_path, [REGION_ID])
+    science = load_science_catalog(REGION_ID)
+    assert science is not None
+    monkeypatch.setattr(
+        "app.modules.catalog.api.router._science_catalog",
+        lambda _region: science,
+    )
+    repository = SQLiteMissionRepository(tmp_path / "package.sqlite3")
+    draft = mission_create_from_plan(planner().plan(request()))
+    selected_id = science.objectives[0].objective_id
+    stored = repository.create(
+        replace(
+            draft,
+            snapshot={
+                **draft.snapshot,
+                "objective_ids": [selected_id],
+                "completed_objective_ids": [],
+                "next_objective_id": selected_id,
+            },
+        )
+    )
+
+    package = get_mission_package(stored.mission_id, catalog_store, repository)
+
+    assert package.package_version == "1.0"
+    assert package.mission.mission_version == stored.current_version
+    assert [item.objective_id for item in package.objectives] == [selected_id]
+    assert package.photos
+    assert {item.objective_id for item in package.photos} == {selected_id}
+    assert package.region_manifest.evidence
+    assert package.package_status == "ready_to_sync"
+    assert package.missing_assets == []
+    assert package.sync.mission_version == stored.current_version
+    assert package.sync.requires_network is True
+    assert package.sync.remote_asset_count == len(package.photos)
+    assert package.region_manifest.terrain.heightmap_url in package.offline_assets
+    assert all(item.image_url in package.offline_assets for item in package.photos)
+    assert package.generated_at.tzinfo is not None
+
+    science_objectives = objective_repository_from_catalogs((science,))
+    started = change_mission_status(
+        stored.mission_id,
+        MissionStatusRequestSchema(expected_version=1, action="start"),
+        terrain_repository(),
+        science_objectives,
+        repository,
+    )
+    finding_code = science.objectives[0].possible_findings[0]
+    observed = submit_observation(
+        stored.mission_id,
+        ObservationRequestSchema(
+            mission_version=started.mission_version,
+            objective_id=selected_id,
+            finding_code=finding_code,
+        ),
+        science_objectives,
+        repository,
+    )
+    returned = evaluate_contingency(
+        stored.mission_id,
+        ContingencyRequestSchema(
+            mission_version=observed.mission_version,
+            contingency_type="oxygen_reduced",
+            position={"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+            oxygen_available_min=100,
+        ),
+        terrain_repository(),
+        science_objectives,
+        repository,
+    )
+    updated_package = get_mission_package(stored.mission_id, catalog_store, repository)
+    assert updated_package.mission.mission_version == returned.mission_version
+    assert updated_package.sync.mission_version == returned.mission_version
+    assert updated_package.mission.completed_objective_ids == [selected_id]
+    assert updated_package.mission.next_objective_id is None
+    assert updated_package.mission.legs[-1].end_label == "base"
+
+    texture_path = catalog_store.get(REGION_ID).asset_files()["imagery.png"]
+    texture_path.unlink()
+    incomplete = get_mission_package(stored.mission_id, catalog_store, repository)
+    assert incomplete.package_status == "incomplete"
+    assert incomplete.sync.missing_asset_count == 1
+    assert incomplete.region_manifest.terrain.texture_url in incomplete.missing_assets
+    assert incomplete.region_manifest.terrain.texture_url not in incomplete.offline_assets
+
+    inconsistent = repository.create(mission_create_from_plan(planner().plan(request())))
+    with pytest.raises(HTTPException) as missing_objective:
+        get_mission_package(inconsistent.mission_id, catalog_store, repository)
+    assert missing_objective.value.status_code == 503
+
+
+def test_observation_rules_cover_every_real_catalog_finding() -> None:
+    catalog = load_science_catalog(REGION_ID)
+    assert catalog is not None
+    repository = objective_repository_from_catalogs((catalog,))
+
+    for source in catalog.objectives:
+        objective = repository.get_objective(REGION_ID, source.objective_id)
+        assert objective is not None
+        for finding_code in source.possible_findings:
+            assert decide_observation(objective, finding_code).finding_code == finding_code
+
+
+def test_preventive_support_compares_reproducible_options_without_mutating_mission(
+    tmp_path,
+) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "preventive.sqlite3")
+    stored = repository.create(mission_create_from_plan(planner().plan(request())))
+    payload = PreventiveSupportRequestSchema.model_validate(
+        {
+            "mission_version": 1,
+            "crew_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+            "support_vehicle_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+            "oxygen_available_min": 100,
+            "vehicle_speed_m_per_min": 20,
+            "max_candidates": 3,
+        }
+    )
+
+    first = optimize_preventive_support(
+        stored.mission_id, payload, terrain_repository(), repository
+    )
+    second = optimize_preventive_support(
+        stored.mission_id, payload, terrain_repository(), repository
+    )
+
+    assert first.mission_version == 1
+    assert first.options[0].kind == "direct_return"
+    assert first.options[0].vehicle_route is None
+    assert 2 <= len(first.options) <= 4
+    assert [item.support_position for item in first.options] == [
+        item.support_position for item in second.options
+    ]
+    assert first.recommended_option_id in {item.option_id for item in first.options}
+    assert all(item.intervention_time_min is not None for item in first.options)
+    assert repository.get(stored.mission_id).current_version == 1
+    assert repository.list_events(stored.mission_id)[-1].event_type == "plan_created"
+
+
+def test_preventive_support_sampling_preserves_the_return_half_of_a_closed_route() -> None:
+    outbound = position(1, 0)
+    destination = position(0, 2)
+    return_midpoint = position(1, 2)
+
+    sampled = sample_route_positions(
+        (outbound, destination, return_midpoint, outbound), max_candidates=2
+    )
+
+    assert sampled == (destination, return_midpoint)
+
+
+def test_preventive_support_refuses_false_recommendation_and_invalid_scenario(tmp_path) -> None:
+    repository = SQLiteMissionRepository(tmp_path / "preventive-invalid.sqlite3")
+    stored = repository.create(mission_create_from_plan(planner().plan(request())))
+    base = {
+        "mission_version": 1,
+        "crew_position": {"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+        "support_vehicle_position": {"x_m": 5, "y_m": 15, "frame_id": FRAME_ID},
+        "vehicle_speed_m_per_min": 20,
+        "max_candidates": 3,
+    }
+
+    exhausted = optimize_preventive_support(
+        stored.mission_id,
+        PreventiveSupportRequestSchema.model_validate({**base, "oxygen_available_min": 0}),
+        terrain_repository(),
+        repository,
+    )
+    assert exhausted.recommended_option_id is None
+    assert "NO_OPTION_PRESERVES_MODELED_RESERVE" in exhausted.warnings
+    assert all(item.resource_evaluation.status == "not_viable" for item in exhausted.options)
+
+    with pytest.raises(HTTPException) as increased_support:
+        optimize_preventive_support(
+            stored.mission_id,
+            PreventiveSupportRequestSchema.model_validate({**base, "oxygen_available_min": 201}),
+            terrain_repository(),
+            repository,
+        )
+    assert increased_support.value.status_code == 400
+
+    with pytest.raises(HTTPException) as stale:
+        optimize_preventive_support(
+            stored.mission_id,
+            PreventiveSupportRequestSchema.model_validate(
+                {**base, "mission_version": 2, "oxygen_available_min": 100}
+            ),
+            terrain_repository(),
+            repository,
+        )
+    assert stale.value.status_code == 409

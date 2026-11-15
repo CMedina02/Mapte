@@ -90,7 +90,31 @@ out = {
     'sector': meta['sector'],
     'sources': meta['sources'],
     'limitations': meta['limitations'],
+    # Zonas del DEM con calidad 'unknown' (p. ej. artefactos de rejilla): el mock no las da por seguras
+    'quality_zones': tm.get('quality_zones', []),
 }
 META_OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print(f"{small.shape[1]}x{small.shape[0]} @ {px} m, z {out['elevation_min_m']:.1f}..{out['elevation_max_m']:.1f} m, "
       f"NaN {out['nodata_cells']}; textura y normal map {TEXTURE_PX}px")
+
+# --- Catálogo científico (objetivos y fotos reales de Curiosity) para el mock ---
+# Mismo formato que GET /objectives y /photos: sin el bloque 'source' de la posición (el backend lo omite)
+# y con z_m vacío (el mock lo muestrea del DEM, como hace el backend).
+CATALOG_OUT = Path('src/shared/api/mocks/realCatalog.json')
+catalog_dir = Path('../backend/app/modules/catalog/data') / meta['region']['region_id']
+if (catalog_dir / 'objectives.json').exists():
+    pos = lambda p: {'x_m': p['x_m'], 'y_m': p['y_m'], 'frame_id': p['frame_id'], 'z_m': None}
+    objs = json.loads((catalog_dir / 'objectives.json').read_text(encoding='utf-8'))
+    photos = json.loads((catalog_dir / 'photos.json').read_text(encoding='utf-8'))
+    photo_keys = ('photo_id', 'objective_id', 'image_url', 'camera', 'sol', 'captured_at', 'credit',
+                  'source_url', 'location_quality', 'limitations')
+    catalog = {
+        'generated_from': objs.get('generated_from', []),
+        'evidence': objs['evidence'] + [e for e in photos.get('evidence', []) if e['evidence_id'] not in
+                                        {x['evidence_id'] for x in objs['evidence']}],
+        'objectives': [{**o, 'position': pos(o['position'])} for o in objs['objectives']],
+        'photos': [{**{k: p[k] for k in photo_keys}, 'location': pos(p['location']) if p.get('location') else None}
+                   for p in photos['photos']],
+    }
+    CATALOG_OUT.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    print(f"catálogo: {len(catalog['objectives'])} objetivos, {len(catalog['photos'])} fotos")

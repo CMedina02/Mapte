@@ -17,12 +17,12 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
   const online = useOnline();
   const [synced, setSynced] = useState(() => {
     const m = loadPackage()?.mission;
-    return m ? { id: m.mission_id, version: m.version } : null;
+    return m ? { id: m.mission_id, version: m.mission_version } : null;
   });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const missionId = mission?.mission_id ?? null;
-  const version = mission?.version ?? null;
+  const version = mission?.mission_version ?? null;
   const hasPkg = !!mission && synced?.id === mission.mission_id;
   const upToDate = hasPkg && synced?.version === version;
 
@@ -33,12 +33,27 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
     let alive = true;
     marsApi
       .getMissionPackage(missionId)
-      .then((pkg) => {
+      .then(async (pkg) => {
         if (!alive) return;
+        if (pkg.package_status === 'incomplete') {
+          setMsg(`Visor sin actualizar: faltan ${pkg.missing_assets.length} archivos del paquete.`);
+          return;
+        }
+        const downloads = await Promise.allSettled(
+          pkg.offline_assets.map(async (url) => {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`${response.status} ${url}`);
+          }),
+        );
+        if (!alive) return;
+        const failed = downloads.filter((item) => item.status === 'rejected').length;
+        if (failed > 0) {
+          setMsg(`Visor sin actualizar: falló la descarga de ${failed} recursos.`);
+          return;
+        }
         savePackage(pkg);
-        setSynced({ id: pkg.mission.mission_id, version: pkg.mission.version });
+        setSynced({ id: pkg.mission.mission_id, version: pkg.mission.mission_version });
         setMsg(null);
-        void Promise.allSettled(pkg.offline_assets.map((url) => fetch(url))); // precarga para uso sin red
       })
       .catch((e: unknown) => alive && setMsg(`Visor sin actualizar: ${e instanceof Error ? e.message : String(e)}`));
     return () => {
@@ -71,7 +86,7 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
 
       {mission && (
         <span className={`${badge} ${upToDate ? 'bg-primary-900 text-primary-200' : 'bg-space-800 text-space-300'}`} title="Paquete que usa el visor del astronauta">
-          Visor {upToDate ? `al día · v${synced?.version}` : 'sincronizando…'}
+          Visor {upToDate ? 'al día' : 'sincronizando…'}
         </span>
       )}
 
