@@ -207,7 +207,6 @@ export interface RouteResult {
   evidence_ids: string[];
   assumptions: string[];
   sample_only?: boolean;
-  return_start_index?: number; // del cliente: índice de path donde empieza el regreso a base (solo para dibujar)
 }
 
 

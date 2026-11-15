@@ -35,7 +35,8 @@ const IMPLIED = new Set([
 ]);
 // Avisos de la ruta + alertas de la misión, sin repetidos ni redundantes, ya traducidos
 export const notices = (warnings: string[], alerts: string[] = []) =>
-  [...new Set([...warnings, ...alerts].filter((c) => !IMPLIED.has(c)).map(warningText))];
+  [...new Set([...warnings, ...alerts].filter((c) => !IMPLIED.has(c) && !c.startsWith('OBJECTIVE_EXCLUDED:')).map(warningText))];
+// (los objetivos excluidos se muestran con su motivo en la sección Tramos)
 
 export const MISSION_STATUS: Record<MissionLifecycleStatus, string> = {
   draft: 'Planificada',
@@ -49,6 +50,7 @@ const EVENT_TEXT: Record<string, string> = {
   mission_active: 'Misión iniciada',
   progress_updated: 'Avance',
   observation_recorded: 'Hallazgo',
+  objective_excluded: 'Objetivo excluido',
   hazard_reported: 'Riesgo reportado',
   contingency_evaluated: 'Contingencia',
   mission_completed: 'Misión completada',

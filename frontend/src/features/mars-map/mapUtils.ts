@@ -31,3 +31,5 @@ export const initialLayerState = (layers: Layer[]): Record<string, LayerState> =
       { visible: isImageLayer(l) && (l.kind === 'optical' || l.kind === 'topographic'), opacity: l.opacity_default },
     ]),
   );
+// Colores de tramo: distintos del verde/ámbar/rojo de estado (el estado se marca con el trazo)
+export const LEG_COLORS = ['#38bdf8', '#c084fc', '#f472b6', '#2dd4bf', '#e2e8f0'];

@@ -61,3 +61,57 @@ export function missionRoute(mission: Mission): RouteResult {
     assumptions: [...new Set(drawableLegs.flatMap((leg) => leg.assumptions))],
   };
 }
+
+// Letra de cada parada para identificar los tramos: base = A, objetivos en orden = B, C, …
+export function stopLetters(mission: Mission): Record<string, string> {
+  return Object.fromEntries([
+    ['base', 'A'],
+    ...mission.objective_ids.map((id, i) => [id, String.fromCharCode(66 + i)]),
+  ]);
+}
+
+export interface DecisionPoint {
+  stop: string; // 'base' u objective_id: dónde se decide
+  oxygen_left_min: number | null; // O₂ al llegar ahí (minutos de caminata ya calculados por el backend)
+  can_continue: boolean | null; // seguir al siguiente objetivo conserva el regreso seguro (null: no hay siguiente)
+  can_return: boolean | null; // regresar a base desde aquí conserva la reserva
+}
+
+export interface ExcludedObjective {
+  objective_id: string;
+  reason: string;
+}
+
+// Objetivos que el backend dejó fuera del plan: alerta OBJECTIVE_EXCLUDED:<id> + motivo en la bitácora
+export function excludedObjectives(mission: Mission): ExcludedObjective[] {
+  const prefix = 'OBJECTIVE_EXCLUDED:';
+  return mission.alerts
+    .filter((a) => a.startsWith(prefix))
+    .map((a) => {
+      const id = a.slice(prefix.length);
+      const msg = mission.decision_log.find((d) => d.event_type === 'objective_excluded' && d.message.includes(id))?.message;
+      return { objective_id: id, reason: msg?.split('excluido: ')[1]?.replace(/\.$/, '') ?? 'sin motivo registrado' };
+    });
+}
+
+// El planificador del backend solo acepta un objetivo si desde él el regreso a base conserva la reserva
+// (plan de prefijo seguro). Por eso, en un plan viable, cada parada aceptada permite regresar y seguir
+// a la siguiente; el límite es la última parada aceptada cuando hubo objetivos excluidos.
+export function decisionPoints(mission: Mission): DecisionPoint[] {
+  const viable = mission.viability_status === 'viable';
+  const dur = mission.legs.map((l) => l.metrics.duration_min);
+  const used = (n: number) =>
+    dur.slice(0, n).some((d) => d === null) ? null : dur.slice(0, n).reduce<number>((a, d) => a + (d ?? 0), 0);
+  const excluded = excludedObjectives(mission).length > 0;
+  const stops = ['base', ...mission.objective_ids];
+  return stops.map((stop, i) => {
+    const isLast = i === stops.length - 1;
+    const u = used(i);
+    return {
+      stop,
+      oxygen_left_min: u === null ? null : mission.resources.oxygen_available_min - u,
+      can_continue: isLast ? (excluded ? false : null) : viable ? true : null,
+      can_return: i === 0 ? true : viable ? true : null,
+    };
+  });
+}

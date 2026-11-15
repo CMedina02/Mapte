@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import Overlay from 'ol/Overlay';
 import OlMap from 'ol/Map';
 import View from 'ol/View';
 import Feature from 'ol/Feature';
@@ -16,7 +18,7 @@ import { boundingExtent, buffer, containsCoordinate } from 'ol/extent';
 import { Circle, Fill, Stroke, Style, Text } from 'ol/style';
 import 'ol/ol.css';
 import type { Hazard, Objective, Position, RegionManifest, RouteResult, RouteStatus } from '../../shared/types/contracts';
-import { isImageLayer, manifestExtent, marsProjection, type LayerState } from './mapUtils';
+import { isImageLayer, LEG_COLORS, manifestExtent, marsProjection, type LayerState } from './mapUtils';
 
 interface Props {
   manifest: RegionManifest;
@@ -28,7 +30,47 @@ interface Props {
   route: RouteResult | null;
   // Puntos a encuadrar al abrir el mapa (p. ej. objetivos o ruta); sin ellos, toda la zona
   focus?: Position[];
+  // Posición actual del astronauta: se dibuja siempre que se conozca, haya ruta o no
+  here?: Position | null;
+  // Base nueva elegida con una misión ya planificada: círculo punteado hasta recalcular
+  pendingBase?: Position | null;
+  // Tramos de una multirruta (A→B, B→C, C→A): cada uno con su color. Si se dan, sustituyen a `route`.
+  legs?: { path: Position[]; status: RouteStatus }[];
+  // Letra de cada parada ('base' u objective_id) para identificar los tramos
+  stopLetters?: Record<string, string>;
+  // Globo de información anclado a un punto del mapa
+  pin?: { position: Position; content: ReactNode } | null;
 }
+
+const legStyle = (color: string, status: RouteStatus) =>
+  new Style({
+    stroke: new Stroke({
+      color,
+      width: 3,
+      lineDash: status === 'viable' ? undefined : status === 'not_viable' ? [2, 6] : [8, 6],
+    }),
+  });
+const pendingBaseStyle = new Style({
+  image: new Circle({ radius: 10, fill: new Fill({ color: 'rgba(255,255,255,0.15)' }), stroke: new Stroke({ color: '#fff', width: 2, lineDash: [4, 3] }) }),
+  text: new Text({
+    text: 'NUEVA BASE',
+    offsetY: -18,
+    font: 'bold 11px monospace',
+    fill: new Fill({ color: '#fff' }),
+    stroke: new Stroke({ color: '#000', width: 3 }),
+  }),
+});
+const hereStyle = new Style({
+  zIndex: 10, // siempre encima de base y objetivos (OL pinta en orden de creación)
+  image: new Circle({ radius: 9, fill: new Fill({ color: '#06b6d4' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
+  text: new Text({
+    text: 'TÚ',
+    offsetY: 20, // debajo del punto: arriba van las etiquetas de base y objetivos
+    font: 'bold 12px monospace',
+    fill: new Fill({ color: '#67e8f9' }),
+    stroke: new Stroke({ color: '#000', width: 3 }),
+  }),
+});
 
 const boundsStyle = new Style({
   stroke: new Stroke({ color: '#5182d8', width: 1, lineDash: [6, 6] }),
@@ -69,13 +111,11 @@ const ROUTE_COLOR: Record<RouteStatus, string> = {
   unknown: '#f59e0b',
 };
 
-// Regreso: el A* penaliza subir, así que de vuelta (cuesta abajo) puede elegir otro camino.
-// Se dibuja más delgado y translúcido para que no parezca una segunda ruta.
-const routeStyle = (status: RouteStatus, isReturn = false) =>
+const routeStyle = (status: RouteStatus) =>
   new Style({
     stroke: new Stroke({
-      color: (ROUTE_COLOR[status] ?? ROUTE_COLOR.unknown) + (isReturn ? '80' : ''),
-      width: isReturn ? 2 : 3,
+      color: ROUTE_COLOR[status] ?? ROUTE_COLOR.unknown,
+      width: 3,
       lineDash: status === 'viable' ? undefined : [8, 6],
     }),
   });
@@ -105,7 +145,14 @@ export default function MarsMap({
   route,
   onMapClick,
   focus,
+  here,
+  pendingBase,
+  legs,
+  stopLetters,
+  pin,
 }: Props) {
+  const [pinEl] = useState(() => document.createElement('div'));
+  const pinOverlay = useRef<Overlay | null>(null);
   const targetRef = useRef<HTMLDivElement>(null);
   const imageLayers = useRef<Record<string, ImageLayer<ImageStatic>>>({});
   const markers = useRef<VectorSource | null>(null);
@@ -182,10 +229,21 @@ export default function MarsMap({
         new MousePosition({ coordinateFormat: createStringXY(0), projection, placeholder: '' }),
       ]),
     });
-    const points = focusRef.current?.map((p) => [p.x_m, p.y_m]) ?? [];
-    map.getView().fit(points.length > 0 ? buffer(boundingExtent(points), 400) : extent, {
-      padding: [24, 24, 24, 24],
-    });
+    // Encuadre inicial cuando el contenedor ya mide algo: si el mapa nace oculto (0×0), se espera al primer tamaño real
+    const fitInitial = () => {
+      const size = map.getSize();
+      if (!size || !size[0] || !size[1]) return;
+      map.un('change:size', fitInitial);
+      const points = focusRef.current?.map((p) => [p.x_m, p.y_m]) ?? [];
+      map.getView().fit(points.length > 0 ? buffer(boundingExtent(points), 400) : extent, {
+        padding: [24, 24, 24, 24],
+      });
+    };
+    map.on('change:size', fitInitial);
+    fitInitial();
+
+    pinOverlay.current = new Overlay({ element: pinEl, positioning: 'bottom-center', offset: [0, -14], stopEvent: true });
+    map.addOverlay(pinOverlay.current);
 
     map.on('click', (e) => {
       if (!containsCoordinate(extent, e.coordinate)) return;
@@ -197,7 +255,7 @@ export default function MarsMap({
     });
 
     return () => map.setTarget(undefined);
-  }, [manifest]);
+  }, [manifest, pinEl]);
 
   useEffect(() => {
     for (const [id, layer] of Object.entries(imageLayers.current)) {
@@ -219,14 +277,26 @@ export default function MarsMap({
       return [f];
     };
 
+    const lettered = (id: string, label: string) => (stopLetters?.[id] ? `${stopLetters[id]} · ${label}` : label);
+    const me = here && here.frame_id === frameId ? [new Feature(new Point([here.x_m, here.y_m]))] : [];
+    me.forEach((f) => f.setStyle(hereStyle));
+    const next = pendingBase && pendingBase.frame_id === frameId ? [new Feature(new Point([pendingBase.x_m, pendingBase.y_m]))] : [];
+    next.forEach((f) => f.setStyle(pendingBaseStyle));
+
     markers.current?.clear();
     markers.current?.addFeatures([
-      ...(basePosition ? point(basePosition, 'BASE', '#ffffff') : []),
+      ...(basePosition ? point(basePosition, lettered('base', 'BASE'), '#ffffff') : []),
       ...objectives.flatMap((o) =>
-        point(o.position, o.title, selectedObjectiveIds.includes(o.objective_id) ? '#22c55e' : '#9aabcb'),
+        point(o.position, lettered(o.objective_id, o.title), selectedObjectiveIds.includes(o.objective_id) ? '#22c55e' : '#9aabcb'),
       ),
+      ...me,
+      ...next,
     ]);
-  }, [objectives, selectedObjectiveIds, basePosition, manifest]);
+  }, [objectives, selectedObjectiveIds, basePosition, manifest, here, pendingBase, stopLetters]);
+
+  useEffect(() => {
+    pinOverlay.current?.setPosition(pin ? [pin.position.x_m, pin.position.y_m] : undefined);
+  }, [pin]);
 
   useEffect(() => {
     routeSource.current?.clear();
@@ -236,15 +306,23 @@ export default function MarsMap({
       console.warn(`Ruta en otro frame (se esperaba ${frameId}); no se dibuja.`);
       return;
     }
-    const coords = route.path.map((p) => [p.x_m, p.y_m]);
-    const cut = route.return_start_index ?? coords.length;
-    const parts: [number[][], boolean][] = [[coords.slice(cut), true], [coords.slice(0, cut + 1), false]]; // ida encima
-    for (const [line, isReturn] of parts) {
-      if (line.length < 2) continue;
-      const f = new Feature(new LineString(line));
-      f.setStyle(routeStyle(route.status, isReturn));
-      routeSource.current?.addFeature(f);
+    if (legs?.length) {
+      legs.forEach((leg, i) => {
+        if (leg.path.length < 2) return;
+        const f = new Feature(new LineString(leg.path.map((p) => [p.x_m, p.y_m])));
+        f.setStyle(legStyle(LEG_COLORS[i % LEG_COLORS.length], leg.status));
+        routeSource.current?.addFeature(f);
+      });
+      return;
     }
-  }, [route, manifest]);
-  return <div ref={targetRef} className="h-full w-full cursor-crosshair" />;
+    const f = new Feature(new LineString(route.path.map((p) => [p.x_m, p.y_m])));
+    f.setStyle(routeStyle(route.status));
+    routeSource.current?.addFeature(f);
+  }, [route, legs, manifest]);
+  return (
+    <>
+      <div ref={targetRef} className="h-full w-full cursor-crosshair" />
+      {pin && createPortal(pin.content, pinEl)}
+    </>
+  );
 }

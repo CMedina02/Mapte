@@ -7,7 +7,8 @@ import { initialLayerState, type LayerState } from '../mars-map/mapUtils';
 import PlanPanel from './PlanPanel';
 import DecisionLog from './DecisionLog';
 import RouteDetails from './RouteDetails';
-import { missionRoute } from '../../shared/mission';
+import LegTimeline from './LegTimeline';
+import { missionRoute, stopLetters } from '../../shared/mission';
 
 type Tab = 'plan' | 'layers';
 // Íconos en línea (trazo 24×24): lucide-react rompía el pre-empaquetado de Vite (dos copias de React)
@@ -59,6 +60,9 @@ export default function MissionControl({ mission, onMission }: Props) {
       })
       .catch((e) => setError(String(e)));
   }, [regionId]);
+
+  // Con misión planificada, un clic en el mapa propone otra base (punteada) hasta recalcular
+  const newBase = mission && base ? base : null;
 
   if (error) return <p className="p-6 text-alert-500">{error}</p>;
 
@@ -112,10 +116,14 @@ export default function MissionControl({ mission, onMission }: Props) {
               <PlanPanel
                 regionId={manifest.region_id}
                 objectives={objectives}
-                base={base}
+                base={base ?? mission?.start_position ?? null}
+                replan={!!newBase}
                 selectedIds={selectedIds}
                 onSelectedIds={setSelectedIds}
-                onPlanned={onMission}
+                onPlanned={(m) => {
+                  onMission(m);
+                  setBase(null); // la base ya es la de la misión: se quita el círculo punteado
+                }}
               />
             )}
           </>
@@ -136,10 +144,14 @@ export default function MissionControl({ mission, onMission }: Props) {
             objectives={objectives}
             focus={[...objectives.map((o) => o.position), ...(manifest.hazards ?? []).flatMap((h) => h.polygon)]}
             selectedObjectiveIds={selectedIds}
-            basePosition={mission?.return_position ?? base}
+            basePosition={mission?.start_position ?? base}
+            pendingBase={newBase}
             layerState={layerState}
             onMapClick={setBase}
             route={mission ? missionRoute(mission) : null}
+            legs={mission?.legs}
+            stopLetters={mission ? stopLetters(mission) : undefined}
+            here={mission?.current_position}
           />
         ) : (
           <p className="p-6">Cargando región…</p>
@@ -150,6 +162,7 @@ export default function MissionControl({ mission, onMission }: Props) {
       {mission && (
         <aside className="order-4 w-full space-y-6 border-t border-space-800 p-3 sm:p-4 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-96">
           <RouteDetails mission={mission} />
+          <LegTimeline mission={mission} objectives={objectives} />
           <DecisionLog mission={mission} objectives={objectives} />
         </aside>
       )}

@@ -9,7 +9,7 @@ export default function DecisionLog({ mission, objectives = [] }: { mission: Mis
     <section className="space-y-2 text-sm">
       <h2 className="eyebrow">Bitácora</h2>
       <p className="text-xs text-space-300">
-        Misión {mission.mission_id} · v{mission.mission_version} · {MISSION_STATUS[mission.lifecycle_status] ?? mission.lifecycle_status}
+        {MISSION_STATUS[mission.lifecycle_status] ?? mission.lifecycle_status}
         {' · '}Siguiente: {nextTitle} · O₂ {mission.resources.oxygen_available_min} min
       </p>
       <ol className="space-y-2">

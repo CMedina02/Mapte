@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from 'react';
 import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
-import type { Mission, MissionPackage, ObservationRequest } from '../../shared/types/contracts';
+import type { Mission, MissionPackage, ObservationRequest, Position } from '../../shared/types/contracts';
 
-const PKG_KEY = 'mars.package.v2'; // v2: objetivos reales del catálogo
+const PKG_KEY = 'mars.package.v3'; // v3: misión con el contrato versionado del backend (legs, lifecycle_status)
 const QUEUE_KEY = 'mars.pending.v1';
 
 export function loadPackage(): MissionPackage | null {
@@ -112,3 +112,14 @@ export async function sendQueue(
   }
   return 'Cambios sincronizados ✓';
 }
+
+// Última posición conocida del astronauta: el visor la muestra aunque no haya misión asignada
+const POS_KEY = 'mars.lastpos.v1';
+export function loadLastPosition(): Position | null {
+  try {
+    return JSON.parse(localStorage.getItem(POS_KEY) ?? 'null') as Position | null;
+  } catch {
+    return null;
+  }
+}
+export const saveLastPosition = (p: Position) => localStorage.setItem(POS_KEY, JSON.stringify(p));

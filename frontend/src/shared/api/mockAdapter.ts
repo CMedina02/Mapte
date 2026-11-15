@@ -130,7 +130,7 @@ function manifest(): RegionManifest {
 
 // Guarda misión y restricciones en localStorage para que el panel (/) y el visor (/visor),
 // en pestañas distintas, vean la misma misión como con el backend real.
-const STORE_KEY = 'mars.mock.state.v4'; // v4: contrato versionado de misión alineado con el backend
+const STORE_KEY = 'mars.mock.state.v5'; // v5: contrato versionado de misión alineado con el backend
 
 interface MockState {
   mission: Mission | null;

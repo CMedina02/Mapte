@@ -6,6 +6,7 @@ interface Props {
   regionId: string;
   objectives: Objective[];
   base: Position | null;
+  replan?: boolean; // hay una base nueva sobre una misión ya planificada
   selectedIds: string[];
   onSelectedIds: (ids: string[]) => void;
   onPlanned: (m: Mission) => void;
@@ -33,7 +34,7 @@ function NumberField(props: {
   );
 }
 
-export default function PlanPanel({ regionId, objectives, base, selectedIds, onSelectedIds, onPlanned }: Props) {
+export default function PlanPanel({ regionId, objectives, base, replan, selectedIds, onSelectedIds, onPlanned }: Props) {
   const [maxSlope, setMaxSlope] = useState(15);
   const [speed, setSpeed] = useState(20);
   const [avoidUnknown, setAvoidUnknown] = useState(true);
@@ -125,7 +126,7 @@ export default function PlanPanel({ regionId, objectives, base, selectedIds, onS
         disabled={!!problem || loading}
         className="btn-primary w-full"
       >
-        {loading ? 'Planificando…' : 'Planificar misión'}
+        {loading ? 'Planificando…' : replan ? 'Recalcular desde nueva base' : 'Planificar misión'}
       </button>
     </section>
   );

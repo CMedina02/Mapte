@@ -43,11 +43,6 @@ export default function App() {
           {tab('control', 'Mission Control')}
           {tab('explorer', 'Explorer', !mission)}
         </nav>
-        {mission && (
-          <span className="hidden text-xs text-space-300 xl:inline">
-            {mission.mission_id} · v{mission.mission_version} · {mission.lifecycle_status}
-          </span>
-        )}
         <div className="ml-auto py-2">
           <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
         </div>

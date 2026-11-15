@@ -141,7 +141,6 @@ export function stitchLegs(legs: RouteResult[], res?: Resources): RouteResult {
     frame_id: legs[0].frame_id,
     terrain_version: legs[0].terrain_version,
     path,
-    return_start_index: legs.length > 1 ? path.length - legs[legs.length - 1].path.length : undefined, // último tramo = regreso
     distance_m: sum('distance_m'),
     duration_min: duration,
     ascent_m: sum('ascent_m'),

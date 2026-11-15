@@ -1,18 +1,19 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import type { Constraints, Mission, MissionPackage, RouteResult } from '../../shared/types/contracts';
+import type { Constraints, Mission, MissionPackage, Position, RouteResult } from '../../shared/types/contracts';
 import { fmt, ROUTE_STATUS, warningText } from '../../shared/format';
 import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
 import MarsMap from '../mars-map/MarsMap';
 import { initialLayerState } from '../mars-map/mapUtils';
 import {
-  isNewerMission, loadPackage, sendQueue, updatePackageMission, useOnline, usePackageUpdates, usePendingQueue,
+  isNewerMission, loadPackage, saveLastPosition, sendQueue, updatePackageMission, useOnline, usePackageUpdates, usePendingQueue,
 } from '../offline-sync/offline';
 import ErrorBoundary from '../../shared/ui/ErrorBoundary';
 import ResourceCheck from './ResourceCheck';
 import FindingPad from './FindingPad';
 import DestinationPicker, { type Destination } from './DestinationPicker';
 import PositionCard from './PositionCard';
+import IdleVisor from './IdleVisor';
 import Radar from './nav/Radar';
 import CompassTape from './nav/CompassTape';
 import ElevationProfile from './nav/ElevationProfile';
@@ -58,17 +59,8 @@ export default function Visor() {
     return () => clearInterval(id);
   }, [online, missionId]);
 
-  if (!pkg || !mission) {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-space-950 p-6 text-center text-space-100">
-        <p>
-          Sin paquete de misión.
-          <br />
-          Transfiérelo desde el panel de control.
-        </p>
-      </div>
-    );
-  }
+  // Sin misión: mapa con la posición del astronauta mientras el panel asigna una
+  if (!pkg || !mission) return <IdleVisor />;
   // key: una misión nueva desde el panel reinicia el flujo del visor (destino, fase)
   return <VisorHud key={mission.mission_id} pkg={pkg} mission={mission} setMission={setMission} />;
 }
@@ -83,6 +75,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const [heading, setHeading] = useState<number | null>(null);
   const [chosenId, setChosenId] = useState<string | null>(null);
   const [picking, setPicking] = useState(false); // mapa de selección (se abre tocando el radar)
+  const [custom, setCustom] = useState<Position | null>(null); // punto libre que el astronauta marcó en el mapa
   // Hacia dónde mira el astronauta: brújula del dispositivo (casco/brazo) o, en escritorio, la posición del ratón
   const compass = useDeviceCompass();
   const [hasCompass] = useState(compassAvailable);
@@ -95,6 +88,8 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const plannedRoute = missionRoute(mission);
   const activeLeg = activeMissionLeg(mission);
   const here = mission.current_position ?? activeLeg?.path[0] ?? mission.start_position;
+  // Se recuerda para mostrarla aunque después no haya misión
+  useEffect(() => saveLastPosition(here), [here]);
   const hereLabel = samePlace(here, mission.return_position)
     ? 'Base'
     : (pkg.objectives.find((o) => samePlace(here, o.position))?.title ?? 'En ruta');
@@ -114,6 +109,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     ...(hereLabel !== 'Base' || pending.length === 0
       ? [{ id: 'base', title: 'Regresar a base', position: mission.return_position, recommended: pending.length === 0 }]
       : []),
+    ...(custom ? [{ id: 'custom', title: 'Punto marcado', position: custom, recommended: false }] : []),
   ];
   const defaultId = pending.some((o) => o.objective_id === mission.next_objective_id) ? mission.next_objective_id! : 'base';
   const dest = destinations.find((d) => d.id === chosenId) ?? destinations.find((d) => d.id === defaultId)!;
@@ -167,15 +163,16 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     setPhase('select');
   };
 
-  // Tocar el mapa elige el destino más cercano al toque (si está a menos de 400 m)
-  const pickNear = (p: { x_m: number; y_m: number }) => {
+  // Tocar el mapa: cerca (< 150 m) de un objetivo o la base lo elige; en cualquier otro punto, ese punto es el destino
+  const pickNear = (p: Position) => {
     const near = destinations
+      .filter((d) => d.id !== 'custom')
       .map((d) => ({ d, m: Math.hypot(d.position.x_m - p.x_m, d.position.y_m - p.y_m) }))
       .sort((a, b) => a.m - b.m)[0];
-    if (near && near.m < 400) {
-      setNotice(null);
-      setChosenId(near.d.id);
-    }
+    setNotice(null);
+    if (near && near.m < 150) return setChosenId(near.d.id);
+    setCustom(p);
+    setChosenId('custom');
   };
 
   const status = legRoute ? (ROUTE_STATUS[legRoute.status] ?? ROUTE_STATUS.unknown) : null;
@@ -191,6 +188,32 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
     </span>
   );
 
+  // Globo sobre el destino con los recursos que costaría llegar (métricas del backend; O₂ = minutos de caminata)
+  const o2Left = legRoute?.duration_min == null ? null : o2 - legRoute.duration_min;
+  const pin = {
+    position: dest.position,
+    content: (
+      <div className="hud w-56 space-y-1.5 p-2 text-xs shadow-lg shadow-black/50">
+        <p className="truncate font-bold">{dest.title}</p>
+        {status && <span className={`chip border ${status.cls}`}>{status.label}</span>}
+        {legRoute ? (
+          <dl className="grid grid-cols-[1fr_auto] gap-x-2 font-mono">
+            <dt className="text-space-300">Distancia</dt>
+            <dd>{fmt(legRoute.distance_m, 'm')}</dd>
+            <dt className="text-space-300">O₂ a gastar</dt>
+            <dd>{fmt(legRoute.duration_min, 'min')}</dd>
+            <dt className="text-space-300">O₂ al llegar</dt>
+            <dd className={o2Left !== null && o2Left < reserve ? 'text-alert-400' : 'text-green-400'}>{fmt(o2Left, 'min')}</dd>
+            <dt className="text-space-300">Reserva</dt>
+            <dd>{fmt(reserve, 'min')}</dd>
+          </dl>
+        ) : (
+          <p className="text-space-300">{routeNote}</p>
+        )}
+      </div>
+    ),
+  };
+
   const map2d = (picker = false) => (
     <MarsMap
       manifest={manifest}
@@ -201,6 +224,8 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       route={shownRoute}
       focus={[here, dest.position, ...shownRoute.path]}
       onMapClick={picker ? pickNear : undefined}
+      here={here}
+      pin={picker ? pin : null}
     />
   );
 
@@ -373,7 +398,24 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
               </div>
             )}
 
+            {phase === 'arrived' && dest.id === 'custom' && (
+              // ponytail: la posición no se mueve hasta que el backend acepte posiciones libres en /progress
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-bold">Llegaste al punto marcado.</p>
+                <button
+                  type="button"
+                  className={`${bigButton} bg-primary-600 text-white`}
+                  onClick={() => {
+                    setCustom(null);
+                    backToSelect();
+                  }}
+                >
+                  Listo
+                </button>
+              </div>
+            )}
             {phase === 'arrived' &&
+              dest.id !== 'custom' &&
               (objective ? (
                 <FindingPad
                   onBack={() => setPhase('navigate')}
