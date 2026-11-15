@@ -103,7 +103,9 @@ export function decisionPoints(mission: Mission): DecisionPoint[] {
   const used = (n: number) =>
     dur.slice(0, n).some((d) => d === null) ? null : dur.slice(0, n).reduce<number>((a, d) => a + (d ?? 0), 0);
   const excluded = excludedObjectives(mission).length > 0;
-  const stops = ['base', ...mission.objective_ids];
+  // Paradas según los tramos vigentes: tras un recálculo se sale del objetivo donde está el astronauta
+  const legs = mission.legs;
+  const stops = legs.length ? [legs[0].start_label, ...legs.slice(0, -1).map((l) => l.end_label)] : ['base'];
   return stops.map((stop, i) => {
     const isLast = i === stops.length - 1;
     const u = used(i);
@@ -111,7 +113,7 @@ export function decisionPoints(mission: Mission): DecisionPoint[] {
       stop,
       oxygen_left_min: u === null ? null : mission.resources.oxygen_available_min - u,
       can_continue: isLast ? (excluded ? false : null) : viable ? true : null,
-      can_return: i === 0 ? true : viable ? true : null,
+      can_return: stop === 'base' && i === 0 ? true : viable ? true : null,
     };
   });
 }

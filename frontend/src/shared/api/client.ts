@@ -50,8 +50,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 const post = <T>(path: string, body: unknown) =>
   request<T>(path, { method: 'POST', body: JSON.stringify(body) });
-const patch = <T>(path: string, body: unknown) =>
-  request<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 
 // ---------- Misiones del backend ----------
 
@@ -60,8 +58,12 @@ const backendMission = (id: string) => request<Mission>(`/missions/${enc(id)}`);
 const objectivePosition = (mission: Mission, objectiveId: string): Position | null =>
   mission.legs.find((leg) => leg.end_label === objectiveId)?.path.at(-1) ?? null;
 
-// Registrar un hallazgo: (1) iniciar la misión si sigue en borrador, (2) mover la posición actual al objetivo
-// (PATCH /progress; /observations no la mueve), (3) POST /observations valida el código y completa el objetivo.
+// Minutos de trabajo por objetivo con los que se recalcula (los mismos valores por defecto del panel y el visor)
+const DEFAULT_ACTIVITY_MIN = 45;
+
+// Registrar un hallazgo y seguir al siguiente objetivo:
+// (1) iniciar la misión si sigue en borrador, (2) POST /observations valida el código y completa el objetivo,
+// (3) POST /replan recalcula los pendientes desde ese objetivo. Si el hallazgo falla, nada cambia.
 async function observeInBackend(missionId: string, req: ObservationRequest): Promise<Mission> {
   let b = await backendMission(missionId);
   if (b.mission_version !== req.mission_version) {
@@ -71,21 +73,33 @@ async function observeInBackend(missionId: string, req: ObservationRequest): Pro
   if (b.lifecycle_status === 'draft') {
     b = await post<Mission>(`${path}/status`, { expected_version: b.mission_version, action: 'start' });
   }
-  const at = objectivePosition(b, req.objective_id);
-  if (at) {
-    b = await patch<Mission>(`${path}/progress`, {
-      expected_version: b.mission_version,
-      current_position: at,
-      completed_objective_ids: b.completed_objective_ids,
-      resources: b.resources,
-    });
-  }
-  return post<Mission>(`${path}/observations`, {
+  const before = b;
+  const observed = await post<Mission>(`${path}/observations`, {
     mission_version: b.mission_version,
     objective_id: req.objective_id,
     finding_code: req.finding_code,
     notes: req.notes ?? null,
   });
+
+  // ponytail: lectura de O₂ ESTIMADA (O₂ previo − tramo caminado − trabajo en el objetivo) porque el traje
+  // aún no envía telemetría; cuando la haya, se manda la lectura real.
+  const walked = before.legs.find((leg) => leg.end_label === req.objective_id)?.metrics.duration_min;
+  const oxygenNow =
+    walked == null
+      ? before.resources.oxygen_available_min
+      : Math.max(0, before.resources.oxygen_available_min - walked - DEFAULT_ACTIVITY_MIN);
+  const remaining = observed.objective_ids.filter((id) => !observed.completed_objective_ids.includes(id));
+  try {
+    return await post<Mission>(`${path}/replan`, {
+      expected_version: observed.mission_version,
+      current_position: objectivePosition(before, req.objective_id) ?? observed.current_position ?? observed.start_position,
+      from_label: req.objective_id,
+      resources: { oxygen_available_min: oxygenNow, return_reserve_min: before.resources.return_reserve_min },
+      activity_durations_min: Object.fromEntries(remaining.map((id) => [id, DEFAULT_ACTIVITY_MIN])),
+    });
+  } catch {
+    return observed; // el hallazgo quedó registrado aunque el recálculo falle (p. ej. sin backend nuevo)
+  }
 }
 
 // Paquete para el visor: misión del backend + catálogo (real si no hay mock, del mock en modo híbrido)
