@@ -28,6 +28,7 @@ interface Props {
   destination: Position | null;
   onHeading: (deg: number) => void; // hacia dónde mira (0° = norte), según la cámara
   lookHeading?: number | null; // rumbo impuesto desde fuera (brújula del dispositivo o ratón); null = libre
+  lookPitch?: number | null; // inclinación impuesta desde fuera (ratón), radianes desde la vertical; null = libre
   onError: (message: string) => void;
 }
 
@@ -374,23 +375,41 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 // Gira la órbita alrededor del astronauta hasta mirar hacia `heading`, con suavizado (filtra el temblor del sensor).
 // Mantiene la inclinación y la distancia que eligió el usuario.
-// Inclinación de la cámara de la vista inicial (detrás del astronauta: atrás 1, arriba 0.6)
-const VIEW_POLAR = Math.atan2(1, 0.6);
+// Inclinación de la cámara (ángulo desde la vertical): casi a ras del suelo como máximo
+const MAX_POLAR = Math.PI / 2.15;
 
-function HeadingDriver({ heading }: { heading: number | null }) {
+// Lleva la cámara, con suavizado, al rumbo (heading) y a la inclinación (pitch, en radianes desde la vertical)
+// que llegan de fuera: brújula del dispositivo o posición del ratón. null = el usuario manda.
+function HeadingDriver({ heading, pitch }: { heading: number | null; pitch: number | null }) {
   const controls = useThree((s) => s.controls) as unknown as { getAzimuthalAngle(): number; target: THREE.Vector3; update(): void } | null;
   const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
-    if (heading !== null) invalidate();
-  }, [heading, invalidate]);
+    if (heading !== null || pitch !== null) invalidate();
+  }, [heading, pitch, invalidate]);
   useFrame((_, dt) => {
-    if (heading === null || !controls) return;
-    const diff = (-heading * Math.PI) / 180 - controls.getAzimuthalAngle(); // inverso de headingFromAzimuth
-    const d = Math.atan2(Math.sin(diff), Math.cos(diff)); // giro más corto
-    if (Math.abs(d) < 0.002) return;
-    const step = Math.abs(d) < 0.01 ? d : d * (1 - Math.exp(-dt * 10));
-    const offset = camera.position.clone().sub(controls.target).applyAxisAngle(UP, step);
+    if ((heading === null && pitch === null) || !controls) return;
+    const ease = (d: number) => (Math.abs(d) < 0.01 ? d : d * (1 - Math.exp(-dt * 10)));
+    const offset = camera.position.clone().sub(controls.target);
+    let moved = false;
+    if (heading !== null) {
+      const diff = (-heading * Math.PI) / 180 - controls.getAzimuthalAngle(); // inverso de headingFromAzimuth
+      const d = Math.atan2(Math.sin(diff), Math.cos(diff)); // giro más corto
+      if (Math.abs(d) >= 0.002) {
+        offset.applyAxisAngle(UP, ease(d));
+        moved = true;
+      }
+    }
+    if (pitch !== null) {
+      const s = new THREE.Spherical().setFromVector3(offset);
+      const d = Math.min(Math.max(pitch, 0.2), MAX_POLAR) - s.phi;
+      if (Math.abs(d) >= 0.002) {
+        s.phi += ease(d);
+        offset.setFromSpherical(s);
+        moved = true;
+      }
+    }
+    if (!moved) return;
     camera.position.copy(controls.target).add(offset);
     controls.update(); // emite 'change': actualiza el compás y mantiene la cámara sobre el terreno
     invalidate();
@@ -398,7 +417,7 @@ function HeadingDriver({ heading }: { heading: number | null }) {
   return null;
 }
 
-function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here, destination, onHeading, lookHeading = null, onError }: Props) {
+function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here, destination, onHeading, lookHeading = null, lookPitch = null, onError }: Props) {
   const [dem, setDem] = useState<{ terrain: Terrain; heights: Float32Array } | null>(null);
   // Último bloque terrain recibido: el efecto de carga lo lee sin depender de su identidad
   // (la sincronización en vivo entrega un objeto nuevo aunque el heightmap no cambie)
@@ -530,9 +549,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
           makeDefault
           target={view.target}
           enableDamping={false}
-          // Solo giro horizontal (ratón, brújula o arrastre): la inclinación queda fija en la de la vista inicial
-          minPolarAngle={VIEW_POLAR}
-          maxPolarAngle={VIEW_POLAR}
+          maxPolarAngle={MAX_POLAR}
           minDistance={120}
           maxDistance={fogFar * 0.55} // nunca tan lejos como para ver la losa de terreno flotando
           onChange={(e) => {
@@ -545,7 +562,7 @@ function Terrain3D({ manifest, terrain, route, base, objectives, targetId, here,
             if (cam.y < minY) cam.y = minY;
           }}
         />
-        <HeadingDriver heading={lookHeading} />
+        <HeadingDriver heading={lookHeading} pitch={lookPitch} />
       </Canvas>
 
     </div>

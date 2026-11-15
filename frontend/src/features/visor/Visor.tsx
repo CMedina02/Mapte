@@ -91,6 +91,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
   const compass = useDeviceCompass();
   const [hasCompass] = useState(compassAvailable);
   const [mouseLook, setMouseLook] = useState<number | null>(null);
+  const [mousePitch, setMousePitch] = useState<number | null>(null);
   const lookHeading = compass.heading ?? mouseLook;
   const [previews, setPreviews] = useState<Record<string, RouteResult | 'error'>>({});
   const [queue, setQueue] = usePendingQueue();
@@ -256,11 +257,17 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
         className="absolute inset-0"
         // Ratón sin pulsar: el centro de la pantalla mira al destino y cada borde gira 180° hacia su lado.
         // Al arrastrar (inclinar/acercar) el ratón deja de mandar hasta que se suelta.
-        onPointerDown={() => setMouseLook(null)}
+        onPointerDown={() => {
+          setMouseLook(null);
+          setMousePitch(null);
+        }}
         onPointerMove={(e) => {
           if (e.pointerType !== 'mouse' || e.buttons !== 0 || compass.enabled || !view3d) return;
           const x = e.clientX / e.currentTarget.clientWidth - 0.5;
           setMouseLook(Math.round(norm360(bearing + x * 360)));
+          // Vertical: arriba = mirar al horizonte (cámara baja), abajo = mirar el suelo desde arriba
+          const y = e.clientY / e.currentTarget.clientHeight;
+          setMousePitch(1.45 - y * 1.0);
         }}
       >
         {view3d && manifest.terrain ? (
@@ -277,6 +284,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                 destination={dest.position}
                 onHeading={setHeading}
                 lookHeading={lookHeading}
+                lookPitch={compass.enabled ? null : mousePitch}
                 onError={on3dError}
               />
             </Suspense>
