@@ -1,27 +1,33 @@
 import { useState } from 'react';
 import { marsApi } from '../../shared/api/client';
 import { mutateMission } from '../../shared/api/mutateMission';
-import type { Mission, Objective } from '../../shared/types/contracts';
+import { findingText } from '../../shared/format';
+import type { Mission, Objective, Photo } from '../../shared/types/contracts';
 import type { PendingObservation } from '../offline-sync/offline';
 
 interface Props {
   mission: Mission;
   objective: Objective;
+  photo?: Photo; // foto real de Curiosity en este sitio, como referencia
   onMission: (m: Mission) => void;
   onQueue: (o: PendingObservation) => void;
   onDone: (message: string) => void;
   onBack: () => void;
 }
 
-export default function FindingPad({ mission, objective, onMission, onQueue, onDone, onBack }: Props) {
+// En el objetivo: el astronauta elige lo que observa, puede dejar una nota y la misión sigue al siguiente
+export default function FindingPad({ mission, objective, photo, onMission, onQueue, onDone, onBack }: Props) {
+  const [code, setCode] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send(code: string) {
-    const obs = { objective_id: objective.objective_id, finding_code: code };
+  async function send() {
+    if (!code) return;
+    const obs = { objective_id: objective.objective_id, finding_code: code, ...(notes.trim() ? { notes: notes.trim() } : {}) };
     if (!navigator.onLine) {
       onQueue(obs);
-      onDone('Guardado; se enviará al reconectar.');
+      onDone('Guardado. Se enviará al recuperar la conexión.');
       return;
     }
     setBusy(true);
@@ -32,31 +38,57 @@ export default function FindingPad({ mission, objective, onMission, onQueue, onD
     );
     setBusy(false);
     if (err) setError(err);
-    else onDone('Hallazgo registrado.');
+    else onDone('Hallazgo registrado. Ruta recalculada al siguiente destino.');
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm">¿Qué observas en {objective.title}?</p>
-        <button type="button" onClick={onBack} disabled={busy} className="btn min-h-9 border border-primary-500 px-3 py-1 text-primary-300">
+    <div className="space-y-3">
+      <div className="flex items-start gap-3">
+        {photo && (
+          <a href={photo.source_url} target="_blank" rel="noreferrer" className="shrink-0" title={`${photo.camera} · ${photo.credit}`}>
+            <img src={photo.image_url} alt={`Foto de ${objective.title}`} className="size-16 rounded-xl object-cover" />
+          </a>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-space-400">¿Qué observas?</p>
+          <p className="leading-snug font-medium text-space-50">{objective.title.split(' — ')[0]}</p>
+        </div>
+        <button type="button" onClick={onBack} disabled={busy} className="btn-ghost min-h-9 px-4">
           Volver
         </button>
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-        {objective.possible_findings.map((code) => (
+
+      <div role="radiogroup" aria-label="Hallazgo" className="flex flex-wrap gap-2">
+        {objective.possible_findings.map((c) => (
           <button
-            key={code}
+            key={c}
             type="button"
+            role="radio"
+            aria-checked={code === c}
             disabled={busy}
-            onClick={() => send(code)}
-            className="btn min-h-14 break-all border border-primary-500 bg-primary-950 text-base text-primary-200 sm:text-lg"
+            onClick={() => setCode(c)}
+            className={`min-h-10 rounded-full border px-4 text-sm transition-colors ${
+              code === c ? 'border-primary-400 bg-primary-600 text-white' : 'border-white/15 text-space-100 hover:bg-white/5'
+            }`}
           >
-            {code}
+            {findingText(c)}
           </button>
         ))}
       </div>
+
+      <textarea
+        className="field min-h-16 resize-none"
+        placeholder="Notas (opcional)"
+        maxLength={1000}
+        value={notes}
+        disabled={busy}
+        onChange={(e) => setNotes(e.target.value)}
+      />
+
       {error && <p className="text-sm text-alert-400">{error}</p>}
+      <button type="button" disabled={!code || busy} onClick={send} className="btn-primary min-h-12 w-full text-base">
+        {busy ? 'Registrando…' : 'Registrar y seguir'}
+      </button>
     </div>
   );
 }

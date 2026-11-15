@@ -128,6 +128,38 @@
   ],
   "objectives": [
     {
+      "objective_id": "obj-vrr-highfield",
+      "region_id": "mc23-gale-mount-sharp",
+      "title": "Vera Rubin Ridge — sitio de perforación Highfield",
+      "description": "Afloramiento gris de la cresta Vera Rubin, perforado por Curiosity en el sol 2224 (8 nov 2018) tras el intento fallido en Inverness por la dureza de la roca.",
+      "position": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      },
+      "science_question": "¿La resistencia de Vera Rubin Ridge y su hematita se deben a alteración diagenética por agua subterránea y no a una capa de composición distinta?",
+      "priority_weight": 2.0,
+      "activities": [
+        "Raspado con el DRT (Dust Removal Tool)",
+        "Perforación y toma de muestra",
+        "Mineralogía con CheMin",
+        "Análisis de gases con SAM",
+        "Imágenes de contexto Mastcam/MAHLI"
+      ],
+      "possible_findings": [
+        "HEMATITE_DETECTED",
+        "COARSE_HEMATITE_ONLY",
+        "DIAGENETIC_ALTERATION_OBSERVED",
+        "NO_HEMATITE_DETECTED"
+      ],
+      "evidence_ids": [
+        "ev-nasa-msl-localized-waypoints",
+        "ev-nasa-msl-blog-sol-2224-highfield",
+        "ev-fraeman-2020-vera-rubin-ridge"
+      ]
+    },
+    {
       "objective_id": "obj-glen-torridon-aberlady",
       "region_id": "mc23-gale-mount-sharp",
       "title": "Glen Torridon (unidad con arcillas) — Aberlady y Kilmarie",
@@ -259,6 +291,50 @@
       "location": {
         "x_m": 3245.3,
         "y_m": 9859.0,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    },
+    {
+      "photo_id": "photo-msl-2224-543711",
+      "objective_id": "obj-vrr-highfield",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/ncam/NLA_594936581EDR_F0730550NCAM00309M_.JPG",
+      "camera": "Navcam izquierda (RCE-A)",
+      "sol": 2224,
+      "captured_at": "2018-11-08T08:42:51Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/543711/",
+      "location_quality": "verified",
+      "limitations": [
+        "Navcam del sol de perforación de Highfield.",
+        "La ubicación es la del rover (site/drive 73_550 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
+        "frame_id": "MARS_GALE_MS_LOCAL_V1",
+        "z_m": null
+      }
+    },
+    {
+      "photo_id": "photo-msl-2224-543723",
+      "objective_id": "obj-vrr-highfield",
+      "image_url": "https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/02224/opgs/edr/fcam/FLA_594936755EDR_F0730550FHAZ00337M_.JPG",
+      "camera": "Hazcam frontal izquierda (RCE-A)",
+      "sol": 2224,
+      "captured_at": "2018-11-08T08:45:46Z",
+      "credit": "NASA/JPL-Caltech",
+      "source_url": "https://mars.nasa.gov/raw_images/543723/",
+      "location_quality": "verified",
+      "limitations": [
+        "Hazcam frontal: espacio de trabajo del brazo en Highfield.",
+        "La ubicación es la del rover (site/drive 73_550 etiquetado en la imagen y presente en los waypoints localizados), no la del píxel ni del blanco fotografiado.",
+        "Imagen cruda (EDR JPEG) servida desde NASA; aún no hay copia optimizada local."
+      ],
+      "location": {
+        "x_m": 3675.0,
+        "y_m": 6273.6,
         "frame_id": "MARS_GALE_MS_LOCAL_V1",
         "z_m": null
       }

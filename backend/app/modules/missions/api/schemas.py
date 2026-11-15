@@ -174,6 +174,19 @@ class MissionReplanRequestSchema(BaseModel):
     activity_durations_min: dict[str, float] = Field(default_factory=dict)
 
 
+class MissionAdvanceRequestSchema(BaseModel):
+    """Recalcular los objetivos pendientes desde donde está el astronauta."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    current_position: PositionSchema
+    # Parada desde la que se sale (objetivo recién completado); por defecto, el último completado
+    from_label: str | None = None
+    resources: MissionResourcesSchema
+    activity_durations_min: dict[str, float] = Field(default_factory=dict)
+
+
 class MissionProgressRequestSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

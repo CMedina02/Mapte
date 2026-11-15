@@ -18,6 +18,7 @@ from app.modules.catalog.domain import TerrainRepository
 from app.modules.catalog.infrastructure.terrain_loader import CatalogStore
 from app.modules.missions.api.schemas import (
     ContingencyRequestSchema,
+    MissionAdvanceRequestSchema,
     MissionEventsResponseSchema,
     MissionPackageResponseSchema,
     MissionPlanRequestSchema,
@@ -660,6 +661,113 @@ def optimize_preventive_support(
             "generated_at": datetime.now(UTC),
         }
     )
+
+
+@missions_router.post(
+    "/missions/{mission_id}/replan",
+    response_model=MissionPlanResponseSchema,
+)
+def replan_from_current_position(
+    mission_id: str,
+    payload: MissionAdvanceRequestSchema,
+    terrain: TerrainDep,
+    objectives: ObjectiveDep,
+    missions: MissionDep,
+) -> MissionPlanResponseSchema:
+    """Recalcula la ruta de los objetivos pendientes desde la posición actual.
+
+    Usa el mismo planificador de regreso seguro, las restricciones del plan y los riesgos ya
+    reportados. Conserva la base, los objetivos originales y lo completado.
+    """
+    stored = _current_mission(missions, mission_id, payload.expected_version)
+    if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
+        raise HTTPException(status_code=409, detail="Solo una misión activa se puede recalcular.")
+    constraints_data = stored.snapshot.get("routing_constraints")
+    if constraints_data is None:
+        raise HTTPException(
+            status_code=409,
+            detail="La misión no conserva sus restricciones de ruta; debe replanificarse.",
+        )
+    original_ids = tuple(stored.snapshot["objective_ids"])
+    completed = tuple(stored.snapshot.get("completed_objective_ids", []))
+    remaining = tuple(item for item in original_ids if item not in completed)
+    reports = tuple(_hazard_from_data(item) for item in stored.snapshot.get("hazard_reports", []))
+    request = MissionPlanningRequest(
+        region_id=stored.region_id,
+        base_position=_local_position(payload.current_position),
+        return_position=_local_position_data(stored.snapshot["return_position"]),
+        objective_ids=remaining,
+        constraints=_routing_constraints_from_data(constraints_data),
+        resources=SupportResources(
+            payload.resources.oxygen_available_min,
+            payload.resources.return_reserve_min,
+        ),
+        activity_durations_min=tuple(
+            (key, value)
+            for key, value in payload.activity_durations_min.items()
+            if key in remaining
+        ),
+    )
+    try:
+        plan = MissionPlanner(terrain, objectives, reports).plan(request)
+        draft = mission_create_from_plan(plan)
+    except (ValueError, FrameMismatchError, InvalidRouteEndpointError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # El planificador nombra "base" a su punto de salida: aquí es la parada donde está el astronauta
+    from_label = payload.from_label or (completed[-1] if completed else "base")
+    legs = [dict(leg) for leg in draft.snapshot["legs"]]
+    if legs and legs[0]["start_label"] == "base" and from_label != "base":
+        legs[0]["start_label"] = from_label
+    accepted = draft.snapshot["objective_ids"]
+    message = (
+        "Ruta recalculada desde la posición actual: "
+        + (" → ".join(accepted) + " → base" if accepted else "regreso a base")
+        + f". Viabilidad del modelo: {draft.viability_status.value}."
+    )
+    recalculated = {
+        "event_type": "route_recalculated",
+        "message": message,
+        "evidence_ids": [],
+        "simulated": True,
+    }
+    snapshot = {
+        **draft.snapshot,
+        "start_position": stored.snapshot["start_position"],
+        "current_position": _position_schema_data(payload.current_position),
+        "objective_ids": list(original_ids),
+        "completed_objective_ids": list(completed),
+        "legs": legs,
+        "hazard_reports": stored.snapshot.get("hazard_reports", []),
+        "decision_log": [
+            *stored.snapshot["decision_log"],
+            recalculated,
+            *(
+                entry
+                for entry in draft.snapshot["decision_log"]
+                if entry["event_type"] == "objective_excluded"
+            ),
+        ],
+    }
+    updated = _update_mission(
+        missions,
+        mission_id,
+        MissionUpdate(
+            expected_version=payload.expected_version,
+            lifecycle_status=stored.lifecycle_status,
+            viability_status=draft.viability_status,
+            snapshot=snapshot,
+            routes=draft.routes,
+            events=(
+                MissionEventDraft(
+                    str(uuid4()),
+                    "route_recalculated",
+                    {"from_label": from_label, "remaining": list(remaining)},
+                ),
+            ),
+        ),
+    )
+    return _mission_response(updated)
 
 
 @missions_router.post(

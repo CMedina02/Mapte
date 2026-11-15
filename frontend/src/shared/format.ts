@@ -61,6 +61,7 @@ const EVENT_TEXT: Record<string, string> = {
   mission_active: 'Misión iniciada',
   progress_updated: 'Avance',
   observation_recorded: 'Hallazgo',
+  route_recalculated: 'Ruta recalculada',
   objective_excluded: 'Objetivo excluido',
   hazard_reported: 'Riesgo reportado',
   contingency_evaluated: 'Contingencia',
@@ -68,3 +69,24 @@ const EVENT_TEXT: Record<string, string> = {
   mission_aborted: 'Misión abortada',
 };
 export const eventText = (e: string) => EVENT_TEXT[e] ?? e.replaceAll('_', ' ');
+
+// Hallazgos del catálogo en palabras (el código se sigue enviando tal cual al backend)
+const FINDING_TEXT: Record<string, string> = {
+  HEMATITE_DETECTED: 'Hematita',
+  COARSE_HEMATITE_ONLY: 'Solo hematita gruesa',
+  DIAGENETIC_ALTERATION_OBSERVED: 'Alteración diagenética',
+  NO_HEMATITE_DETECTED: 'Sin hematita',
+  CLAY_MINERALS_DETECTED: 'Arcillas',
+  FE_CARBONATE_DETECTED: 'Carbonato de hierro',
+  NO_CLAY_ENRICHMENT: 'Sin arcillas',
+  ELEMENTAL_SULFUR_DETECTED: 'Azufre elemental',
+  SULFATE_ONLY: 'Solo sulfatos',
+  NO_SULFUR_PHASE: 'Sin azufre',
+  TRIDYMITE_DETECTED: 'Tridimita',
+  HIGH_SILICA_AMORPHOUS: 'Sílice amorfa',
+  NO_TRIDYMITE_DETECTED: 'Sin tridimita',
+};
+export const findingText = (code: string) => {
+  const text = FINDING_TEXT[code] ?? code.toLowerCase().replaceAll('_', ' ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};

@@ -19,7 +19,7 @@ import CompassTape from './nav/CompassTape';
 import ElevationProfile from './nav/ElevationProfile';
 import { bearingDeg, norm360, samePlace } from './nav/geo';
 import { compassAvailable, useDeviceCompass } from './nav/useDeviceCompass';
-import { activeMissionLeg, excludedObjectives, exclusionsCrossed, missionRoute, shortReason } from '../../shared/mission';
+import { activeMissionLeg, excludedObjectives, exclusionsCrossed, missionRoute, shortReason, stopLetters } from '../../shared/mission';
 import { excludedPaths, useExcludedRoute } from '../../shared/useExcludedRoute';
 import Icon from '../../shared/ui/Icon';
 
@@ -137,6 +137,10 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       mission.routing_constraints ?? EVA_CONSTRAINTS,
     ),
   );
+
+  const letters = stopLetters(mission);
+  const done = mission.completed_objective_ids.length;
+  const total = mission.objective_ids.length;
 
   // Objetivos que el plan dejó fuera: se muestran bloqueados con su motivo, como en el panel
   const unreachable: Destination[] = excludedObjectives(mission).flatMap((x) => {
@@ -414,6 +418,20 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
               <span className="text-alert-300">Reserva {fmtDuration(reserve)}</span>
             </div>
 
+            {total > 0 && (
+              <div className="flex items-center gap-2 text-xs text-space-300">
+                <span className="flex gap-1" aria-hidden>
+                  {mission.objective_ids.map((id) => (
+                    <span
+                      key={id}
+                      className={`h-1.5 w-5 rounded-full ${mission.completed_objective_ids.includes(id) ? 'bg-green-400' : 'bg-white/15'}`}
+                    />
+                  ))}
+                </span>
+                {done === total ? 'Objetivos completados: vuelve a la base' : `${done} de ${total} objetivos completados`}
+              </div>
+            )}
+
             {phase === 'select' && (
               <div className="space-y-1">
                 <p className="text-xs text-space-400">Destino</p>
@@ -474,6 +492,7 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
               dest.id !== 'custom' &&
               (objective ? (
                 <FindingPad
+                  photo={pkg.photos.find((p) => p.objective_id === objective.objective_id)}
                   onBack={() => setPhase('navigate')}
                   mission={mission}
                   objective={objective}
@@ -517,10 +536,9 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
       {/* ---------- Mapa de selección: elegir destino y verificar ruta ---------- */}
       {picking && phase !== 'confirm' && (
         <div role="dialog" aria-modal="true" aria-label="Elegir destino" className="absolute inset-0 z-20 flex flex-col bg-space-950 lg:flex-row">
-          <div className="relative min-h-0 flex-1">{map2d(true)}</div>
-          <aside className="hud m-2 space-y-3 p-3 sm:p-4 lg:w-96 lg:self-end">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-base font-medium text-space-50">¿A dónde vas?</p>
+          <aside className="order-2 flex max-h-[60dvh] flex-col border-white/10 bg-space-950 lg:order-1 lg:max-h-none lg:w-80 lg:border-r">
+            <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-2">
+              <p className="text-lg font-medium text-space-50">¿A dónde vas?</p>
               <button
                 type="button"
                 className="flex size-10 items-center justify-center rounded-full text-space-200 hover:bg-white/10"
@@ -530,25 +548,58 @@ function VisorHud({ pkg, mission, setMission }: { pkg: MissionPackage; mission: 
                 <Icon name="close" />
               </button>
             </div>
-            <DestinationPicker
-              destinations={[...destinations, ...unreachable]}
-              selectedId={dest.id}
-              here={here}
-              onSelect={(id) => {
-                setNotice(null);
-                setChosenId(id);
-              }}
-            />
-            {legSummary}
-            <button
-              type="button"
-              disabled={!legRoute}
-              className={`${bigButton} w-full bg-primary-600 text-white enabled:hover:bg-primary-500`}
-              onClick={() => setPhase('confirm')}
-            >
-              Verificar ruta
-            </button>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+              <p className="text-xs text-space-400">Elige un destino de la lista o toca cualquier punto del mapa.</p>
+              <DestinationPicker
+                destinations={[...destinations, ...unreachable]}
+                selectedId={dest.id}
+                here={here}
+                letters={letters}
+                onSelect={(id) => {
+                  setNotice(null);
+                  setChosenId(id);
+                }}
+              />
+              <section className="space-y-3 rounded-[var(--radius-card)] border border-white/10 bg-space-900/70 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[26px] leading-tight font-medium text-space-50">
+                      {legRoute ? fmtDuration(legRoute.duration_min) : '—'}
+                    </p>
+                    <p className="text-sm text-space-400">
+                      {legRoute ? `${fmtDistance(legRoute.distance_m)} hasta ${dest.title.split(' — ')[0]}` : routeNote}
+                    </p>
+                  </div>
+                  {status && <span className={`chip mt-1 ${status.cls}`}>{status.label}</span>}
+                </div>
+                {legRoute && (
+                  <dl className="grid grid-cols-2 gap-3 border-t border-white/10 pt-3 text-sm">
+                    <div>
+                      <dt className="text-xs text-space-400">Oxígeno al llegar</dt>
+                      <dd className={`font-medium ${o2Left !== null && o2Left < reserve ? 'text-alert-400' : 'text-space-50'}`}>
+                        {fmtDuration(o2Left)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-space-400">Ascenso</dt>
+                      <dd className="font-medium text-space-50">{legRoute.ascent_m == null ? 'Sin dato' : `${Math.round(legRoute.ascent_m)} m`}</dd>
+                    </div>
+                  </dl>
+                )}
+              </section>
+            </div>
+            <div className="border-t border-white/10 p-4">
+              <button
+                type="button"
+                disabled={!legRoute}
+                className="btn-primary min-h-12 w-full text-base"
+                onClick={() => setPhase('confirm')}
+              >
+                Verificar ruta
+              </button>
+            </div>
           </aside>
+          <div className="relative order-1 min-h-0 flex-1 lg:order-2">{map2d(true)}</div>
         </div>
       )}
 

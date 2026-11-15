@@ -37,6 +37,9 @@ _PRESERVE_ORDER_CODES = frozenset(
         "ELEMENTAL_SULFUR_DETECTED",
         "SULFATE_ONLY",
         "NO_SULFUR_PHASE",
+        "TRIDYMITE_DETECTED",
+        "HIGH_SILICA_AMORPHOUS",
+        "NO_TRIDYMITE_DETECTED",
     }
 )
 

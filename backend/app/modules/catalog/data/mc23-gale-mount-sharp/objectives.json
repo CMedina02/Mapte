@@ -132,8 +132,6 @@
     {
       "objective_id": "obj-vrr-highfield",
       "region_id": "mc23-gale-mount-sharp",
-      "active": false,
-      "inactive_reason": "Desactivado: está a ~387 m de obj-glen-torridon-aberlady; se sustituye por un objetivo más alejado (obj-marias-pass-buckskin).",
       "title": "Vera Rubin Ridge — sitio de perforación Highfield",
       "description": "Afloramiento gris de la cresta Vera Rubin, perforado por Curiosity en el sol 2224 (8 nov 2018) tras el intento fallido en Inverness por la dureza de la roca.",
       "position": {
