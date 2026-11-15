@@ -79,6 +79,7 @@ class MissionPlanResponseSchema(BaseModel):
     completed_objective_ids: list[str] = Field(default_factory=list)
     next_objective_id: str | None
     legs: list[dict]
+    routing_constraints: RouteConstraintsSchema | None = None
     resources: dict
     resource_evaluation: dict
     alerts: list[str]
@@ -152,3 +153,12 @@ class ObservationRequestSchema(BaseModel):
     objective_id: str = Field(min_length=1)
     finding_code: str = Field(min_length=1)
     notes: str | None = Field(default=None, max_length=1000)
+
+
+class ContingencyRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mission_version: int = Field(ge=1)
+    contingency_type: Literal["oxygen_reduced", "rover_unavailable"]
+    position: PositionSchema
+    oxygen_available_min: float = Field(ge=0)

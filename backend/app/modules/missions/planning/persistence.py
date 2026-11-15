@@ -22,6 +22,11 @@ def mission_create_from_plan(plan: MissionPlan) -> MissionCreate:
         "completed_objective_ids": [],
         "next_objective_id": plan.next_objective_id,
         "legs": [_leg_snapshot(leg) for leg in plan.legs],
+        "routing_constraints": {
+            "max_slope_deg": plan.constraints.max_slope_deg,
+            "speed_m_per_min": plan.constraints.speed_m_per_min,
+            "avoid_unknown": plan.constraints.avoid_unknown,
+        },
         "resources": {
             "oxygen_available_min": plan.resources.oxygen_available_min,
             "return_reserve_min": plan.resources.return_reserve_min,

@@ -64,6 +64,7 @@ class MissionPlanner:
             objective_ids=request.objective_ids,
             next_objective_id=request.objective_ids[0] if request.objective_ids else None,
             legs=legs,
+            constraints=request.constraints,
             resources=request.resources,
             resource_evaluation=evaluation,
             viability=viability,

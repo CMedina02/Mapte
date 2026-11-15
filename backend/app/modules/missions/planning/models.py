@@ -90,6 +90,7 @@ class MissionPlan:
     objective_ids: tuple[str, ...]
     next_objective_id: str | None
     legs: tuple[MissionLeg, ...]
+    constraints: RoutePlanningConstraints
     resources: SupportResources
     resource_evaluation: ResourceEvaluation
     viability: MissionPlanViability

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.modules.catalog.domain import TerrainRepository
 from app.modules.missions.api.schemas import (
+    ContingencyRequestSchema,
     MissionEventsResponseSchema,
     MissionPlanRequestSchema,
     MissionPlanResponseSchema,
@@ -389,6 +390,128 @@ def get_mission_events(mission_id: str, missions: MissionDep) -> MissionEventsRe
 
 
 @missions_router.post(
+    "/missions/{mission_id}/contingencies",
+    response_model=MissionPlanResponseSchema,
+)
+def evaluate_contingency(
+    mission_id: str,
+    payload: ContingencyRequestSchema,
+    terrain: TerrainDep,
+    objectives: ObjectiveDep,
+    missions: MissionDep,
+) -> MissionPlanResponseSchema:
+    stored = _current_mission(missions, mission_id, payload.mission_version)
+    if stored.lifecycle_status is not MissionLifecycleStatus.ACTIVE:
+        raise HTTPException(status_code=409, detail="Solo una misión activa admite contingencias.")
+    if payload.contingency_type == "rover_unavailable":
+        raise HTTPException(
+            status_code=400,
+            detail="rover_unavailable no está modelado; no se simulará un efecto inventado.",
+        )
+    if payload.position.frame_id != stored.frame_id:
+        raise HTTPException(
+            status_code=400,
+            detail="La posición de la contingencia usa un frame_id distinto al de la misión.",
+        )
+
+    current_resources = stored.snapshot["resources"]
+    if payload.oxygen_available_min >= current_resources["oxygen_available_min"]:
+        raise HTTPException(
+            status_code=400,
+            detail="oxygen_reduced debe disminuir el soporte disponible actual.",
+        )
+    constraints_data = stored.snapshot.get("routing_constraints")
+    if constraints_data is None:
+        raise HTTPException(
+            status_code=409,
+            detail="La misión no conserva sus restricciones de ruta; debe replanificarse.",
+        )
+
+    reports = tuple(_hazard_from_data(item) for item in stored.snapshot.get("hazard_reports", []))
+    request = MissionPlanningRequest(
+        region_id=stored.region_id,
+        base_position=_local_position(payload.position),
+        return_position=_local_position_data(stored.snapshot["return_position"]),
+        objective_ids=(),
+        constraints=_routing_constraints_from_data(constraints_data),
+        resources=SupportResources(
+            payload.oxygen_available_min,
+            current_resources["return_reserve_min"],
+        ),
+    )
+    try:
+        plan = MissionPlanner(terrain, objectives, reports).plan(request)
+        draft = mission_create_from_plan(plan)
+    except (ValueError, FrameMismatchError, InvalidRouteEndpointError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return_leg = draft.snapshot["legs"][0]
+    result_status = draft.viability_status.value
+    decision_entry = {
+        "event_type": "contingency_evaluated",
+        "message": (
+            "Reducción de soporte evaluada con retorno directo a la base. "
+            f"Viabilidad del modelo: {result_status}."
+        ),
+        "evidence_ids": list(draft.snapshot["evidence_ids"]),
+        "simulated": True,
+    }
+    assumptions = list(
+        dict.fromkeys(
+            [
+                *return_leg["assumptions"],
+                *draft.snapshot["resource_evaluation"]["assumptions"],
+            ]
+        )
+    )
+    event_payload = {
+        "contingency_type": payload.contingency_type,
+        "position": _position_schema_data(payload.position),
+        "oxygen_available_min": payload.oxygen_available_min,
+        "return_reserve_min": current_resources["return_reserve_min"],
+        "return_status": result_status,
+        "return_route_id": return_leg["route_id"],
+        "return_route_status": return_leg["status"],
+        "return_route_metrics": return_leg["metrics"],
+        "resource_evaluation": draft.snapshot["resource_evaluation"],
+        "hazard_report_ids": [
+            item["report_id"] for item in stored.snapshot.get("hazard_reports", [])
+        ],
+        "assumptions": assumptions,
+    }
+    snapshot = {
+        **draft.snapshot,
+        "start_position": stored.snapshot["start_position"],
+        "current_position": _position_schema_data(payload.position),
+        "objective_ids": stored.snapshot["objective_ids"],
+        "completed_objective_ids": stored.snapshot.get("completed_objective_ids", []),
+        "next_objective_id": None,
+        "legs": [{**return_leg, "start_label": "current_position"}],
+        "hazard_reports": stored.snapshot.get("hazard_reports", []),
+        "alerts": list(dict.fromkeys(["OXYGEN_REDUCED", *draft.snapshot["alerts"]])),
+        "decision_log": [*stored.snapshot["decision_log"], decision_entry],
+        "evidence_ids": list(
+            dict.fromkeys(
+                [*stored.snapshot["evidence_ids"], *draft.snapshot["evidence_ids"]]
+            )
+        ),
+    }
+    updated = _update_mission(
+        missions,
+        mission_id,
+        MissionUpdate(
+            expected_version=payload.mission_version,
+            lifecycle_status=stored.lifecycle_status,
+            viability_status=draft.viability_status,
+            snapshot=snapshot,
+            routes=draft.routes,
+            events=(MissionEventDraft(str(uuid4()), "contingency_evaluated", event_payload),),
+        ),
+    )
+    return _mission_response(updated)
+
+
+@missions_router.post(
     "/missions/{mission_id}/observations",
     response_model=MissionPlanResponseSchema,
 )
@@ -609,4 +732,12 @@ def _hazard_from_data(data: dict) -> EnvironmentalHazardReport:
         effect=HazardEffect(data["effect"]),
         affected_radius_m=data["affected_radius_m"],
         cost_multiplier=data["cost_multiplier"],
+    )
+
+
+def _routing_constraints_from_data(data: dict) -> RoutePlanningConstraints:
+    return RoutePlanningConstraints(
+        max_slope_deg=data["max_slope_deg"],
+        speed_m_per_min=data["speed_m_per_min"],
+        avoid_unknown=data["avoid_unknown"],
     )
