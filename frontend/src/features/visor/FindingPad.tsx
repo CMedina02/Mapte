@@ -39,7 +39,7 @@ export default function FindingPad({ mission, objective, onMission, onQueue, onD
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm">¿Qué observas en {objective.title}?</p>
-        <button type="button" onClick={onBack} disabled={busy} className="btn min-h-9 border border-orange-500 px-3 py-1 text-orange-300">
+        <button type="button" onClick={onBack} disabled={busy} className="btn min-h-9 border border-primary-500 px-3 py-1 text-primary-300">
           Volver
         </button>
       </div>
@@ -50,13 +50,13 @@ export default function FindingPad({ mission, objective, onMission, onQueue, onD
             type="button"
             disabled={busy}
             onClick={() => send(code)}
-            className="btn min-h-14 break-all border border-orange-500 bg-orange-950 text-base text-orange-200 sm:text-lg"
+            className="btn min-h-14 break-all border border-primary-500 bg-primary-950 text-base text-primary-200 sm:text-lg"
           >
             {code}
           </button>
         ))}
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-alert-400">{error}</p>}
     </div>
   );
 }

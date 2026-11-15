@@ -197,3 +197,37 @@ export const PHOTOS: Photo[] = OBJECTIVES.map((o) => ({
   location_quality: 'unknown',
   limitations: ['Simulación: falta elegir una imagen real con ubicación verificada.'],
 }));
+
+// ---------- Heightmap del sector (lo que entregará el backend como .f32) ----------
+
+// 256 × 256 celdas sobre el sector de 2 km (≈ 7.8 m por píxel). Fila 0 = norte, columna 0 = oeste;
+// cada valor es la elevación en el centro de la celda.
+export const HEIGHTMAP_SIZE = 256;
+export const HEIGHTMAP_URL = '/assets/mock-mc23/height.f32';
+
+export function sectorHeightmap() {
+  const n = HEIGHTMAP_SIZE;
+  const px = (SECTOR.max_x - SECTOR.min_x) / n;
+  const py = (SECTOR.max_y - SECTOR.min_y) / n;
+  const data = new Float32Array(n * n);
+  let min = Infinity, max = -Infinity;
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const z = elevationAt(SECTOR.min_x + (col + 0.5) * px, SECTOR.max_y - (row + 0.5) * py);
+      data[row * n + col] = z;
+      if (z < min) min = z;
+      if (z > max) max = z;
+    }
+  }
+  return {
+    data,
+    width: n,
+    height: n,
+    min,
+    max,
+    originCenterX: SECTOR.min_x + px / 2, // centro de la celda noroeste
+    originCenterY: SECTOR.max_y - py / 2,
+    pixelX: px,
+    pixelY: py,
+  };
+}

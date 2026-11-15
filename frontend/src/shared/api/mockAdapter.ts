@@ -1,11 +1,11 @@
 import type {
   Constraints, ContingencyRequest, Health, Mission, MissionPackage, MissionPlanRequest, ObservationRequest,
-  Position, RegionManifest, RouteRequest,
+  Position, RegionManifest, RouteRequest, Terrain,
 } from '../types/contracts';
 import { MarsApiError } from './errors';
 import {
-  BOUNDS, CLAY_SULFATE_CONTACT_Z, ELEVATION_RANGE, EVIDENCE, FRAME, HAZARDS, LAYERS, OBJECTIVES, PHOTOS,
-  REGIONS, REGION_ID, elevationAt,
+  BOUNDS, CLAY_SULFATE_CONTACT_Z, ELEVATION_RANGE, EVIDENCE, FRAME, FRAME_ID, HAZARDS, HEIGHTMAP_URL, LAYERS,
+  OBJECTIVES, PHOTOS, REGIONS, REGION_ID, elevationAt, sectorHeightmap,
 } from './mocks/monteSharp';
 import { simulateRoute } from './mocks/simulateRoute';
 
@@ -52,6 +52,37 @@ function spectralColor(x: number, y: number): Rgba {
   return dz < 0 ? [60, 140, 210, 170] : [235, 200, 60, 170];
 }
 
+// Bloque terrain del contrato para el .f32 del sector (generado con scripts/gen-mock-terrain.ts)
+function terrain(): Terrain {
+  const hm = sectorHeightmap();
+  return {
+    heightmap_url: HEIGHTMAP_URL,
+    width_px: hm.width,
+    height_px: hm.height,
+    elevation_min_m: hm.min,
+    elevation_max_m: hm.max,
+    texture_layer_id: 'topography',
+    evidence_ids: ['ev-hirise-dem'],
+    frame_id: FRAME_ID,
+    terrain_version: 'mock-1',
+    vertical_datum: 'MOCK (terreno sintético)',
+    units: 'm',
+    format: 'f32',
+    dtype: 'float32_little_endian',
+    header_bytes: 0,
+    memory_order: 'row_major',
+    nodata_policy: 'f32_nan',
+    texture_aligned: false, // la textura cubre toda la zona, no solo el sector
+    grid: {
+      origin_center_x_m: hm.originCenterX,
+      origin_center_y_m: hm.originCenterY,
+      pixel_size_x_m: hm.pixelX,
+      pixel_size_y_m: hm.pixelY,
+      row_order: 'north_to_south',
+    },
+  };
+}
+
 let manifestCache: RegionManifest | null = null;
 function manifest(): RegionManifest {
   manifestCache ??= {
@@ -61,6 +92,7 @@ function manifest(): RegionManifest {
     layers: LAYERS.map((l) => ({ ...l, asset_url: renderLayer(l.kind === 'spectral' ? spectralColor : topoColor) })),
     evidence: EVIDENCE,
     hazards: HAZARDS,
+    terrain: terrain(),
     sample_only: true,
   };
   return structuredClone(manifestCache);
@@ -238,7 +270,7 @@ export const mockApi = {
       region_manifest: manifest(),
       objectives: structuredClone(OBJECTIVES),
       photos: structuredClone(PHOTOS),
-      offline_assets: [],
+      offline_assets: [HEIGHTMAP_URL],
       package_status: 'mock_assets_embedded',
       generated_at: new Date().toISOString(),
       sample_only: true,

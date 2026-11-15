@@ -24,19 +24,19 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
   ];
 
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-2 sm:p-4">
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-space-950/70 p-2 sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="rc-title"
-        className="max-h-full w-full max-w-lg space-y-4 overflow-y-auto rounded-lg border border-orange-500 bg-neutral-950/95 p-4 sm:p-6"
+        className="max-h-full w-full max-w-lg space-y-4 overflow-y-auto rounded-lg border border-primary-500 bg-space-950/95 p-4 sm:p-6"
       >
         <div className="text-center">
           <h2 id="rc-title" className="text-xl font-bold uppercase tracking-widest">
             Verificación de recursos
           </h2>
           <p className="text-sm">
-            Destino: <span className="text-sky-300">{targetTitle}</span>
+            Destino: <span className="text-primary-300">{targetTitle}</span>
           </p>
         </div>
 
@@ -45,7 +45,7 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
           {rows.map(([k, v]) => (
             <div key={k} className="flex justify-between gap-2">
-              <dt className="text-orange-500">{k}</dt>
+              <dt className="text-primary-500">{k}</dt>
               <dd>{v}</dd>
             </div>
           ))}
@@ -57,7 +57,7 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
           </p>
         ))}
         {blocked && (
-          <p className="text-sm font-bold text-red-400">Ruta no viable: no se puede confirmar. Contacta al panel de control.</p>
+          <p className="text-sm font-bold text-alert-400">Ruta no viable: no se puede confirmar. Contacta al panel de control.</p>
         )}
         {r.status === 'unknown' && (
           <p className="text-sm text-amber-300">Datos insuficientes: la ruta no está confirmada como segura.</p>
@@ -72,12 +72,12 @@ export default function ResourceCheck({ mission, targetTitle, onConfirm, onCance
           >
             Confirmar destino
           </button>
-          <button type="button" onClick={onCancel} className="btn min-h-14 border border-orange-500 text-orange-300">
+          <button type="button" onClick={onCancel} className="btn min-h-14 border border-primary-500 text-primary-300">
             Cancelar
           </button>
         </div>
 
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-space-400">
           Valores del modelo del backend{mission.sample_only ? ' · datos de muestra' : ''}.
         </p>
       </div>
