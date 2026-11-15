@@ -12,7 +12,14 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 const BASE_URL = '/api/v1';
 const enc = encodeURIComponent;
 
+function assertOnline() {
+  if (!navigator.onLine) {
+    throw new MarsApiError(0, 'OFFLINE', 'Sin conexión: operando con el paquete local.');
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  assertOnline();
   let res: Response;
   try {
     res = await fetch(BASE_URL + path, {
@@ -38,6 +45,7 @@ const post = <T>(path: string, body: unknown) =>
   request<T>(path, { method: 'POST', body: JSON.stringify(body) });
 
 async function mocked<T>(fn: () => T): Promise<T> {
+  assertOnline();
   await new Promise((r) => setTimeout(r, 250));
   return fn();
 }
@@ -65,11 +73,10 @@ export const marsApi = {
         ).then((r) => r.photos),
 
   computeRoute: (req: RouteRequest): Promise<RouteResult> =>
-    USE_MOCK ? mocked(mockApi.route) : post('/routes/compute', req),
+    USE_MOCK ? mocked(() => mockApi.route(req)) : post('/routes/compute', req),
 
   planMission: (req: MissionPlanRequest): Promise<Mission> =>
-    USE_MOCK ? mocked(mockApi.plan) : post('/missions/plan', req),
-
+    USE_MOCK ? mocked(() => mockApi.plan(req)) : post('/missions/plan', req),
   getMission: (missionId: string): Promise<Mission> =>
     USE_MOCK ? mocked(mockApi.mission) : request(`/missions/${enc(missionId)}`),
 

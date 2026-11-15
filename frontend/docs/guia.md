@@ -18,12 +18,13 @@ El frontend actúa como una **terminal táctica de visualización, planificació
 
 ## 2. Stack Tecnológico y Librerías
 
-* **Framework Principal:** **React 18** con **TypeScript** (manteniendo nomenclatura `snake_case` en los modelos de datos para coincidir exactamente con los esquemas Pydantic del backend).
+* **Framework Principal:** **React 19** con **TypeScript** (manteniendo nomenclatura `snake_case` en los modelos de datos para coincidir exactamente con los esquemas Pydantic del backend).
 * **Entorno de Construcción:** **Vite**, configurado con proxy hacia `/api` en desarrollo para comunicarse con FastAPI sin problemas de CORS.
 * **Motor Cartográfico:** **OpenLayers (`ol`)**, elegido por su soporte nativo para proyecciones cartesianas personalizadas en metros e imágenes raster estáticas georreferenciadas localmente.
 * **Estilos e Interfaz:** **Tailwind CSS** para el diseño responsivo (escritorio y tableta) con estética táctica de alto contraste, acompañado de **Lucide React** para iconografía técnica.
-* **Gestión de Estado Global:** **Zustand**, para administrar de forma centralizada la misión activa, su versión, el modo de vista (Mission Control vs. Explorer) y el estado de red.
-* **Almacenamiento Offline y PWA:** **Vite PWA Plugin** junto con **localForage (IndexedDB)** para descargar, persistir y consultar el paquete de misión en tableta sin conexión a internet.
+* **Gestión de Estado Global:** **React Context**, para administrar de forma centralizada la misión activa, su versión, el modo de vista (Mission Control vs. Explorer) y el estado de red.
+* **Almacenamiento Offline y PWA:** **Vite PWA Plugin** junto con **localForage (localstorage)** para descargar, persistir y consultar el paquete de misión en tableta sin conexión a internet.
+* **Vista 3D (FE-09):** **Three.js** con `@react-three/fiber` y `@react-three/drei` para el terreno inclinado del visor (Explorer/HUD). Trabaja en las mismas coordenadas cartesianas en metros que OpenLayers.
 
 ---
 

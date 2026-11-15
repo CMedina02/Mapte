@@ -15,6 +15,7 @@ frontend/
     │   ├── explorer/            # [FE-05, FE-06, FE-08] Tableta táctil, fotos POV, observaciones, contingencias y HUD
     │   │   ├── components/
     │   │   └── hooks/
+    │   ├── terrain-3d/          # [FE-09] Vista 3D inclinada (Three.js) con terreno, ruta y HUD encima
     │   └── offline-sync/        # [FE-07] Descarga de package, IndexedDB/localStorage y cola pendiente
     │       ├── components/
     │       └── services/storage.ts

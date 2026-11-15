@@ -1,2 +1,178 @@
-@import "tailwindcss"
+@import "tailwindcss";
 
+/* ---------- Paleta inspirada en NASA ----------
+   primary = azul NASA (#0B3D91 en 700): acciones, selección, líneas del HUD.
+   alert   = rojo NASA (#FC3D21 en 500): peligro, bloqueos, alertas críticas.
+   space   = azul espacio: fondos, superficies, bordes y texto secundario.
+   Verde (viable) y ámbar (precaución) se mantienen por su significado universal. */
+@theme {
+  --color-primary-50: #eef3fc;
+  --color-primary-100: #d9e4f8;
+  --color-primary-200: #b3c8f0;
+  --color-primary-300: #82a5e5;
+  --color-primary-400: #5182d8;
+  --color-primary-500: #2c63c4;
+  --color-primary-600: #1a4fa8;
+  --color-primary-700: #0b3d91;
+  --color-primary-800: #0a3275;
+  --color-primary-900: #08275b;
+  --color-primary-950: #051a3d;
+
+  --color-alert-50: #fff2f0;
+  --color-alert-100: #ffe0db;
+  --color-alert-200: #ffc0b6;
+  --color-alert-300: #ff9583;
+  --color-alert-400: #ff6650;
+  --color-alert-500: #fc3d21;
+  --color-alert-600: #e02a10;
+  --color-alert-700: #b9200b;
+  --color-alert-800: #961d0f;
+  --color-alert-900: #7a1d12;
+  --color-alert-950: #430b05;
+
+  --color-space-50: #f3f6fb;
+  --color-space-100: #e3e9f4;
+  --color-space-200: #c5d0e6;
+  --color-space-300: #9aabcb;
+  --color-space-400: #6f84ab;
+  --color-space-500: #50648c;
+  --color-space-600: #3b4d72;
+  --color-space-700: #2a3a5c;
+  --color-space-800: #1b2744;
+  --color-space-900: #111a33;
+  --color-space-950: #070d1f;
+}
+
+/* ---------- Base ---------- */
+
+:root {
+  color-scheme: dark; /* scrollbars y controles nativos en oscuro */
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply font-sans text-space-100 antialiased;
+  font-variant-numeric: tabular-nums; /* cifras alineadas en métricas */
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, var(--color-primary-950), var(--color-space-950) 60%) fixed;
+}
+
+/* Foco visible para teclado (no para clic/toque) */
+:focus-visible {
+  outline: 2px solid var(--color-primary-300);
+  outline-offset: 2px;
+}
+button,
+select,
+input,
+textarea,
+summary {
+  touch-action: manipulation; /* sin retardo de doble toque en tabletas */
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-space-700) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ---------- Componentes ---------- */
+
+/* Utilidades propias (se pueden combinar con variantes de Tailwind: sm:, hover:, etc.) */
+
+/* Título pequeño de sección */
+@utility eyebrow {
+  @apply text-[11px] font-semibold tracking-[0.18em] text-primary-300 uppercase;
+}
+
+@utility card {
+  @apply space-y-3 rounded-xl border border-space-800 bg-space-900/70 p-3 shadow-lg shadow-black/20 sm:p-4;
+}
+
+@utility field {
+  @apply w-full rounded-md border border-space-700 bg-space-950/70 px-3 py-2 text-sm text-space-50 placeholder:text-space-400 focus:border-primary-400;
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+}
+@utility btn-primary {
+  @apply btn bg-primary-600 text-white enabled:hover:bg-primary-500;
+}
+@utility btn-danger {
+  @apply btn bg-alert-600 text-white enabled:hover:bg-alert-500;
+}
+@utility btn-go {
+  @apply btn bg-white text-primary-800 enabled:hover:bg-primary-100;
+}
+@utility btn-ghost {
+  @apply btn border border-space-700 bg-space-900/70 text-space-100 enabled:hover:border-primary-400;
+}
+
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-bold whitespace-nowrap;
+}
+
+/* Marco HUD del visor: borde naranja con esquinas marcadas */
+@utility hud {
+  @apply relative rounded-md border border-primary-400/35 bg-space-950/85;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    z-index: 10;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    border-color: var(--color-alert-500);
+  }
+  &::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid;
+    border-left: 2px solid;
+  }
+  &::after {
+    right: -1px;
+    bottom: -1px;
+    border-right: 2px solid;
+    border-bottom: 2px solid;
+  }
+}
+
+/* ---------- OpenLayers en tema oscuro ---------- */
+
+.ol-control button {
+  @apply bg-space-900/90 text-primary-200;
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: 1.25rem;
+}
+.ol-control button:hover,
+.ol-control button:focus {
+  @apply bg-space-800 text-white;
+}
+.ol-mouse-position {
+  @apply rounded bg-space-950/80 px-2 py-1 font-mono text-xs text-space-200;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+/* Checkboxes y sliders con el color de acento */
+input[type='checkbox'],
+input[type='range'] {
+  accent-color: var(--color-primary-400);
+}
+
+/* Sin cursor sobre el mapa no se muestra el recuadro de coordenadas */
+.ol-mouse-position:empty {
+  display: none;
+}

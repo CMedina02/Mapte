@@ -1,6 +1,7 @@
 export interface Position {
   x_m: number;
   y_m: number;
+  z_m?: number | null;
   frame_id: string;
 }
 
@@ -74,6 +75,18 @@ export interface Layer {
   nodata_policy: 'unknown';
 }
 
+// PROPUESTA (pendiente de contrato): zonas de riesgo del sector.
+// exclusion = la ruta no puede cruzarla; caution = se cruza con alerta.
+export interface Hazard {
+  hazard_id: string;
+  kind: 'exclusion' | 'caution';
+  risk_factor: string;
+  description: string;
+  mitigation: string;
+  polygon: Position[];
+  evidence_ids: string[];
+}
+
 export interface RegionManifest {
   region_id: string;
   frame: Frame;
@@ -81,6 +94,37 @@ export interface RegionManifest {
   layers: Layer[];
   evidence: Evidence[];
   sample_only?: boolean;
+  terrain?: Terrain;
+  hazards?: Hazard[]; // PROPUESTA: pendiente de acordar con backend (hoy solo la usa el mock)
+}
+
+export interface TerrainGrid {
+  origin_center_x_m: number;
+  origin_center_y_m: number;
+  pixel_size_x_m: number;
+  pixel_size_y_m: number;
+  row_order: 'north_to_south';
+}
+
+export interface Terrain {
+  heightmap_url: string; 
+  width_px: number;
+  height_px: number;
+  elevation_min_m: number;
+  elevation_max_m: number;
+  texture_layer_id: string;
+  evidence_ids: string[];
+  frame_id: string;
+  terrain_version: string;
+  vertical_datum: string;
+  units: 'm';
+  format: 'f32';
+  dtype: 'float32_little_endian';
+  header_bytes: 0;
+  memory_order: 'row_major';
+  nodata_policy: 'f32_nan';
+  texture_aligned: boolean;
+  grid: TerrainGrid;
 }
 
 export interface Objective {

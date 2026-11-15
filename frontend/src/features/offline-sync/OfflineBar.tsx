@@ -1,0 +1,81 @@
+import { useState, type Dispatch, type SetStateAction } from 'react';
+import { marsApi } from '../../shared/api/client';
+import type { Mission } from '../../shared/types/contracts';
+import { loadPackage, savePackage, sendQueue, useOnline, type PendingObservation } from './offline';
+
+interface Props {
+  mission: Mission | null;
+  onMission: (m: Mission) => void;
+  queue: PendingObservation[];
+  setQueue: Dispatch<SetStateAction<PendingObservation[]>>;
+}
+
+const badge = 'chip';
+const action = 'btn-ghost min-h-9 px-3 py-1 text-xs';
+
+export default function OfflineBar({ mission, onMission, queue, setQueue }: Props) {
+  const online = useOnline();
+  const [pkgMissionId, setPkgMissionId] = useState(() => loadPackage()?.mission.mission_id ?? null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const hasPkg = !!mission && pkgMissionId === mission.mission_id;
+
+  async function transfer() {
+    if (!mission) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const pkg = await marsApi.getMissionPackage(mission.mission_id);
+      savePackage(pkg);
+      await Promise.allSettled(pkg.offline_assets.map((url) => fetch(url)));
+      setPkgMissionId(pkg.mission.mission_id);
+      onMission(pkg.mission);
+      setMsg('Paquete transferido ✓');
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sync() {
+    if (!mission) return;
+    setBusy(true);
+    setMsg(await sendQueue(mission, queue, onMission, setQueue));
+    setBusy(false);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {msg && (
+        <span role="status" className="text-xs text-space-300">
+          {msg}
+        </span>
+      )}
+
+      {online ? (
+        <span className={`${badge} bg-green-900 text-green-300`}>● Online</span>
+      ) : (
+        <span className={`${badge} ${hasPkg ? 'bg-amber-900 text-amber-300' : 'bg-alert-950 text-alert-300'}`}>
+          ● Offline {hasPkg ? '(Paquete Local)' : '(sin paquete)'}
+        </span>
+      )}
+
+      {queue.length > 0 && (
+        <span className={`${badge} bg-primary-900 text-primary-300`}>● Cambios pendientes ({queue.length})</span>
+      )}
+
+      {online && queue.length > 0 && (
+        <button type="button" className={action} onClick={sync} disabled={busy}>
+          Sincronizar
+        </button>
+      )}
+
+      {online && mission && (
+        <button type="button" className={action} onClick={transfer} disabled={busy}>
+          {hasPkg ? 'Actualizar paquete' : 'Transferir paquete'}
+        </button>
+      )}
+    </div>
+  );
+}

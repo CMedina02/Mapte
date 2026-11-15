@@ -1,24 +1,65 @@
 import { useEffect, useState } from 'react';
-import { marsApi } from './shared/api/client';
-import type { Region } from './shared/types/contracts';
+import type { Mission } from './shared/types/contracts';
+import MissionControl from './features/mission-control/MissionControl';
+import Explorer from './features/explorer/Explorer';
+import OfflineBar from './features/offline-sync/OfflineBar';
+import { loadPackage, updatePackageMission, usePendingQueue } from './features/offline-sync/offline';
+
+type View = 'control' | 'explorer';
 
 export default function App() {
-  const [regions, setRegions] = useState<Region[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  // Si hay paquete local, la misión arranca desde ahí (permite abrir la app sin red)
+  const [mission, setMission] = useState<Mission | null>(() => loadPackage()?.mission ?? null);
+  const [view, setView] = useState<View>(() => (navigator.onLine ? 'control' : 'explorer'));
+  const [queue, setQueue] = usePendingQueue();
 
   useEffect(() => {
-    marsApi.getRegions().then(setRegions).catch((e) => setError(String(e)));
-  }, []);
+    if (mission) updatePackageMission(mission);
+  }, [mission]);
+
+  // Pestaña activa: subrayado rojo NASA, como la navegación de un sitio de misión
+  const tab = (v: View, label: string, disabled = false) => (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-current={view === v ? 'page' : undefined}
+      onClick={() => setView(v)}
+      className={`min-h-11 border-b-2 px-3 text-sm font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        view === v ? 'border-alert-500 text-white' : 'border-transparent text-space-300 enabled:hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
-    <main className="p-6 font-mono">
-      <h1 className="text-xl">Mars EVA — smoke test FE-01</h1>
-      {error && <p className="text-red-500">{error}</p>}
-      <ul>
-        {regions.map((r) => (
-          <li key={r.region_id}>{r.name}</li>
-        ))}
-      </ul>
-    </main>
+    <div className="flex h-dvh flex-col border-t-4 border-alert-500">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-space-800 bg-space-950/80 px-3 backdrop-blur sm:px-4">
+        <div className="py-2 leading-tight">
+          <p className="text-sm font-bold tracking-[0.2em] text-white uppercase">Mars EVA</p>
+          <p className="text-[11px] text-primary-300">Planificación de caminatas</p>
+        </div>
+        <nav className="flex gap-1 self-stretch" aria-label="Vistas">
+          {tab('control', 'Mission Control')}
+          {tab('explorer', 'Explorer', !mission)}
+        </nav>
+        {mission && (
+          <span className="hidden text-xs text-space-300 xl:inline">
+            {mission.mission_id} · v{mission.version} · {mission.status}
+          </span>
+        )}
+        <div className="ml-auto py-2">
+          <OfflineBar mission={mission} onMission={setMission} queue={queue} setQueue={setQueue} />
+        </div>
+      </header>
+      {/* Hasta lg la vista hace scroll completa; desde lg cada panel gestiona su scroll */}
+      <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
+        {view === 'explorer' && mission ? (
+          <Explorer mission={mission} onMission={setMission} onQueue={(o) => setQueue((q) => [...q, o])} />
+        ) : (
+          <MissionControl mission={mission} onMission={setMission} />
+        )}
+      </div>
+    </div>
   );
 }

@@ -1,0 +1,33 @@
+import Projection from 'ol/proj/Projection';
+import type { Extent } from 'ol/extent';
+import type { Layer, RegionManifest } from '../../shared/types/contracts';
+
+export interface LayerState {
+  visible: boolean;
+  opacity: number;
+}
+
+export function manifestExtent({ bounds_local_m: b }: RegionManifest): Extent {
+  return [b.min_x, b.min_y, b.max_x, b.max_y];
+}
+
+// Proyección cartesiana local en metros
+export function marsProjection(manifest: RegionManifest) {
+  return new Projection({
+    code: manifest.frame.frame_id,
+    units: 'm',
+    extent: manifestExtent(manifest),
+  });
+}
+
+// ponytail: solo imágenes estáticas (archivo o data URL); .tif (GeoTIFF) y .json (vector) cuando el backend los entregue
+export const isImageLayer = (l: Layer) => /^data:image\/|\.(png|jpe?g|webp)$/i.test(l.asset_url);
+
+// Al inicio solo se ve la capa base (óptica o topográfica); las demás se encienden a mano
+export const initialLayerState = (layers: Layer[]): Record<string, LayerState> =>
+  Object.fromEntries(
+    layers.map((l) => [
+      l.layer_id,
+      { visible: isImageLayer(l) && (l.kind === 'optical' || l.kind === 'topographic'), opacity: l.opacity_default },
+    ]),
+  );
