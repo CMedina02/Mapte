@@ -838,11 +838,15 @@ components:
       - objectives
       - photos
       - offline_assets
+      - missing_assets
       - package_status
+      - sync
       - generated_at
       properties:
         package_version:
           type: string
+          enum:
+          - '1.0'
         mission:
           $ref: '#/components/schemas/Mission'
         region_manifest:
@@ -859,13 +863,41 @@ components:
           type: array
           items:
             type: string
+        missing_assets:
+          type: array
+          items:
+            type: string
         package_status:
           type: string
+          enum:
+          - ready_to_sync
+          - incomplete
+        sync:
+          $ref: '#/components/schemas/PackageSync'
         generated_at:
           type: string
           format: date-time
         sample_only:
           type: boolean
+    PackageSync:
+      type: object
+      required:
+      - mission_version
+      - requires_network
+      - remote_asset_count
+      - missing_asset_count
+      properties:
+        mission_version:
+          type: integer
+          minimum: 1
+        requires_network:
+          type: boolean
+        remote_asset_count:
+          type: integer
+          minimum: 0
+        missing_asset_count:
+          type: integer
+          minimum: 0
     ApiError:
       type: object
       required:

@@ -89,6 +89,10 @@ def get_region_manifest(region_id: str, store: StoreDep) -> RegionManifestRespon
 
 @catalog_router.get("/regions/{region_id}/objectives", response_model=ObjectivesResponse)
 def get_objectives(region_id: str, store: StoreDep) -> ObjectivesResponse:
+    return build_objectives_response(region_id, store)
+
+
+def build_objectives_response(region_id: str, store: CatalogStore) -> ObjectivesResponse:
     region = _require_region(store, region_id)
     catalog = _science_catalog(region)
     if catalog is None:
@@ -114,6 +118,12 @@ def get_objectives(region_id: str, store: StoreDep) -> ObjectivesResponse:
 
 @catalog_router.get("/regions/{region_id}/photos", response_model=PhotosResponse)
 def get_photos(region_id: str, store: StoreDep, objective_id: str | None = None) -> PhotosResponse:
+    return build_photos_response(region_id, store, objective_id)
+
+
+def build_photos_response(
+    region_id: str, store: CatalogStore, objective_id: str | None = None
+) -> PhotosResponse:
     region = _require_region(store, region_id)
     catalog = _science_catalog(region)
     if catalog is None:

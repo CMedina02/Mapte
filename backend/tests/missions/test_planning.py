@@ -11,11 +11,13 @@ from app.modules.catalog.domain import (
     build_synthetic_terrain,
 )
 from app.modules.catalog.infrastructure.science_loader import load_science_catalog
+from app.modules.catalog.infrastructure.terrain_loader import load_catalog
 from app.modules.missions.api.router import (
     change_mission_status,
     evaluate_contingency,
     get_mission,
     get_mission_events,
+    get_mission_package,
     plan_mission,
     report_hazard_and_replan,
     submit_observation,
@@ -49,6 +51,7 @@ from app.modules.missions.planning.persistence import mission_create_from_plan
 from app.modules.missions.resources import SupportResources
 from app.modules.missions.routing import RoutePlanningConstraints
 from app.modules.missions.terrain import GridCell, LocalPosition
+from tests.catalog._region_fixture import write_region
 
 REGION_ID = "mc23-gale-mount-sharp"
 FRAME_ID = "MARS_GALE_MS_LOCAL_V1"
@@ -584,6 +587,101 @@ def test_contingency_rejects_unmodeled_or_invalid_scenarios_without_new_version(
         )
     assert missing_constraints.value.status_code == 409
     assert repository.get(created.mission_id).current_version == 3
+
+
+def test_mission_package_is_self_contained_and_reports_sync_assets(
+    tmp_path, monkeypatch
+) -> None:
+    write_region(tmp_path)
+    catalog_store = load_catalog(tmp_path, [REGION_ID])
+    science = load_science_catalog(REGION_ID)
+    assert science is not None
+    monkeypatch.setattr(
+        "app.modules.catalog.api.router._science_catalog",
+        lambda _region: science,
+    )
+    repository = SQLiteMissionRepository(tmp_path / "package.sqlite3")
+    draft = mission_create_from_plan(planner().plan(request()))
+    selected_id = science.objectives[0].objective_id
+    stored = repository.create(
+        replace(
+            draft,
+            snapshot={
+                **draft.snapshot,
+                "objective_ids": [selected_id],
+                "completed_objective_ids": [],
+                "next_objective_id": selected_id,
+            },
+        )
+    )
+
+    package = get_mission_package(stored.mission_id, catalog_store, repository)
+
+    assert package.package_version == "1.0"
+    assert package.mission.mission_version == stored.current_version
+    assert [item.objective_id for item in package.objectives] == [selected_id]
+    assert package.photos
+    assert {item.objective_id for item in package.photos} == {selected_id}
+    assert package.region_manifest.evidence
+    assert package.package_status == "ready_to_sync"
+    assert package.missing_assets == []
+    assert package.sync.mission_version == stored.current_version
+    assert package.sync.requires_network is True
+    assert package.sync.remote_asset_count == len(package.photos)
+    assert package.region_manifest.terrain.heightmap_url in package.offline_assets
+    assert all(item.image_url in package.offline_assets for item in package.photos)
+    assert package.generated_at.tzinfo is not None
+
+    science_objectives = objective_repository_from_catalogs((science,))
+    started = change_mission_status(
+        stored.mission_id,
+        MissionStatusRequestSchema(expected_version=1, action="start"),
+        terrain_repository(),
+        science_objectives,
+        repository,
+    )
+    finding_code = science.objectives[0].possible_findings[0]
+    observed = submit_observation(
+        stored.mission_id,
+        ObservationRequestSchema(
+            mission_version=started.mission_version,
+            objective_id=selected_id,
+            finding_code=finding_code,
+        ),
+        science_objectives,
+        repository,
+    )
+    returned = evaluate_contingency(
+        stored.mission_id,
+        ContingencyRequestSchema(
+            mission_version=observed.mission_version,
+            contingency_type="oxygen_reduced",
+            position={"x_m": 25, "y_m": 25, "frame_id": FRAME_ID},
+            oxygen_available_min=100,
+        ),
+        terrain_repository(),
+        science_objectives,
+        repository,
+    )
+    updated_package = get_mission_package(stored.mission_id, catalog_store, repository)
+    assert updated_package.mission.mission_version == returned.mission_version
+    assert updated_package.sync.mission_version == returned.mission_version
+    assert updated_package.mission.completed_objective_ids == [selected_id]
+    assert updated_package.mission.next_objective_id is None
+    assert updated_package.mission.legs[-1]["end_label"] == "base"
+
+    texture_path = catalog_store.get(REGION_ID).asset_files()["imagery.png"]
+    texture_path.unlink()
+    incomplete = get_mission_package(stored.mission_id, catalog_store, repository)
+    assert incomplete.package_status == "incomplete"
+    assert incomplete.sync.missing_asset_count == 1
+    assert incomplete.region_manifest.terrain.texture_url in incomplete.missing_assets
+    assert incomplete.region_manifest.terrain.texture_url not in incomplete.offline_assets
+
+    inconsistent = repository.create(mission_create_from_plan(planner().plan(request())))
+    with pytest.raises(HTTPException) as missing_objective:
+        get_mission_package(inconsistent.mission_id, catalog_store, repository)
+    assert missing_objective.value.status_code == 503
 
 
 def test_observation_rules_cover_every_real_catalog_finding() -> None:

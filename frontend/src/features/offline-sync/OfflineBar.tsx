@@ -33,12 +33,27 @@ export default function OfflineBar({ mission, onMission, queue, setQueue }: Prop
     let alive = true;
     marsApi
       .getMissionPackage(missionId)
-      .then((pkg) => {
+      .then(async (pkg) => {
         if (!alive) return;
+        if (pkg.package_status === 'incomplete') {
+          setMsg(`Visor sin actualizar: faltan ${pkg.missing_assets.length} archivos del paquete.`);
+          return;
+        }
+        const downloads = await Promise.allSettled(
+          pkg.offline_assets.map(async (url) => {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`${response.status} ${url}`);
+          }),
+        );
+        if (!alive) return;
+        const failed = downloads.filter((item) => item.status === 'rejected').length;
+        if (failed > 0) {
+          setMsg(`Visor sin actualizar: falló la descarga de ${failed} recursos.`);
+          return;
+        }
         savePackage(pkg);
         setSynced({ id: pkg.mission.mission_id, version: pkg.mission.version });
         setMsg(null);
-        void Promise.allSettled(pkg.offline_assets.map((url) => fetch(url))); // precarga para uso sin red
       })
       .catch((e: unknown) => alive && setMsg(`Visor sin actualizar: ${e instanceof Error ? e.message : String(e)}`));
     return () => {

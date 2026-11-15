@@ -217,7 +217,14 @@
     "/assets/demo-jezero/imagery.png",
     "/assets/demo-jezero/photo-placeholder.jpg"
   ],
-  "package_status": "placeholder_assets_not_included",
+  "missing_assets": [],
+  "package_status": "ready_to_sync",
+  "sync": {
+    "mission_version": 1,
+    "requires_network": false,
+    "remote_asset_count": 0,
+    "missing_asset_count": 0
+  },
   "generated_at": "2026-11-14T00:00:00Z",
   "sample_only": true
 }

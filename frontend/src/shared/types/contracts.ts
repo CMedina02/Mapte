@@ -244,13 +244,20 @@ export interface ContingencyRequest {
 }
 
 export interface MissionPackage {
-  package_version: string;
+  package_version: '1.0';
   mission: Mission;
   region_manifest: RegionManifest;
   objectives: Objective[];
   photos: Photo[];
   offline_assets: string[];
-  package_status: string;
+  missing_assets: string[];
+  package_status: 'ready_to_sync' | 'incomplete';
+  sync: {
+    mission_version: number;
+    requires_network: boolean;
+    remote_asset_count: number;
+    missing_asset_count: number;
+  };
   generated_at: string;
   sample_only?: boolean;
 }

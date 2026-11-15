@@ -1,14 +1,25 @@
 """HTTP route-computation endpoint for Backend 2."""
 
+from datetime import UTC, datetime
 from typing import Annotated
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.modules.catalog.api.router import (
+    build_objectives_response,
+    build_photos_response,
+    build_region_manifest,
+    get_catalog_store,
+)
+from app.modules.catalog.api.schemas import RegionManifestResponse
 from app.modules.catalog.domain import TerrainRepository
+from app.modules.catalog.infrastructure.terrain_loader import CatalogStore
 from app.modules.missions.api.schemas import (
     ContingencyRequestSchema,
     MissionEventsResponseSchema,
+    MissionPackageResponseSchema,
     MissionPlanRequestSchema,
     MissionPlanResponseSchema,
     MissionProgressRequestSchema,
@@ -76,6 +87,7 @@ def get_mission_repository(request: Request) -> MissionRepository:
 
 ObjectiveDep = Annotated[ObjectiveRepository, Depends(get_objective_repository)]
 MissionDep = Annotated[MissionRepository, Depends(get_mission_repository)]
+CatalogDep = Annotated[CatalogStore, Depends(get_catalog_store)]
 
 
 @missions_router.post("/routes/compute", response_model=RouteResultSchema)
@@ -170,6 +182,76 @@ def get_mission(mission_id: str, missions: MissionDep) -> MissionPlanResponseSch
     if stored is None:
         raise HTTPException(status_code=404, detail=f"Misión no encontrada: {mission_id!r}.")
     return _mission_response(stored)
+
+
+@missions_router.get(
+    "/missions/{mission_id}/package",
+    response_model=MissionPackageResponseSchema,
+)
+def get_mission_package(
+    mission_id: str,
+    catalog: CatalogDep,
+    missions: MissionDep,
+) -> MissionPackageResponseSchema:
+    stored = missions.get(mission_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail=f"Misión no encontrada: {mission_id!r}.")
+    region = catalog.get(stored.region_id)
+    if region is None:
+        raise HTTPException(status_code=503, detail="La región de la misión no está cargada.")
+
+    manifest = build_region_manifest(region)
+    available_objectives = {
+        item.objective_id: item
+        for item in build_objectives_response(stored.region_id, catalog).objectives
+    }
+    missing_objective_ids = [
+        item for item in stored.snapshot["objective_ids"] if item not in available_objectives
+    ]
+    if missing_objective_ids:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Faltan objetivos del paquete: {missing_objective_ids}.",
+        )
+    objectives = [available_objectives[item] for item in stored.snapshot["objective_ids"]]
+    objective_ids = set(stored.snapshot["objective_ids"])
+    photos = [
+        item
+        for item in build_photos_response(stored.region_id, catalog).photos
+        if item.objective_id in objective_ids
+    ]
+
+    declared_local_assets = _manifest_asset_urls(manifest)
+    published_files = region.asset_files()
+    available_local_assets: list[str] = []
+    missing_assets: list[str] = []
+    for url in declared_local_assets:
+        filename = urlparse(url).path.rsplit("/", 1)[-1]
+        path = published_files.get(filename)
+        if path is not None and path.is_file():
+            available_local_assets.append(url)
+        else:
+            missing_assets.append(url)
+    remote_assets = [item.image_url for item in photos]
+    offline_assets = list(dict.fromkeys([*available_local_assets, *remote_assets]))
+    package_status = "incomplete" if missing_assets else "ready_to_sync"
+    return MissionPackageResponseSchema(
+        mission=_mission_response(stored),
+        region_manifest=manifest,
+        objectives=objectives,
+        photos=photos,
+        offline_assets=offline_assets,
+        missing_assets=missing_assets,
+        package_status=package_status,
+        sync={
+            "mission_version": stored.current_version,
+            "requires_network": bool(remote_assets),
+            "remote_asset_count": len(set(remote_assets)),
+            "missing_asset_count": len(missing_assets),
+        },
+        generated_at=datetime.now(UTC),
+        sample_only=manifest.sample_only,
+    )
 
 
 @missions_router.post(
@@ -741,3 +823,14 @@ def _routing_constraints_from_data(data: dict) -> RoutePlanningConstraints:
         speed_m_per_min=data["speed_m_per_min"],
         avoid_unknown=data["avoid_unknown"],
     )
+
+
+def _manifest_asset_urls(manifest: RegionManifestResponse) -> list[str]:
+    terrain = manifest.terrain
+    urls = [
+        terrain.heightmap_url,
+        terrain.texture_url,
+        terrain.blocked_mask_url,
+        *(layer.asset_url for layer in manifest.layers),
+    ]
+    return list(dict.fromkeys(url for url in urls if url is not None))

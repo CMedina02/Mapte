@@ -298,7 +298,14 @@ export const mockApi = {
       objectives: structuredClone(OBJECTIVES),
       photos: structuredClone(PHOTOS),
       offline_assets: [RT.heightmap_url, RT.texture_url, RT.normal_map_url],
-      package_status: 'mock_assets_embedded',
+      missing_assets: [],
+      package_status: 'ready_to_sync',
+      sync: {
+        mission_version: mission.version,
+        requires_network: false,
+        remote_asset_count: 0,
+        missing_asset_count: 0,
+      },
       generated_at: new Date().toISOString(),
       sample_only: true,
     };

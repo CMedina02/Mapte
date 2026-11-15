@@ -1,10 +1,16 @@
 """HTTP schemas for route computation."""
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.modules.catalog.api.schemas import PositionSchema
+from app.modules.catalog.api.schemas import (
+    ObjectiveSchema,
+    PhotoSchema,
+    PositionSchema,
+    RegionManifestResponse,
+)
 
 
 class RouteConstraintsSchema(BaseModel):
@@ -162,3 +168,28 @@ class ContingencyRequestSchema(BaseModel):
     contingency_type: Literal["oxygen_reduced", "rover_unavailable"]
     position: PositionSchema
     oxygen_available_min: float = Field(ge=0)
+
+
+class MissionPackageSyncSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mission_version: int = Field(ge=1)
+    requires_network: bool
+    remote_asset_count: int = Field(ge=0)
+    missing_asset_count: int = Field(ge=0)
+
+
+class MissionPackageResponseSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    package_version: Literal["1.0"] = "1.0"
+    mission: MissionPlanResponseSchema
+    region_manifest: RegionManifestResponse
+    objectives: list[ObjectiveSchema]
+    photos: list[PhotoSchema]
+    offline_assets: list[str]
+    missing_assets: list[str]
+    package_status: Literal["ready_to_sync", "incomplete"]
+    sync: MissionPackageSyncSchema
+    generated_at: datetime
+    sample_only: bool = False
