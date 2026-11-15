@@ -8,6 +8,7 @@
   ],
   "heightmap_url": "/assets/mc23-real/height_20m.f32",
   "texture_url": "/assets/mc23-real/ortho_2048.jpg",
+  "normal_map_url": "/assets/mc23-real/normal_2048.jpg",
   "width_px": 500,
   "height_px": 500,
   "elevation_min_m": -4485.30419921875,
@@ -20,7 +21,7 @@
     "pixel_size_y_m": 20.0
   },
   "sector": {
-    "sector_id": "gale-mount-sharp-aoi-10km",
+    "sector_id": "mc23-gale-mount-sharp-aoi-10km",
     "extent_m": {
       "x_min_m": 0.0,
       "x_max_m": 10000.0,
@@ -35,6 +36,9 @@
       "evidence_id": "ev-usgs-msl-gale-dem-1m-v3",
       "title": "MSL Gale Merged DEM Mosaic 1 m v3",
       "provider": "USGS Astrogeology Science Center",
+      "mission": "MRO",
+      "instrument": "HiRISE (DEM estéreo)",
+      "credit": "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center",
       "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_DEM_Mosaic_1m_v3.tif",
       "local_raw_sha256": "c481ae885b4827af68fbdb428e9fac8a824d6828aebfba492577ba39bf55e42e",
       "local_raw_size_bytes": 3868256546,
@@ -45,6 +49,9 @@
       "evidence_id": "ev-usgs-msl-gale-ortho-25cm-v3",
       "title": "MSL Gale Merged Orthophoto Mosaic 25 cm v3",
       "provider": "USGS Astrogeology Science Center",
+      "mission": "MRO",
+      "instrument": "HiRISE",
+      "credit": "NASA/JPL/University of Arizona (HiRISE); mosaico USGS Astrogeology Science Center",
       "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_Orthophoto_Mosaic_25cm_v3.tif",
       "resolution_m": 0.25,
       "note": "Solo se leyó el recorte del AOI vía HTTP Range (no el archivo completo)."

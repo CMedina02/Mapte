@@ -86,10 +86,22 @@ function TerrainMesh({ manifest, terrain, heights, frame }: { manifest: RegionMa
     return tex;
   }, [textureUrl, invalidate]);
 
+  // Relieve fino (DEM a 4 m) como normal map: usa las UV originales del heightmap (canal 1)
+  const normalUrl = terrain.normal_map_url;
+  const normalMap = useMemo(() => {
+    if (!normalUrl) return null;
+    const tex = new THREE.TextureLoader().load(normalUrl, () => invalidate());
+    tex.channel = 1;
+    tex.anisotropy = 4;
+    return tex;
+  }, [normalUrl, invalidate]);
+  useEffect(() => () => { texture?.dispose(); normalMap?.dispose(); }, [texture, normalMap]);
+
   const { geometry, hasNoData } = useMemo(() => {
     const geo = new THREE.PlaneGeometry(frame.spanX, frame.spanY, frame.w - 1, frame.h - 1);
     const pos = geo.attributes.position;
     const uv = geo.attributes.uv;
+    geo.setAttribute('uv1', uv.clone()); // UV del heightmap, antes de recortar la textura
     const colors = new Float32Array(pos.count * 3).fill(1);
     const b = manifest.bounds_local_m;
     let noData = false;
@@ -123,6 +135,8 @@ function TerrainMesh({ manifest, terrain, heights, frame }: { manifest: RegionMa
     <mesh geometry={geometry} receiveShadow>
       <meshStandardMaterial
         map={texture}
+        normalMap={normalMap}
+        normalScale={[frame.exag, frame.exag]}
         color={texture ? MARS_TINT : '#b5653a'} // la ortofoto es en gris: se tiñe en tono marciano (color aproximado)
         vertexColors={hasNoData}
         roughness={1}

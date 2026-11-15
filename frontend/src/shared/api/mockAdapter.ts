@@ -100,6 +100,7 @@ function terrain(): Terrain {
     memory_order: 'row_major',
     nodata_policy: 'f32_nan',
     texture_aligned: true, // ortofoto y DEM cubren la misma zona de 10 km
+    normal_map_url: RT.normal_map_url,
     grid: { ...RT.grid, row_order: 'north_to_south' },
   };
 }
@@ -296,7 +297,7 @@ export const mockApi = {
       region_manifest: manifest(),
       objectives: structuredClone(OBJECTIVES),
       photos: structuredClone(PHOTOS),
-      offline_assets: [RT.heightmap_url, RT.texture_url],
+      offline_assets: [RT.heightmap_url, RT.texture_url, RT.normal_map_url],
       package_status: 'mock_assets_embedded',
       generated_at: new Date().toISOString(),
       sample_only: true,

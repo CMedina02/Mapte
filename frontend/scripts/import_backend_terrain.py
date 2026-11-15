@@ -4,6 +4,7 @@ El backend publica el DEM a 4 m (2500 x 2500, 25 MB) y la ortofoto a 2 m (5000 x
 demasiado para una tableta. Este script produce:
   - height_20m.f32: promedio 5 x 5 -> 500 x 500 (1 MB), Float32 LE, filas norte -> sur, NaN = sin dato
   - ortho_2048.jpg: ortofoto en gris reducida a 2048 px
+  - normal_2048.jpg: normal map de detalle (relieve a 4 m que la malla de 20 m no tiene)
   - src/shared/api/mocks/realTerrain.json: metadatos del bloque terrain para el mock
 
 Uso (desde frontend/, con numpy y Pillow):
@@ -60,6 +61,18 @@ y0 = tm['grid']['origin_center_y_m'] + tm['grid']['pixel_size_y_m'] / 2 - py / 2
 ortho = Image.open(src / 'ortho_2m.png').convert('L')
 ortho.resize((TEXTURE_PX, TEXTURE_PX), Image.Resampling.BOX).save(OUT_DIR / 'ortho_2048.jpg', quality=82)
 
+# --- Normal map de detalle: DEM 4 m menos la malla de 20 m interpolada (lo que la malla ya dibuja) ---
+# Así la luz muestra crestas y rocas finas sin duplicar las pendientes grandes que ya tiene la geometría.
+mesh = np.asarray(Image.fromarray(np.nan_to_num(small, nan=float(np.nanmean(small)))).resize((w, h), Image.Resampling.BILINEAR))
+detail = np.nan_to_num(z - mesh)  # sin dato -> plano
+g = tm['grid']['pixel_size_x_m']
+d_east = np.gradient(detail, g, axis=1)
+d_north = -np.gradient(detail, g, axis=0)  # las filas van de norte a sur
+n = np.stack([-d_east, -d_north, np.ones_like(detail)], axis=-1)
+n /= np.linalg.norm(n, axis=-1, keepdims=True)
+rgb = ((n * 0.5 + 0.5) * 255).round().astype(np.uint8)  # espacio tangente: R=este, G=norte, B=arriba
+Image.fromarray(rgb, 'RGB').resize((TEXTURE_PX, TEXTURE_PX), Image.Resampling.BOX).save(OUT_DIR / 'normal_2048.jpg', quality=90)
+
 out = {
     'source_terrain_version': tm['terrain_version'],
     'frame_id': tm['frame_id'],
@@ -67,6 +80,7 @@ out = {
     'evidence_ids': tm['evidence_ids'],
     'heightmap_url': '/assets/mc23-real/height_20m.f32',
     'texture_url': '/assets/mc23-real/ortho_2048.jpg',
+    'normal_map_url': '/assets/mc23-real/normal_2048.jpg',
     'width_px': int(small.shape[1]),
     'height_px': int(small.shape[0]),
     'elevation_min_m': float(np.nanmin(small)),
@@ -79,4 +93,4 @@ out = {
 }
 META_OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print(f"{small.shape[1]}x{small.shape[0]} @ {px} m, z {out['elevation_min_m']:.1f}..{out['elevation_max_m']:.1f} m, "
-      f"NaN {out['nodata_cells']}; textura {TEXTURE_PX}px")
+      f"NaN {out['nodata_cells']}; textura y normal map {TEXTURE_PX}px")
